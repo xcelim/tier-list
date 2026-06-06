@@ -924,24 +924,40 @@ function MNewTL(){
 
     if (userSession) {
       try {
-        // 1. Crear carpeta virtual subiendo un archivo .keep
-        const { error: storageErr } = await sbClient.storage
-          .from('tierlists')
-          .upload(`${fl}/.keep`, new Blob(['']), { upsert: true });
-        
-        if (storageErr) console.warn("Aviso Storage:", storageErr.message);
+        toast('Creando tierlist en la nube...', 'info');
 
-        // 2. Registrar Tierlist en DB
+        // 1. Registrar Tierlist en DB PRIMERO (es el padre de characters)
         const { error: dbErr } = await sbClient.from('tierlists')
           .insert({ id, title: newTL.title, folder: fl, tiers_config: newTL.tiers, created_by: userSession.user.id });
         
-        if (dbErr) toast("Error DB: " + dbErr.message, "err");
-        else toast("Tierlist sincronizada en la nube");
-      } catch(e) { console.error(e); }
+        if (dbErr) {
+          console.error("Error DB tierlists:", dbErr);
+          toast("Error BD: " + dbErr.message, "err");
+          // Continuamos igual, se guarda local
+        } else {
+          // 2. Crear carpeta virtual en Storage subiendo un archivo .keep
+          const keepPath = `${fl}/.keep`;
+          const { error: storageErr } = await sbClient.storage
+            .from('tierlists')
+            .upload(keepPath, new Blob([''], { type: 'text/plain' }), { upsert: true });
+          
+          if (storageErr) {
+            console.warn("Aviso Storage .keep:", storageErr.message, storageErr);
+            // No es crítico, la carpeta se crea igualmente al subir la primera imagen
+          } else {
+            toast('Tierlist "' + newTL.title + '" creada en la nube ✓');
+          }
+        }
+      } catch(e) {
+        console.error("Error creando tierlist:", e);
+        toast("Error inesperado: " + (e.message||e), "err");
+      }
+    } else {
+      toast('Sin sesión: tierlist guardada solo localmente', 'info');
     }
 
     p.tls.push(newTL);
-    saveProfiles();S.modal=null;openEditor(id);render();toast('Tierlist creada \u2713');
+    saveProfiles();S.modal=null;openEditor(id);render();toast('Tierlist creada ✓');
   }},'Crear'));
   m.appendChild(row);setTimeout(()=>inp.focus(),40);return m;
 }
@@ -1093,26 +1109,71 @@ function MAddChar(){
 
     if(userSession) {
       try {
-        toast("Subiendo imagen a la nube...", "info");
-        // Convertir base64 a blob para la subida
+        toast("Subiendo imagen...", "info");
+        
+        // Paso 1: Asegurarse de que la tierlist existe en la BD (puede que no esté si falló antes)
+        const { data: tlCheck } = await sbClient.from('tierlists').select('id').eq('id', tl.id).maybeSingle();
+        if (!tlCheck) {
+          // Crear el registro de la tierlist si no existe
+          const { error: tlInsErr } = await sbClient.from('tierlists').insert({
+            id: tl.id, title: tl.title, folder: tl.folder,
+            tiers_config: tl.tiers || [], created_by: userSession.user.id
+          });
+          if (tlInsErr) console.warn("No se pudo crear tierlist en BD:", tlInsErr.message);
+        }
+
+        // Paso 2: Convertir base64 a blob
         const blob = await (await fetch(imgData)).blob();
-        const fileExt = fileName.split('.').pop() || 'png';
+        
+        // Paso 3: Determinar extensión y path correcto
+        const rawExt = fileName.split('.').pop().toLowerCase();
+        const validExts = ['png','jpg','jpeg','gif','webp'];
+        const fileExt = validExts.includes(rawExt) ? rawExt : 'png';
         const filePath = `${tl.folder}/${cid}.${fileExt}`;
         
-        const { error: uploadErr } = await sbClient.storage.from('tierlists').upload(filePath, blob);
-        if(uploadErr) throw uploadErr;
+        console.log("Subiendo a storage path:", filePath, "en bucket: tierlists");
+        
+        // Paso 4: Subir imagen al bucket
+        const { data: uploadData, error: uploadErr } = await sbClient.storage
+          .from('tierlists')
+          .upload(filePath, blob, { contentType: blob.type || 'image/png', upsert: false });
+        
+        if(uploadErr) {
+          console.error("Storage upload error:", uploadErr);
+          throw new Error("Storage: " + uploadErr.message);
+        }
+        
+        console.log("Upload OK:", uploadData);
 
-        const { data: { publicUrl } } = sbClient.storage.from('tierlists').getPublicUrl(filePath);
-        cloudUrl = publicUrl;
+        // Paso 5: Obtener URL pública
+        const { data: urlData } = sbClient.storage.from('tierlists').getPublicUrl(filePath);
+        cloudUrl = urlData.publicUrl;
+        console.log("URL pública:", cloudUrl);
 
-        // Registrar en la tabla de personajes para que sea global
-        await sbClient.from('characters').insert({
-          id: cid, tierlist_id: tl.id, name: charName.trim(), anime: animeName.trim()||'Custom', image_url: cloudUrl, created_by: userSession.user.id
+        // Paso 6: Registrar personaje en la tabla characters
+        const { error: charErr } = await sbClient.from('characters').insert({
+          id: cid,
+          tierlist_id: tl.id,
+          name: charName.trim(),
+          anime: animeName.trim() || 'Custom',
+          image_url: cloudUrl,
+          created_by: userSession.user.id
         });
+        
+        if(charErr) {
+          console.error("Error insertando personaje:", charErr);
+          toast("Imagen subida pero error en BD: " + charErr.message, "err");
+        } else {
+          toast(charName + " subido a la nube ✓");
+        }
+
       } catch(e) {
-        console.error("Error en Storage:", e);
-        toast("Error en nube, se guardar\xe1 solo local", "err");
+        console.error("Error completo:", e);
+        toast("Error: " + (e.message || JSON.stringify(e)), "err");
+        // cloudUrl queda null → se guarda imageData local
       }
+    } else {
+      toast('Sin sesión: personaje guardado solo localmente', 'info');
     }
 
     const cc={id:cid,name:charName.trim(),anime:animeName.trim()||'Custom',fileName,imageData:cloudUrl?null:imgData,file:cloudUrl,isCustom:true};
@@ -1308,6 +1369,29 @@ async function completeProfileSetup(username, color) {
 }
 
 // === INICIALIZACIÓN SUPABASE ===
+// ============================================================
+// SUPABASE CONFIG
+// IMPORTANTE: en Supabase Dashboard añade estas policies al bucket 'tierlists':
+//   Storage > tierlists > New Policy > For full customization:
+//   INSERT: (auth.role() = 'authenticated')
+//   SELECT: true  (ya lo tienes si el bucket es público)
+//   UPDATE: (auth.role() = 'authenticated')
+//   DELETE: (auth.uid() = owner)
+//
+// Y ejecuta en SQL Editor:
+//   CREATE TABLE IF NOT EXISTS profiles (
+//     id UUID PRIMARY KEY REFERENCES auth.users(id),
+//     name TEXT NOT NULL,
+//     color TEXT DEFAULT '#7c5cbf',
+//     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+//   );
+//   ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+//   CREATE POLICY "Ver perfiles" ON profiles FOR SELECT USING (true);
+//   CREATE POLICY "Crear perfil" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+//   CREATE POLICY "Editar perfil" ON profiles FOR UPDATE USING (auth.uid() = id);
+//   CREATE POLICY "Editar tierlists propias" ON tierlists FOR UPDATE USING (auth.uid() = created_by);
+//   CREATE POLICY "Eliminar tierlists propias" ON tierlists FOR DELETE USING (auth.uid() = created_by);
+// ============================================================
 const SB_URL = 'https://texqcwfxzoeghyrcqwob.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRleHFjd2Z4em9lZ2h5cmNxd29iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTQzMjEsImV4cCI6MjA5NjMzMDMyMX0.4zt5T9bY96o5yzLpVtl724tlghSrKE2CxBBnlVVlR9Q';
 BUCKET_BASE = SB_URL + '/storage/v1/object/public/tierlists/';
@@ -1347,6 +1431,45 @@ function initSupabase() {
     }
   });
 }
+
+// Función de diagnóstico - llámala desde la consola: debugStorage()
+window.debugStorage = async function() {
+  if (!sbClient || !userSession) { console.log("Sin cliente o sesión"); return; }
+  console.log("=== DEBUG STORAGE ===");
+  console.log("Usuario:", userSession.user.email, userSession.user.id);
+  
+  // Test: listar archivos en el bucket
+  const { data: files, error: listErr } = await sbClient.storage.from('tierlists').list('', { limit: 5 });
+  console.log("Archivos en bucket tierlists:", files, listErr);
+  
+  // Test: subir archivo de prueba
+  const testBlob = new Blob(['test'], { type: 'text/plain' });
+  const { data: upData, error: upErr } = await sbClient.storage.from('tierlists').upload('_test_write.txt', testBlob, { upsert: true });
+  console.log("Test upload:", upData, upErr);
+  if (!upErr) {
+    await sbClient.storage.from('tierlists').remove(['_test_write.txt']);
+    console.log("✓ Storage: tienes permiso de escritura");
+  } else {
+    console.error("✗ Storage sin permiso de escritura:", upErr.message);
+    console.log("→ Ve a Supabase > Storage > tierlists > Policies y añade:", "INSERT para authenticated users");
+  }
+  
+  // Test: insertar en tabla tierlists
+  const testId = 'test_' + Date.now();
+  const { error: dbErr } = await sbClient.from('tierlists').insert({ id: testId, title: '_test', folder: '_test', tiers_config: [], created_by: userSession.user.id });
+  if (dbErr) {
+    console.error("✗ DB tierlists sin permiso INSERT:", dbErr.message);
+  } else {
+    await sbClient.from('tierlists').delete().eq('id', testId);
+    console.log("✓ DB tierlists: tienes permiso INSERT");
+  }
+  
+  // Test: insertar en tabla characters
+  const { error: charErr } = await sbClient.from('characters').insert({ id: 'test_c_'+Date.now(), tierlist_id: testId, name: '_test', created_by: userSession.user.id });
+  console.log("DB characters INSERT:", charErr ? "✗ " + charErr.message : "✓ OK");
+  
+  console.log("=== FIN DEBUG ===");
+};
 
 initSupabase();
 // Render inicial
