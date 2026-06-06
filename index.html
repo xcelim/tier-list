@@ -459,7 +459,7 @@ function charImg(id,tl){
   if(c.imageData)return c.imageData;
   if(c.file){
     if(c.file.startsWith('data:') || c.file.startsWith('http'))return c.file;
-    // Si es la tier de waifus base o no hay carpeta definida, usamos la ruta por defecto
+    // Si es un personaje del catálogo base (waifus), buscamos en su carpeta
     const folder = (tl && tl.folder && tl.id !== 'waifus_v1') ? tl.folder : 'waifus';
     return BUCKET_BASE + folder + '/' + c.file;
   }
@@ -867,7 +867,7 @@ function MNewTL(){
   g3.appendChild(sel);m.appendChild(g3);
   const row=h('div',{style:{display:'flex',gap:'8px',marginTop:'14px'}});
   row.appendChild(h('button',{class:'btn bg',style:{flex:'1'},onclick:()=>{S.modal=null;render();}},'Cancelar'));
-  row.appendChild(h('button',{class:'btn bp',style:{flex:'1'},onclick:()=>{
+    row.appendChild(h('button',{class:'btn bp',style:{flex:'1'},onclick:async ()=>{
     if(!title.trim()){toast('Escribe un t\xedtulo','err');return;}
     const p=activeProfile(); if(!p) return;
     const id=uid();const fl=folder||sanFolder(title);
@@ -881,14 +881,21 @@ function MNewTL(){
     };
 
     if (userSession) {
-      sbClient.from('tierlists').insert({
-        id, title: newTL.title, folder: fl,
-        tiers_config: newTL.tiers,
-        created_by: userSession.user.id
-      }).then(({error}) => {
-        if(error) toast("Error subiendo plantilla", "err");
-        else toast("Plantilla compartida en la nube");
-      });
+      try {
+        // 1. Crear carpeta virtual subiendo un archivo .keep
+        const { error: storageErr } = await sbClient.storage
+          .from('tierlists')
+          .upload(`${fl}/.keep`, new Blob(['']), { upsert: true });
+        
+        if (storageErr) console.warn("Aviso Storage:", storageErr.message);
+
+        // 2. Registrar Tierlist en DB
+        const { error: dbErr } = await sbClient.from('tierlists')
+          .insert({ id, title: newTL.title, folder: fl, tiers_config: newTL.tiers, created_by: userSession.user.id });
+        
+        if (dbErr) toast("Error DB: " + dbErr.message, "err");
+        else toast("Tierlist sincronizada en la nube");
+      } catch(e) { console.error(e); }
     }
 
     p.tls.push(newTL);
@@ -1242,8 +1249,7 @@ async function handleAuthSession(session) {
 // === INICIALIZACIÓN SUPABASE ===
 const SB_URL = 'https://texqcwfxzoeghyrcqwob.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRleHFjd2Z4em9lZ2h5cmNxd29iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTQzMjEsImV4cCI6MjA5NjMzMDMyMX0.4zt5T9bY96o5yzLpVtl724tlghSrKE2CxBBnlVVlR9Q';
-const BUCKET_URL = 'https://texqcwfxzoeghyrcqwob.supabase.co/storage/v1/object/public/tierlists/waifus/';
-let sbClient = null;
+BUCKET_BASE = SB_URL + '/storage/v1/object/public/tierlists/';
 
 async function handleGoogleLogin() {
   if(!sbClient) return toast("Conectando con el servidor...", "info");
