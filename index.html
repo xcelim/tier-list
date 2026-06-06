@@ -365,20 +365,49 @@ async function fetchGlobalTemplates() {
 async function syncFromSupabase() {
   if (!userSession || !S.cid) return;
   
+  // Catálogo dinámico para esta tierlist
+  AC = {};
+  const sharedIds = new Set();
+
+  // 1. Cargar TODOS los personajes compartidos de esta tierlist desde la base de datos
   const { data: remoteChars } = await sbClient.from('characters').select('*').eq('tierlist_id', S.cid);
   if (remoteChars) {
     remoteChars.forEach(c => {
       AC[c.id] = { id: c.id, name: c.name, anime: c.anime, file: c.image_url, isRemote: true };
+      sharedIds.add(c.id);
     });
   }
 
-  const { data: myRank } = await sbClient.from('user_rankings').select('*').eq('tierlist_id', S.cid).single();
-  if (myRank && S.workingTL) {
-    myRank.tiers_data.forEach(rd => {
-      const t = S.workingTL.tiers.find(x => x.id === rd.id);
-      if (t) t.chars = rd.chars;
+  // 2. Si es la tierlist de Waifus original, incluimos los 2000+ personajes base
+  if (S.cid === 'waifus_v1') {
+    Object.entries(AC_BASE).forEach(([id, c]) => {
+      if (!AC[id]) AC[id] = c;
+      sharedIds.add(id);
     });
-    S.workingTL.pool = myRank.pool_data;
+  }
+
+  // 3. Cargar el ranking personal del usuario (donde ha puesto cada uno)
+  const { data: myRank } = await sbClient.from('user_rankings').select('*').eq('user_id', userSession.user.id).eq('tierlist_id', S.cid).maybeSingle();
+  
+  if (S.workingTL) {
+    const placedIds = new Set();
+    if (myRank) {
+      myRank.tiers_data.forEach(rd => {
+        const t = S.workingTL.tiers.find(x => x.id === rd.id);
+        if (t) {
+          t.chars = rd.chars;
+          rd.chars.forEach(id => placedIds.add(id));
+        }
+      });
+    }
+
+    // 4. EL POOL COMPARTIDO DINÁMICO:
+    // La pool son todos los personajes conocidos (sharedIds) que el usuario NO ha puesto en un tier (placedIds)
+    S.workingTL.pool = Array.from(sharedIds).filter(id => !placedIds.has(id));
+    
+    // Ordenamos para que los últimos añadidos por la comunidad salgan primero
+    S.workingTL.pool.reverse(); 
+
     render();
   }
 }
@@ -391,6 +420,7 @@ function openEditor(tlid){
   S.workingTL=JSON.parse(JSON.stringify(tl)); // deep copy
   S.hasUnsaved=false;
   S.page='editor';S.q='';S.poolPage=0;
+  syncFromSupabase();
 }
 function saveEditorChanges(){
   if(!S.workingTL||!S.cid)return;
@@ -429,8 +459,9 @@ function charImg(id,tl){
   if(c.imageData)return c.imageData;
   if(c.file){
     if(c.file.startsWith('data:') || c.file.startsWith('http'))return c.file;
-    if(c.isCustom&&tl)return './'+tl.folder+'/'+c.file;
-    return './resources/waifus/'+c.file;
+    // Si es la tier de waifus base o no hay carpeta definida, usamos la ruta por defecto
+    const folder = (tl && tl.folder && tl.id !== 'waifus_v1') ? tl.folder : 'waifus';
+    return BUCKET_BASE + folder + '/' + c.file;
   }
   return '';
 }
@@ -1165,10 +1196,53 @@ function render(){
 // === GLOBALS SUPABASE ===
 let userSession = null;
 let currentUserProfile = null;
+let isFetchingProfile = false;
+
+async function handleAuthSession(session) {
+  userSession = session;
+  if (isFetchingProfile || (currentUserProfile && currentUserProfile.id === session.user.id)) {
+    render();
+    return;
+  }
+
+  isFetchingProfile = true;
+  try {
+    let { data: profile } = await sbClient.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+
+    if (!profile) {
+      const username = prompt("¡Bienvenido! Elige tu nombre de usuario para tu cuenta:");
+      profile = { id: session.user.id, name: username || 'User', color: '#7c5cbf' };
+      await sbClient.from('profiles').insert(profile);
+    }
+
+    currentUserProfile = profile;
+    S.activeProfile = session.user.id;
+
+    if (!S.profiles) S.profiles = [];
+    let localP = S.profiles.find(x => x.id === S.activeProfile);
+    
+    if (!localP) {
+      const oldProfiles = JSON.parse(localStorage.getItem('at4_profiles') || localStorage.getItem('at3_profiles') || '[]');
+      const oldY = oldProfiles.find(x => x.name === 'Y' || x.id === 'profile_Y');
+      localP = { ...profile, tls: oldY ? oldY.tls : [] };
+      S.profiles.push(localP);
+      if(oldY) toast("¡Tierlist de Waifus migrada con éxito!", "info");
+    }
+
+    S.profiles = S.profiles.filter(x => x.id === S.activeProfile);
+    saveProfiles();
+    fetchGlobalTemplates();
+    if (S.cid) syncFromSupabase();
+  } finally {
+    isFetchingProfile = false;
+    render();
+  }
+}
 
 // === INICIALIZACIÓN SUPABASE ===
 const SB_URL = 'https://texqcwfxzoeghyrcqwob.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRleHFjd2Z4em9lZ2h5cmNxd29iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTQzMjEsImV4cCI6MjA5NjMzMDMyMX0.4zt5T9bY96o5yzLpVtl724tlghSrKE2CxBBnlVVlR9Q';
+const BUCKET_URL = 'https://texqcwfxzoeghyrcqwob.supabase.co/storage/v1/object/public/tierlists/waifus/';
 let sbClient = null;
 
 async function handleGoogleLogin() {
@@ -1191,38 +1265,19 @@ function initSupabase() {
   if (!window.supabase) return setTimeout(initSupabase, 100);
   sbClient = window.supabase.createClient(SB_URL, SB_KEY);
 
+  sbClient.auth.getSession().then(({ data: { session } }) => {
+    if (session) handleAuthSession(session);
+    else render();
+  });
+
   sbClient.auth.onAuthStateChange(async (ev, session) => {
-    userSession = session;
-    if (session) {
-      let { data: profile } = await sbClient.from('profiles').select('*').eq('id', session.user.id).single();
-      if (!profile) {
-        const username = prompt("¡Bienvenido! Elige tu nombre de usuario:");
-        profile = { id: session.user.id, name: username || 'User', color: '#7c5cbf' };
-        await sbClient.from('profiles').insert(profile);
-      }
-      currentUserProfile = profile;
-      S.activeProfile = session.user.id;
-
-      if (!S.profiles) S.profiles = [];
-      let localP = S.profiles.find(x => x.id === S.activeProfile);
-      
-      if (!localP) {
-        const oldProfiles = JSON.parse(localStorage.getItem('at4_profiles') || localStorage.getItem('at3_profiles') || '[]');
-        const oldY = oldProfiles.find(x => x.name === 'Y' || x.id === 'profile_Y');
-        localP = { ...profile, tls: oldY ? oldY.tls : [] };
-        S.profiles.push(localP);
-        if(oldY) toast("¡Tierlist de Waifus migrada con éxito!", "info");
-      }
-
-      S.profiles = S.profiles.filter(x => x.id === S.activeProfile);
-      saveProfiles();
-      fetchGlobalTemplates();
-      syncFromSupabase();
-    } else {
+    if (session) handleAuthSession(session);
+    else {
+      userSession = null;
       currentUserProfile = null;
       S.activeProfile = null;
+      render();
     }
-    render();
   });
 }
 
