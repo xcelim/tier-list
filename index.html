@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>AnimeTier</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="./favicon.ico" type="image/x-icon">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -548,7 +549,7 @@ let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
 let scrollDir=0, scrollInt=null, lastZone=null;
 
 function updateScroll(){
-  if(scrollDir!==0) window.scrollBy(0, scrollDir*30);
+  if(scrollDir!==0) window.scrollBy(0, scrollDir*50);
 }
 
 function createFloat(imgSrc){
@@ -564,9 +565,10 @@ function removeFloat(){
   scrollDir=0;
 }
 function moveFloat(e){
+  if(!e.clientX || !e.clientY) return;
   if(dragFloatEl){
-    dragFloatEl.style.left=(e.clientX-50)+'px';
-    dragFloatEl.style.top=(e.clientY-90)+'px';
+    dragFloatEl.style.left=(e.clientX-51)+'px';
+    dragFloatEl.style.top=(e.clientY-81)+'px';
     
     const h = window.innerHeight;
     const threshold = 100;
@@ -579,8 +581,15 @@ function moveFloat(e){
   }
 }
 document.addEventListener('dragover',moveFloat);
+document.addEventListener('drag',moveFloat);
 document.addEventListener('drop',()=>removeFloat());
-window.addEventListener('wheel', e=>{ if(DG) window.scrollBy(0, e.deltaY); }, {passive:true});
+window.addEventListener('wheel', e => { 
+  if(DG) {
+    e.preventDefault();
+    window.scrollBy(0, e.deltaY);
+    moveFloat(e);
+  }
+}, {passive:false});
 
 function dgstart(e,id,src,idx,imgSrc){
   DG=id;DS=src;DGidx=idx;
@@ -589,6 +598,10 @@ function dgstart(e,id,src,idx,imgSrc){
   const blank=document.createElement('canvas');blank.width=1;blank.height=1;
   e.dataTransfer.setDragImage(blank,0,0);
   createFloat(imgSrc||'');
+  if(dragFloatEl){
+    dragFloatEl.style.left=(e.clientX-51)+'px';
+    dragFloatEl.style.top=(e.clientY-81)+'px';
+  }
   setTimeout(()=>{
     document.querySelectorAll('.tc,.pc').forEach(el=>{
       if(el.dataset.cid===id)el.classList.add('is-dragging');
@@ -776,14 +789,23 @@ function Editor(){
     ce.ondragover = e => {
       e.preventDefault();
       const cards = Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
+      if(!cards.length) return;
+
       let targetIdx = cards.length;
       for(let i=0; i<cards.length; i++){
-        const r = cards[i].getBoundingClientRect();
-        if(e.clientX < r.left + r.width/2){ targetIdx = i; break; }
+        const el = cards[i];
+        const r = el.getBoundingClientRect();
+        
+        // Calculamos la posición original sin el transform para evitar saltos
+        const style = window.getComputedStyle(el);
+        const matrix = new DOMMatrix(style.transform);
+        const originalLeft = r.left - matrix.m41;
+        
+        if(e.clientX < originalLeft + r.width/2){ targetIdx = i; break; }
       }
       
-      // Anti-flicker: Si es su propia posicion, resetear
-      if(DS === tier.id && (targetIdx === DGidx || targetIdx === DGidx + 1)){
+      // Si el hueco es su propia posición actual, no abrir nada extra
+      if(DS === tier.id && targetIdx === DGidx){
         cards.forEach(c => c.style.transform = '');
         lastZone = null; return;
       }
