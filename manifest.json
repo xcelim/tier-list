@@ -1,0 +1,16 @@
+{
+  "name": "AnimeTier Maker",
+  "short_name": "AnimeTier",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "description": "Crea y comparte tus tierlists de anime de forma universal.",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

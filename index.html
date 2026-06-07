@@ -393,8 +393,17 @@ async function fetchGlobalTemplates() {
 }
 
 async function syncFromSupabase() {
-  if (!userSession || !S.cid) return;
+  if (!userSession || !S.cid || !S.workingTL) return;
   
+  // 0. Sincronización Universal de Estructura: Refrescar niveles, nombres y colores desde la nube
+  const { data: tlMeta } = await sbClient.from('tierlists').select('title, folder, tiers_config').eq('id', S.cid).maybeSingle();
+  if (tlMeta) {
+    S.workingTL.title = tlMeta.title;
+    S.workingTL.folder = tlMeta.folder;
+    // Reconstruimos la lista de niveles para que coincida con la nube, inicializando chars vacíos
+    S.workingTL.tiers = tlMeta.tiers_config.map(tc => ({ ...tc, chars: [] }));
+  }
+
   // Catálogo dinámico para esta tierlist
   AC = {};
   const sharedIds = new Set();
@@ -746,6 +755,10 @@ function Home(){
     ));
     return w;
   }
+
+  // Sincronización automática al entrar a la pantalla principal
+  if (!S._ref) { S._ref = true; fetchGlobalTemplates().finally(() => setTimeout(() => S._ref = false, 5000)); }
+
   const p = activeProfile();
   if(!p) return w;
   const g=h('div',{class:'tlg'});
@@ -1689,6 +1702,10 @@ function initSupabase() {
 
 initSupabase();
 // Render inicial con soporte de routing
+(function initApp(){
+  // Registro de Service Worker para soporte PWA (App Móvil)
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+})();
 (function initRoute(){
   const{page,tlId}=getRouteFromHash();
   if(page==='editor'&&tlId){
