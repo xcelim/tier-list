@@ -1481,12 +1481,16 @@ async function deleteBucketFolder(bucketFolder, tierlistId) {
 
   // 3. Borrar todo en lotes de 100 (límite de Supabase por llamada a remove)
   const allPaths = [...paths];
+  const totalDel = allPaths.length;
+  let doneDel = 0;
   const BATCH = 100;
   for (let i = 0; i < allPaths.length; i += BATCH) {
     const batch = allPaths.slice(i, i + BATCH);
     try {
       await sbClient.storage.from('tierlists').remove(batch);
     } catch(e) { console.warn('Error en lote remove:', e.message); }
+    doneDel += batch.length;
+    if (totalDel > 0) toast(`Borrando archivos... ${doneDel}/${totalDel}`, 'info');
   }
 }
 async function delTL(id){
@@ -1664,14 +1668,20 @@ async function dupTL(id){
         toast(`Copiando imágenes... ${done}/${total}`, 'info');
       }
 
-      toast("Copia finalizada con éxito ✓");
+      // Solo añadir al perfil local cuando todo ha ido bien en la nube
+      p.tls.push(copy);
+      saveProfiles(); render();
+      toast("Tierlist duplicada con éxito ✓");
     } catch (e) {
       console.error(e);
-      toast("Error en la duplicación cloud", "err");
+      toast("Error en la duplicación: " + e.message, "err");
     }
+  } else {
+    // Sin sesión: solo local
+    p.tls.push(copy);
+    saveProfiles(); render();
+    toast("Tierlist duplicada localmente ✓");
   }
-  p.tls.push(copy);
-  saveProfiles(); render();
 }
 
 // ============ ROUTING (hash-based para GitHub Pages) ============
