@@ -6,6 +6,11 @@
 <title>AnimeTier</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="icon" href="./favicon.ico" type="image/x-icon">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0/default.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -333,18 +338,6 @@ function getCurrentTL(){return S.cid?getTLfromProfile(S.cid):null}
 async function saveProfiles() {
   DB.s('profiles', S.profiles);
   DB.s('activeProfile', S.activeProfile);
-
-  // 2. Guardado en Supabase (Ranking Privado)
-  if (userSession && S.cid && S.workingTL) {
-    const tl = S.workingTL;
-    await sbClient.from('user_rankings').upsert({
-      user_id: userSession.user.id,
-      tierlist_id: S.cid,
-      tiers_data: tl.tiers.map(t => ({ id: t.id, chars: t.chars })),
-      pool_data: tl.pool,
-      updated_at: new Date()
-    }, { onConflict: 'user_id, tierlist_id' });
-  }
 }
 
 async function fetchGlobalTemplates() {
@@ -365,8 +358,21 @@ async function fetchGlobalTemplates() {
   const remoteIds = new Set(allTemplates.map(t => t.id));
 
   allTemplates.forEach(t => {
-    if (!p.tls.find(local => local.id === t.id)) {
-      p.tls.push({ ...t, tiers: t.tiers_config, isRemoteTemplate: true });
+    const localIdx = p.tls.findIndex(local => local.id === t.id);
+    const tlData = { 
+      ...t, 
+      tiers: t.tiers_config, 
+      isRemoteTemplate: true,
+      updatedAt: new Date(t.updated_at || t.created_at).getTime()
+    };
+    if (localIdx === -1) {
+      p.tls.push(tlData);
+    } else {
+      // Sincronización universal: actualizamos nombres de niveles y colores desde la nube
+      p.tls[localIdx].title = t.title;
+      p.tls[localIdx].tiers = t.tiers_config;
+      p.tls[localIdx].folder = t.folder;
+      p.tls[localIdx].updatedAt = tlData.updatedAt;
     }
   });
 
@@ -459,20 +465,46 @@ function openEditor(tlid){
   setRoute('editor',tlid);
   syncFromSupabase();
 }
-function saveEditorChanges(){
+async function saveEditorChanges(){
   if(!S.workingTL||!S.cid)return;
   const p=activeProfile();if(!p)return;
   const idx=p.tls.findIndex(t=>t.id===S.cid);
-  if(idx>=0){
-    S.workingTL.updatedAt=Date.now();
-    p.tls[idx]=JSON.parse(JSON.stringify(S.workingTL));
-    saveProfiles();
+  if(idx<0)return;
+
+  S.workingTL.updatedAt=Date.now();
+  p.tls[idx]=JSON.parse(JSON.stringify(S.workingTL));
+  saveProfiles(); // Cache local
+
+  if (userSession && sbClient) {
+    toast('Sincronizando con la nube...', 'info');
+    try {
+      // 1. Guardamos la estructura (Tiers, nombres, colores)
+      await sbClient.from('tierlists').update({
+        title: S.workingTL.title,
+        tiers_config: S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color })),
+        updated_at: new Date()
+      }).eq('id', S.cid);
+
+      // 2. Guardamos las posiciones de los personajes
+      await sbClient.from('user_rankings').upsert({
+        user_id: userSession.user.id,
+        tierlist_id: S.cid,
+        tiers_data: S.workingTL.tiers.map(t => ({ id: t.id, chars: t.chars })),
+        pool_data: S.workingTL.pool,
+        updated_at: new Date()
+      }, { onConflict: 'user_id, tierlist_id' });
+
+      S.hasUnsaved=false;
+      toast('\u2713 Sincronizado en todos tus dispositivos','ok');
+    } catch(e) {
+      console.error(e);
+      toast('Error de red, se guard\xf3 solo en este navegador','err');
+    }
+  } else {
     S.hasUnsaved=false;
     toast('\u2713 Guardado','ok');
-    const el=document.getElementById('saved-badge');
-    if(el){el.style.opacity='1';setTimeout(()=>el.style.opacity='0',2200);}
-    render();
   }
+  render();
 }
 function discardChanges(){
   S.workingTL=null;S.hasUnsaved=false;S.cid=null;S.page='home';setRoute('home');render();
