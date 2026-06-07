@@ -97,7 +97,7 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 /* CHARS - SMOOTH DRAG ANIMATIONS */
 .tchars{flex:1;display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;gap:4px;padding:6px;min-height:172px;position:relative}
 .tc,.pc{border-radius:10px;overflow:visible;cursor:grab;position:relative;flex-shrink:0;border:2px solid transparent; background: var(--bg3);
-  transition:transform .25s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s}
+  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s}
 .tc{width:100px;height:160px}
 .pc{width:102px;height:162px;border-color:var(--border)}
 .tc:hover{border-color:var(--accent2);transform:scale(1.1) translateY(-3px) rotate(1deg);z-index:20;box-shadow:0 10px 24px rgba(0,0,0,.55)}
@@ -790,6 +790,11 @@ function Editor(){
     const ce=h('div',{class:'tchars'});
     ce.ondragover = e => {
       e.preventDefault();
+      
+      // Capturamos posiciones iniciales para la animación (FLIP)
+      const children = Array.from(ce.children);
+      const positions = children.map(c => c.getBoundingClientRect());
+
       const cards = Array.from(ce.querySelectorAll('.tc:not(.is-dragging):not(.drop-placeholder)'));
       let targetIdx = cards.length;
 
@@ -805,12 +810,34 @@ function Editor(){
 
       let ph = document.getElementById('drop-ph');
       if(ph) ph.remove();
-      // Si el destino es exactamente donde ya está, no mostramos el hueco (limpieza visual)
-      if(DS === tier.id && targetIdx === DGidx) return;
-      
-      ph = h('div', {id: 'drop-ph', class: 'drop-placeholder'});
-      if(targetIdx >= cards.length) ce.appendChild(ph);
-      else ce.insertBefore(ph, cards[targetIdx]);
+
+      if(DS !== tier.id || targetIdx !== DGidx) {
+        ph = h('div', {id: 'drop-ph', class: 'drop-placeholder'});
+        if(targetIdx >= cards.length) ce.appendChild(ph);
+        else ce.insertBefore(ph, cards[targetIdx]);
+      }
+
+      // Aplicamos la magia de la animación
+      const newChildren = Array.from(ce.children);
+      newChildren.forEach(child => {
+        if(child.classList.contains('is-dragging')) return;
+        const oldIdx = children.indexOf(child);
+        if(oldIdx === -1) return; // Es el nuevo placeholder
+        
+        const oldRect = positions[oldIdx];
+        const newRect = child.getBoundingClientRect();
+        
+        const dx = oldRect.left - newRect.left;
+        const dy = oldRect.top - newRect.top;
+        
+        if(dx !== 0 || dy !== 0) {
+          child.style.transition = 'none';
+          child.style.transform = `translate(${dx}px, ${dy}px)`;
+          child.offsetHeight; // Forzamos reflow
+          child.style.transition = ''; // Restauramos la transición del CSS
+          child.style.transform = '';
+        }
+      });
     };
     ce.ondragleave = e => { 
       if(!ce.contains(e.relatedTarget)) { 
