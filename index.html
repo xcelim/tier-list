@@ -621,10 +621,10 @@ function Nav(){
         pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.activeProfile=p.id;S.cid=null;S.workingTL=null;S.hasUnsaved=false;S.page='home';S.profileMenu=null;saveProfiles();render();}},'\u{1F464} Entrar como '+p.name));
       }else{
         pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.modal='edit-profile';S.md={profileId:p.id};S.profileMenu=null;render();}},'\u270F Editar perfil'));
-        pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.activeProfile=null;S.cid=null;S.workingTL=null;S.hasUnsaved=false;S.page='home';S.profileMenu=null;saveProfiles();render();}},'Cerrar sesi\xf3n'));
+        pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.profileMenu=null;handleLogout();}},'🚪 Cerrar sesión'));
       }
       pm.appendChild(h('div',{class:'pm-divider'}));
-      pm.appendChild(h('div',{class:'pm-item danger',onclick:()=>{if(confirm('\xBFEliminar perfil "'+p.name+'"? Se borrar\xe1n todas sus tierlists.')){S.profiles=S.profiles.filter(x=>x.id!==p.id);if(S.activeProfile===p.id){S.activeProfile=null;S.cid=null;S.workingTL=null;}S.profileMenu=null;saveProfiles();render();}}},'\u2715 Eliminar perfil'));
+      pm.appendChild(h('div',{class:'pm-item danger',onclick:()=>{S.profileMenu=null;handleDeleteAccount();}},'✕ Eliminar cuenta'));
       document.addEventListener('click',()=>{S.profileMenu=null;render();},{once:true});
       n.appendChild(pm);
     }
@@ -787,7 +787,8 @@ async function deleteCustomChar(cid,tl){
           await sbClient.storage.from('tierlists').remove([path]);
         }
       }
-      await sbClient.from('characters').delete().eq('id',cid);
+      // Borrar solo de la tabla de personajes de ESTA tierlist
+      await sbClient.from('characters').delete().eq('id',cid).eq('tierlist_id',tl.id);
     }catch(e){console.error('Error borrando personaje de Supabase:',e);}
   }
   // Quitar de local
@@ -933,13 +934,20 @@ function MNewTL(){
     };
 
     if (userSession) {
+      // Crear la tierlist en la tabla tierlists
       sbClient.from('tierlists').insert({
         id, title: newTL.title, folder: fl,
         tiers_config: newTL.tiers,
         created_by: userSession.user.id
-      }).then(({error}) => {
-        if(error) toast("Error subiendo plantilla", "err");
-        else toast("Plantilla compartida en la nube");
+      }).then(async ({error}) => {
+        if(error) { toast("Error guardando tierlist", "err"); return; }
+        // Crear tabla propia para personajes de esta tierlist via RPC
+        try {
+          await sbClient.rpc('create_tierlist_chars_table', {tierlist_id: id});
+        } catch(e) {
+          console.log('RPC create_tierlist_chars_table no disponible, usando tabla characters compartida');
+        }
+        toast("Tierlist creada en la nube ✓");
       });
     }
 
@@ -1110,9 +1118,14 @@ function MAddChar(){
         cloudUrl = publicUrl;
 
         // Registrar en la tabla de personajes para que sea global
+        // Insertar personaje en la tabla de characters de ESTA tierlist
         await sbClient.from('characters').insert({
           id: cid, tierlist_id: tl.id, name: charName.trim(), anime: animeName.trim()||'Custom', image_url: cloudUrl, created_by: userSession.user.id
         });
+        // También intentar insertar en tabla específica si existe
+        try {
+          await sbClient.rpc('insert_char_in_tierlist_table', {tierlist_id: tl.id, char_id: cid, char_name: charName.trim(), anime_name: animeName.trim()||'Custom', img_url: cloudUrl});
+        } catch(e) {}
       } catch(e) {
         console.error("Error en Storage:", e);
         toast("Error en nube, se guardar\xe1 solo local", "err");
@@ -1245,9 +1258,15 @@ async function delTL(id){
           await sbClient.storage.from('tierlists').remove(paths);
         }
       }
-      // 2. Borrar registros de la tabla characters asociados a esta tierlist
+      // 2. Borrar registros de la tabla characters asociados SOLO a esta tierlist
       await sbClient.from('characters').delete().eq('tierlist_id',id);
-      // 3. Borrar la tierlist de la tabla tierlists
+      // 3. Intentar borrar la tabla específica de esta tierlist si existe
+      try {
+        await sbClient.rpc('drop_tierlist_chars_table', {tierlist_id: id});
+      } catch(e) {
+        console.log('RPC drop_tierlist_chars_table no disponible');
+      }
+      // 4. Borrar la tierlist de la tabla tierlists
       await sbClient.from('tierlists').delete().eq('id',id);
     }catch(e){console.error('Error borrando tierlist de Supabase:',e);}
   }
@@ -1270,8 +1289,16 @@ function getRouteFromHash(){
   return{page:'editor',tlId:decodeURIComponent(hash)};
 }
 function setRoute(page,tlId){
-  if(page==='home')history.pushState(null,'',location.pathname+'#home');
-  else if(page==='editor'&&tlId)history.pushState(null,'',location.pathname+'#'+encodeURIComponent(tlId));
+  if(page==='home'){
+    history.pushState(null,'',location.pathname);
+    document.title='AnimeTier';
+  } else if(page==='editor'&&tlId){
+    history.pushState(null,'',location.pathname+'#'+encodeURIComponent(tlId));
+    // Update title with tierlist name
+    const p=activeProfile();
+    const tl=p&&p.tls.find(t=>t.id===tlId);
+    if(tl) document.title='AnimeTier – '+tl.title;
+  }
 }
 window.addEventListener('popstate',()=>{
   const{page,tlId}=getRouteFromHash();
@@ -1361,9 +1388,65 @@ async function handleGoogleLogin() {
 async function handleLogout() {
   if(!sbClient) return;
   await sbClient.auth.signOut();
+  userSession = null;
+  currentUserProfile = null;
   S.activeProfile = null;
+  S.profiles = [];
+  S.page = 'home';
+  S.cid = null;
+  S.workingTL = null;
+  S.modal = null;
   saveProfiles();
-  location.reload();
+  // Clear hash route and re-render login screen
+  history.replaceState(null,'',location.pathname);
+  render();
+}
+
+async function handleDeleteAccount() {
+  if(!confirm('¿Seguro que quieres eliminar tu cuenta? Se borrarán todos tus datos permanentemente.')) return;
+  if(!sbClient || !userSession) return;
+  const uid = userSession.user.id;
+  try {
+    toast('Eliminando cuenta...','info');
+    // 1. Borrar todas las tierlists del usuario (imágenes del bucket incluidas)
+    const p = S.profiles.find(x=>x.id===uid);
+    if(p && p.tls) {
+      for(const tl of p.tls) {
+        const customChars = tl.customChars||[];
+        if(customChars.length>0){
+          const paths=customChars.map(c=>{
+            if(c.file){const marker='/tierlists/';const idx=c.file.indexOf(marker);return idx>=0?c.file.slice(idx+marker.length):null;}
+            return null;
+          }).filter(Boolean);
+          if(paths.length>0) await sbClient.storage.from('tierlists').remove(paths);
+        }
+        // Borrar personajes de la tabla de la tierlist
+        const tableName = 'tl_'+tl.id.replace(/-/g,'_');
+        try { await sbClient.rpc('drop_tierlist_table',{table_name:tableName}); } catch(e){}
+        await sbClient.from('characters').delete().eq('tierlist_id',tl.id);
+        await sbClient.from('tierlists').delete().eq('id',tl.id);
+      }
+    }
+    // 2. Borrar perfil de la BD
+    await sbClient.from('profiles').delete().eq('id',uid);
+    // 3. Cerrar sesión
+    await sbClient.auth.signOut();
+    userSession = null;
+    currentUserProfile = null;
+    S.activeProfile = null;
+    S.profiles = [];
+    S.page = 'home';
+    S.cid = null;
+    S.workingTL = null;
+    S.modal = null;
+    saveProfiles();
+    history.replaceState(null,'',location.pathname);
+    render();
+    toast('Cuenta eliminada correctamente');
+  } catch(e) {
+    console.error('Error eliminando cuenta:',e);
+    toast('Error al eliminar la cuenta','err');
+  }
 }
 
 function initSupabase() {
@@ -1381,6 +1464,13 @@ function initSupabase() {
       userSession = null;
       currentUserProfile = null;
       S.activeProfile = null;
+      S.profiles = [];
+      S.page = 'home';
+      S.cid = null;
+      S.workingTL = null;
+      S.modal = null;
+      history.replaceState(null,'',location.pathname);
+      saveProfiles();
       render();
     }
   });
