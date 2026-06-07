@@ -1627,43 +1627,31 @@ async function handleLogout() {
 }
 
 async function handleDeleteAccount() {
-  if(!confirm('¿Seguro que quieres eliminar tu cuenta? Se borrarán todos tus datos permanentemente.')) return;
+  if(!confirm('¿Seguro que quieres eliminar tu cuenta? Se borrarán tus rankings personales y tu perfil, pero las tierlists y personajes creados se mantendrán para la comunidad.')) return;
   if(!sbClient || !userSession) return;
   const uid = userSession.user.id;
   try {
-    toast('Eliminando cuenta...','info');
+    toast('Eliminando datos personales...','info');
 
-    // CRÍTICO: Limpiar estado en memoria ANTES de signOut para evitar que
-    // onAuthStateChange dispare handleAuthSession con datos ya borrados
     currentUserProfile = null;
     isFetchingProfile = false;
 
-    // 1. Borrar todas las tierlists del usuario (imágenes del bucket incluidas)
-    const p = S.profiles.find(x=>x.id===uid);
-    if(p && p.tls) {
-      for(const tl of p.tls) {
-        // Borrar TODOS los archivos del folder recursivamente
-        const folder = tl.folder || tl.id;
-        try { await deleteBucketFolder(folder); } catch(e){}
-        try { await sbClient.from('user_rankings').delete().eq('tierlist_id',tl.id); } catch(e){}
-        try { await sbClient.from('characters').delete().eq('tierlist_id',tl.id); } catch(e){}
-        try { await sbClient.from('tierlists').delete().eq('id',tl.id); } catch(e){}
-      }
-    }
-    // 2. Borrar rankings del usuario que no estén ligados a tierlists ya borradas
-    try { await sbClient.from('user_rankings').delete().eq('user_id',uid); } catch(e){}
-    // 3. Borrar perfil de la BD
-    try { await sbClient.from('profiles').delete().eq('id',uid); } catch(e){}
+    // 1. Borrar rankings personales (posiciones de personajes en los tiers)
+    await sbClient.from('user_rankings').delete().eq('user_id', uid);
 
-    // 4. Limpiar localStorage completamente
+    // 2. Borrar perfil de la BD (esto elimina tu nombre y color de la cuenta)
+    const { error: profErr } = await sbClient.from('profiles').delete().eq('id', uid);
+    if (profErr) console.error("Error eliminando perfil:", profErr);
+
+    // 3. Limpiar localStorage
     localStorage.removeItem('at4_profiles');
     localStorage.removeItem('at4_activeProfile');
     localStorage.removeItem('at4_deleted_tls');
 
-    // 5. Cerrar sesión (esto dispara onAuthStateChange pero currentUserProfile ya es null)
+    // 4. Cerrar sesión
     await sbClient.auth.signOut();
 
-    // 6. Limpiar estado local
+    // 5. Limpiar estado local
     userSession = null;
     S.activeProfile = null;
     S.profiles = [];
