@@ -788,18 +788,14 @@ function Editor(){
     ce.ondragover = e => {
       e.preventDefault();
       const cards = Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
-      const containerRect = ce.getBoundingClientRect();
+      const rect = ce.getBoundingClientRect();
       let targetIdx = cards.length;
-      
+
       for(let i=0; i<cards.length; i++){
-        const el = cards[i];
-        const midpoint = containerRect.left + el.offsetLeft + el.offsetWidth/2;
-        if(e.clientX < midpoint){ targetIdx = i; break; }
-      }
-      
-      if(DS === tier.id && targetIdx === DGidx){
-        cards.forEach(c => c.style.transform = '');
-        lastZone = null; return;
+        const cRect = cards[i].getBoundingClientRect();
+        // Usamos el offsetLeft para obtener la posición original sin el transform
+        const originalMid = rect.left + cards[i].offsetLeft + cards[i].offsetWidth/2;
+        if(e.clientX < originalMid){ targetIdx = i; break; }
       }
 
       const zone = tier.id + '_' + targetIdx;
@@ -807,7 +803,10 @@ function Editor(){
       lastZone = zone;
 
       cards.forEach((c, idx) => {
-        c.style.transform = idx >= targetIdx ? 'translateX(104px)' : '';
+        let shift = 0;
+        if (idx >= targetIdx) shift += 104; // Abrir hueco nuevo
+        if (DS === tier.id && idx >= DGidx) shift -= 104; // Cerrar hueco viejo
+        c.style.transform = shift ? `translateX(${shift}px)` : '';
       });
     };
     ce.ondragleave = e => { if(!ce.contains(e.relatedTarget)) ce.querySelectorAll('.tc').forEach(c => c.style.transform = ''); };
@@ -815,12 +814,11 @@ function Editor(){
       e.preventDefault(); e.stopPropagation();
       if(!DG) return;
       const cards = Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
-      const containerRect = ce.getBoundingClientRect();
       let dropIdx = cards.length;
+      const rect = ce.getBoundingClientRect();
       for(let i=0; i<cards.length; i++){
-        const el = cards[i];
-        const midpoint = containerRect.left + el.offsetLeft + el.offsetWidth/2;
-        if(e.clientX < midpoint){ dropIdx = i; break; }
+        const originalMid = rect.left + cards[i].offsetLeft + cards[i].offsetWidth/2;
+        if(e.clientX < originalMid){ dropIdx = i; break; }
       }
       ce.querySelectorAll('.tc').forEach(c => c.style.transform = '');
       tdrop(e, tier.id, dropIdx);
