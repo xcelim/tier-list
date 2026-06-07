@@ -492,20 +492,18 @@ async function saveEditorChanges(){
   if (userSession && sbClient) {
     toast('Sincronizando con la nube...', 'info');
     try {
-      // 1. Intentamos actualizar la plantilla global (solo funcionará si eres el creador)
+      // 1. Actualizamos la plantilla comunitaria (ahora permitido para todos los logueados via RLS)
       await sbClient.from('tierlists').update({
         title: S.workingTL.title,
         tiers_config: S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color })),
         updated_at: new Date()
       }).eq('id', S.cid);
 
-      // 2. Guardamos TU estructura y TUS posiciones en tu ranking personal (esto es lo que lo hace universal)
+      // 2. Guardamos TU ranking personal con TU estructura (esto lo hace universal en tus dispositivos)
       await sbClient.from('user_rankings').upsert({
         user_id: userSession.user.id,
         tierlist_id: S.cid,
-        tiers_data: S.workingTL.tiers.map(t => ({ 
-          id: t.id, label: t.label, color: t.color, chars: t.chars 
-        })),
+        tiers_data: S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color, chars: t.chars })),
         pool_data: S.workingTL.pool,
         updated_at: new Date()
       }, { onConflict: 'user_id, tierlist_id' });
@@ -1117,7 +1115,8 @@ function MNewTL(){
       // Crear la tierlist en la tabla tierlists
       sbClient.from('tierlists').insert({
         id, title: newTL.title, folder: fl,
-        tiers_config: newTL.tiers
+        tiers_config: newTL.tiers,
+        created_by: userSession.user.id
       }).then(async ({error}) => {
         if(error) { toast("Error guardando tierlist", "err"); return; }
         // Crear tabla propia para personajes de esta tierlist via RPC
@@ -1296,9 +1295,10 @@ function MAddChar(){
         const { data: { publicUrl } } = sbClient.storage.from('tierlists').getPublicUrl(filePath);
         cloudUrl = publicUrl;
 
-        // Registrar personaje de forma comunitaria
+        // Registrar en la tabla de personajes para que sea global
+        // Insertar personaje en la tabla de characters de ESTA tierlist
         await sbClient.from('characters').insert({
-          id: cid, tierlist_id: tl.id, name: charName.trim(), anime: animeName.trim()||'Custom', image_url: cloudUrl
+          id: cid, tierlist_id: tl.id, name: charName.trim(), anime: animeName.trim()||'Custom', image_url: cloudUrl, created_by: userSession.user.id
         });
         // También intentar insertar en tabla específica si existe
         try {
@@ -1534,7 +1534,8 @@ async function dupTL(id){
       // 1. Clonar Tierlist
       await sbClient.from('tierlists').insert({
         id: newId, title: newTitle, folder: newFolder,
-        tiers_config: copy.tiers.map(t => ({ id: t.id, label: t.label, color: t.color }))
+        tiers_config: copy.tiers.map(t => ({ id: t.id, label: t.label, color: t.color })),
+        created_by: userSession.user.id
       });
 
       // 2. Clonar Personajes (Paginado para traer +1000 si existen)
@@ -1556,7 +1557,7 @@ async function dupTL(id){
           const nid = 'c_' + uid();
           idMap[c.id] = nid;
           return {
-            ...c, id: nid, tierlist_id: newId,
+            ...c, id: nid, tierlist_id: newId, created_by: userSession.user.id,
             image_url: c.image_url ? c.image_url.replace(`/${oldFolder}/`, `/${newFolder}/`) : null
           };
         });
@@ -1771,18 +1772,19 @@ async function handleDeleteAccount() {
   const uid = userSession.user.id;
   isDeletingAccount = true;
   try {
-    toast('Eliminando datos personales y cuenta...','info');
+    toast('Desvinculando datos públicos y eliminando cuenta...','info');
 
     currentUserProfile = null;
     isFetchingProfile = false;
 
-    // 1. Borrar rankings personales (viculados al usuario)
+    // 1. Borrar rankings personales (vinculados al usuario)
     await sbClient.from('user_rankings').delete().eq('user_id', uid);
 
-    // 2. Borrar perfil de la tabla public.profiles
+    // 3. Borrar perfil de la tabla public.profiles
     await sbClient.from('profiles').delete().eq('id', uid);
 
-    // 3. Borrar el usuario de Supabase Auth (Pestaña Authentication)
+    // 4. Borrar el usuario de Supabase Auth (Pestaña Authentication)
+    // Invocamos la función RPC que tiene permisos de administrador
     const { error: authErr } = await sbClient.rpc('delete_user_account');
     if (authErr) console.error("Error en Auth:", authErr);
 
