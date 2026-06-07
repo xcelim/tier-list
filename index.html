@@ -443,13 +443,18 @@ async function syncFromSupabase() {
   if (S.workingTL) {
     const placedIds = new Set();
     if (myRank) {
-      myRank.tiers_data.forEach(rd => {
-        const t = S.workingTL.tiers.find(x => x.id === rd.id);
-        if (t) {
-          t.chars = rd.chars;
-          rd.chars.forEach(id => placedIds.add(id));
-        }
-      });
+      // Sincronización Universal: Si el ranking tiene estructura propia (niveles añadidos/renombrados), la usamos
+      if (myRank.tiers_data && myRank.tiers_data.length > 0 && myRank.tiers_data[0].label) {
+        S.workingTL.tiers = myRank.tiers_data;
+      } else {
+        // Fallback para rankings antiguos: solo rellenar personajes en niveles existentes
+        myRank.tiers_data.forEach(rd => {
+          const t = S.workingTL.tiers.find(x => x.id === rd.id);
+          if (t) t.chars = rd.chars;
+        });
+      }
+      // Registrar qué personajes ya están ubicados
+      S.workingTL.tiers.forEach(t => (t.chars || []).forEach(id => placedIds.add(id)));
     }
 
     // 4. EL POOL COMPARTIDO DINÁMICO:
@@ -487,18 +492,20 @@ async function saveEditorChanges(){
   if (userSession && sbClient) {
     toast('Sincronizando con la nube...', 'info');
     try {
-      // 1. Guardamos la estructura (Tiers, nombres, colores)
+      // 1. Intentamos actualizar la plantilla global (solo funcionará si eres el creador)
       await sbClient.from('tierlists').update({
         title: S.workingTL.title,
         tiers_config: S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color })),
         updated_at: new Date()
       }).eq('id', S.cid);
 
-      // 2. Guardamos las posiciones de los personajes
+      // 2. Guardamos TU estructura y TUS posiciones en tu ranking personal (esto es lo que lo hace universal)
       await sbClient.from('user_rankings').upsert({
         user_id: userSession.user.id,
         tierlist_id: S.cid,
-        tiers_data: S.workingTL.tiers.map(t => ({ id: t.id, chars: t.chars })),
+        tiers_data: S.workingTL.tiers.map(t => ({ 
+          id: t.id, label: t.label, color: t.color, chars: t.chars 
+        })),
         pool_data: S.workingTL.pool,
         updated_at: new Date()
       }, { onConflict: 'user_id, tierlist_id' });
