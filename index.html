@@ -358,21 +358,25 @@ async function fetchGlobalTemplates() {
   const remoteIds = new Set(allTemplates.map(t => t.id));
 
   allTemplates.forEach(t => {
+    // Si dupTL está en curso para este ID, no tocar — lo añadirá él mismo al terminar
+    if (S._dupInProgress === t.id) return;
+
     const localIdx = p.tls.findIndex(local => local.id === t.id);
-    const tlData = { 
-      ...t, 
-      tiers: t.tiers_config, 
+    const tlData = {
+      ...t,
+      tiers: t.tiers_config,
       isRemoteTemplate: true,
       updatedAt: new Date(t.updated_at || t.created_at).getTime()
     };
     if (localIdx === -1) {
       p.tls.push(tlData);
     } else {
-      // Sincronización universal: actualizamos nombres de niveles y colores desde la nube
-      p.tls[localIdx].title = t.title;
-      p.tls[localIdx].tiers = t.tiers_config;
-      p.tls[localIdx].folder = t.folder;
+      // Sincronizar metadatos desde la nube (no sobreescribir pool/customChars locales)
+      p.tls[localIdx].title     = t.title;
+      p.tls[localIdx].tiers     = t.tiers_config;
+      p.tls[localIdx].folder    = t.folder;
       p.tls[localIdx].updatedAt = tlData.updatedAt;
+      p.tls[localIdx].isRemoteTemplate = true;
     }
   });
 
@@ -1509,37 +1513,45 @@ async function delTL(id){
   toast('Eliminando...','info');
 
   try{
-    // 1. Borrar TODAS las imágenes del bucket para esta tierlist (recursivo)
-    const folder = (tl && tl.folder) ? tl.folder : id;
-    try {
-      await deleteBucketFolder(folder, id);
-    } catch(storageErr) {
-      console.warn('No se pudo limpiar el bucket:', storageErr.message);
+    const folder = (tl && tl.folder) ? tl.folder : sanFolder(tl ? tl.title : id);
+
+    // 1. Borrar la fila de tierlists en Supabase (primero, para que otros usuarios la vean desaparecer)
+    const { error: tlErr } = await sbClient.from('tierlists').delete().eq('id', id);
+    if (tlErr) throw new Error('Error borrando tierlist: ' + tlErr.message);
+
+    // 2. Borrar todos los rankings de todos los usuarios para esta tierlist
+    await sbClient.from('user_rankings').delete().eq('tierlist_id', id);
+
+    // 3. Borrar personajes de la tabla characters
+    await sbClient.from('characters').delete().eq('tierlist_id', id);
+
+    // 4. Borrar carpeta completa del bucket via Edge Function (server-side, sin límites del browser)
+    toast('Borrando imágenes del servidor…', 'info');
+    const fnRes = await fetch(SB_URL + '/functions/v1/delete-folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SB_KEY },
+      body: JSON.stringify({ folder })
+    });
+    const fnData = await fnRes.json();
+    if (!fnRes.ok) {
+      console.warn('Edge Function delete-folder error:', fnData);
+      // No es fatal — la tierlist ya fue borrada de la DB
+      toast('Tierlist eliminada. Imágenes: ' + (fnData.error || fnRes.status), 'err');
+    } else {
+      toast('Tierlist eliminada: ' + fnData.deleted + ' imágenes borradas ✓');
     }
-
-    // 2. Borrar TODOS los rankings de TODOS los usuarios para esta tierlist
-    const { error: rankErr } = await sbClient.from('user_rankings').delete().eq('tierlist_id',id);
-    if(rankErr) throw new Error('Error borrando rankings: ' + rankErr.message);
-
-    // 3. Borrar TODOS los personajes de esta tierlist
-    const { error: charErr } = await sbClient.from('characters').delete().eq('tierlist_id',id);
-    if(charErr) throw new Error('Error borrando personajes: ' + charErr.message);
-
-    // 4. Borrar la tierlist de Supabase (global — desaparece para todos)
-    const {error} = await sbClient.from('tierlists').delete().eq('id',id);
-    if(error) throw error;
 
     // 5. Eliminar del local de TODOS los perfiles cargados
     S.profiles.forEach(prof => {
-      prof.tls = (prof.tls||[]).filter(t=>t.id!==id);
+      prof.tls = (prof.tls||[]).filter(t => t.id !== id);
     });
-    if(S.cid===id){S.cid=null;S.workingTL=null;S.hasUnsaved=false;setRoute('home');}
+    if (S.cid === id) { S.cid=null; S.workingTL=null; S.hasUnsaved=false; setRoute('home'); }
     saveProfiles();
     render();
-    toast('Tierlist eliminada para todos ✓');
+
   }catch(e){
-    console.error('Error borrando tierlist:',e);
-    toast('Error al eliminar: '+e.message,'err');
+    console.error('Error borrando tierlist:', e);
+    toast('Error al eliminar: ' + e.message, 'err');
   }
 }
 async function dupTL(id){
@@ -1553,57 +1565,53 @@ async function dupTL(id){
     newTitle = newTitle.trim();
     if (!newTitle) continue;
     if (p.tls.some(t => t.title.toLowerCase() === newTitle.toLowerCase())) {
-      alert("Ya existe una tierlist con ese nombre. Elige uno distinto.");
+      alert("Ya existe una tierlist con ese nombre. Elige otro.");
       continue;
     }
     break;
   }
 
-  const newId = uid();
-  const oldFolder = tl.folder || tl.id;
+  const newId   = uid();
+  const oldFolder = tl.folder || sanFolder(tl.title) || tl.id;
   const newFolder = sanFolder(newTitle);
 
   const copy = JSON.parse(JSON.stringify(tl));
-  copy.id = newId;
-  copy.title = newTitle;
-  copy.folder = newFolder;
+  copy.id          = newId;
+  copy.title       = newTitle;
+  copy.folder      = newFolder;
   copy.isRemoteTemplate = true;
-  copy.updatedAt = Date.now();
-  copy.createdAt = Date.now();
+  copy.updatedAt   = Date.now();
+  copy.createdAt   = Date.now();
 
   if (!userSession || !sbClient) {
-    // Sin sesión: solo local (sin copiar imágenes)
-    p.tls.push(copy);
-    saveProfiles(); render();
+    p.tls.push(copy); saveProfiles(); render();
     toast("Tierlist duplicada localmente ✓");
     return;
   }
 
-  toast("Duplicando tierlist...", "info");
+  // Bloquear fetchGlobalTemplates para que no añada la copia antes de que nosotros lo hagamos
+  S._dupInProgress = newId;
+  toast("Duplicando tierlist…", "info");
+
   try {
-    // 1. Insertar nueva tierlist en Supabase
+    // ── 1. Crear tierlist en Supabase ────────────────────────────────────────
     const { error: tlErr } = await sbClient.from('tierlists').insert({
-      id: newId,
-      title: newTitle,
-      folder: newFolder,
+      id: newId, title: newTitle, folder: newFolder,
       tiers_config: copy.tiers.map(t => ({ id: t.id, label: t.label, color: t.color })),
       created_by: userSession.user.id
     });
     if (tlErr) throw new Error("Error creando tierlist: " + tlErr.message);
 
-    // 2. Clonar personajes de la tabla characters (paginado, por si hay >1000)
-    let allChars = [];
-    let offset = 0;
-    const PAGE = 1000;
+    // ── 2. Clonar personajes (paginado) ──────────────────────────────────────
+    let allChars = [], offset = 0;
     while (true) {
       const { data: batch, error: bErr } = await sbClient
         .from('characters').select('*')
-        .eq('tierlist_id', id)
-        .range(offset, offset + PAGE - 1);
-      if (bErr || !batch || batch.length === 0) break;
+        .eq('tierlist_id', id).range(offset, offset + 999);
+      if (bErr || !batch || !batch.length) break;
       allChars = allChars.concat(batch);
-      if (batch.length < PAGE) break;
-      offset += PAGE;
+      if (batch.length < 1000) break;
+      offset += 1000;
     }
 
     const idMap = {};
@@ -1611,47 +1619,37 @@ async function dupTL(id){
       const newChars = allChars.map(c => {
         const nid = 'c_' + uid();
         idMap[c.id] = nid;
+        // IMPORTANTE: la image_url debe apuntar a la nueva carpeta,
+        // que es exactamente donde copy-folder va a dejar los archivos
         return {
-          ...c,
-          id: nid,
-          tierlist_id: newId,
-          created_by: userSession.user.id,
-          // La URL de imagen apuntará a la nueva carpeta (la copiamos abajo)
+          ...c, id: nid, tierlist_id: newId, created_by: userSession.user.id,
           image_url: c.image_url
             ? c.image_url.replace('/' + oldFolder + '/', '/' + newFolder + '/')
             : null
         };
       });
-
-      // Insertar en batches de 500 para no superar límites de Supabase
+      // Insertar en lotes de 500
       for (let i = 0; i < newChars.length; i += 500) {
         const { error: cErr } = await sbClient.from('characters').insert(newChars.slice(i, i + 500));
         if (cErr) throw new Error("Error clonando personajes: " + cErr.message);
       }
-
       // Actualizar IDs en la copia local
       copy.pool = copy.pool.map(cid => idMap[cid] || cid);
       copy.tiers.forEach(t => { t.chars = t.chars.map(cid => idMap[cid] || cid); });
-      if (copy.customChars) {
-        copy.customChars.forEach(cc => {
-          if (idMap[cc.id]) {
-            cc.id = idMap[cc.id];
-            if (cc.file) cc.file = cc.file.replace('/' + oldFolder + '/', '/' + newFolder + '/');
-          }
-        });
-      }
+      if (copy.customChars) copy.customChars.forEach(cc => {
+        if (idMap[cc.id]) {
+          cc.id = idMap[cc.id];
+          if (cc.file) cc.file = cc.file.replace('/' + oldFolder + '/', '/' + newFolder + '/');
+        }
+      });
     }
 
-    // 3. Clonar ranking personal si existe
-    const { data: myRank } = await sbClient
-      .from('user_rankings').select('*')
-      .eq('user_id', userSession.user.id)
-      .eq('tierlist_id', id)
-      .maybeSingle();
+    // ── 3. Clonar ranking personal si existe ────────────────────────────────
+    const { data: myRank } = await sbClient.from('user_rankings').select('*')
+      .eq('user_id', userSession.user.id).eq('tierlist_id', id).maybeSingle();
     if (myRank) {
       await sbClient.from('user_rankings').insert({
-        user_id: userSession.user.id,
-        tierlist_id: newId,
+        user_id: userSession.user.id, tierlist_id: newId,
         tiers_data: (myRank.tiers_data || []).map(t => ({
           ...t, chars: (t.chars || []).map(cid => idMap[cid] || cid)
         })),
@@ -1660,37 +1658,41 @@ async function dupTL(id){
       });
     }
 
-    // 4. Copiar imágenes server-side via Edge Function
-    // La Edge Function usa service_role key y copia directamente en el bucket,
-    // sin pasar los archivos por el navegador → copia 2000+ imágenes en segundos.
-    toast("Copiando imágenes en el servidor (puede tardar unos segundos)...", "info");
-    const fnUrl = SB_URL + '/functions/v1/copy-folder';
-    const fnRes = await fetch(fnUrl, {
+    // ── 4. Copiar imágenes server-side via Edge Function ─────────────────────
+    // La función usa service_role → copia directamente en el bucket sin pasar
+    // los archivos por el navegador. 2000 imágenes en segundos.
+    toast("Copiando imágenes en el servidor…", "info");
+    const fnRes = await fetch(SB_URL + '/functions/v1/copy-folder', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SB_KEY
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SB_KEY },
       body: JSON.stringify({ srcFolder: oldFolder, dstFolder: newFolder })
     });
     const fnData = await fnRes.json();
     if (!fnRes.ok) {
-      // No es fatal: la tierlist y los personajes ya se clonaron.
-      // Las imágenes seguirán apuntando a la carpeta original hasta que se resuban.
-      console.warn("Edge Function error:", fnData);
-      toast("Tierlist clonada. Las imágenes no se pudieron copiar: " + (fnData.error || fnRes.status), "err");
+      console.warn("Edge Function copy-folder error:", fnData);
+      toast("Tierlist clonada (imágenes no copiadas: " + (fnData.error || fnRes.status) + ")", "err");
     } else {
-      toast("Tierlist duplicada: " + fnData.copied + " imágenes copiadas ✓");
+      toast("Imágenes copiadas: " + fnData.copied + " ✓", "info");
     }
 
-    // 5. Añadir al perfil local y renderizar
-    p.tls.push(copy);
+    // ── 5. Añadir al perfil local — UNA SOLA VEZ ────────────────────────────
+    // Verificar que fetchGlobalTemplates no la haya añadido mientras esperábamos
+    if (!p.tls.find(t => t.id === newId)) {
+      p.tls.push(copy);
+    } else {
+      // Ya fue añadida por fetchGlobalTemplates: actualizar con la copia local (tiene pool/ranks)
+      const idx = p.tls.findIndex(t => t.id === newId);
+      p.tls[idx] = copy;
+    }
     saveProfiles();
     render();
+    toast("¡Tierlist duplicada con éxito! ✓");
 
   } catch (e) {
     console.error(e);
     toast("Error en la duplicación: " + e.message, "err");
+  } finally {
+    S._dupInProgress = null;
   }
 }
 
