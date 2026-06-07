@@ -86,7 +86,7 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .twrap{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
 .trow{display:flex;min-height:172px;border:1px solid var(--border);border-radius:10px;overflow:visible;transition:.2s;position:relative;background:var(--bg2)}
 .trow.dov{border-color:var(--accent);box-shadow:0 0 0 3px #7c5cbf33}
-.tlbl{width:120px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-weight:700;color:#fff;position:relative;padding:8px;text-align:center;cursor:default;border-radius:9px 0 0 9px}
+.tlbl{width:120px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-weight:700;color:#fff;position:relative;padding:10px;text-align:center;cursor:default;border-radius:9px 0 0 9px}
 .tlbl-txt{font-size:13px;line-height:1.2;word-break:break-word;overflow-wrap:anywhere;text-align:center;pointer-events:none}
 .tlbl:hover .topts{opacity:1}
 .topts{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:rgba(0,0,0,.62);opacity:0;transition:.15s;border-radius:9px 0 0 9px}
@@ -96,7 +96,7 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 /* CHARS - SMOOTH DRAG ANIMATIONS */
 .tchars{flex:1;display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;gap:4px;padding:6px;min-height:172px;position:relative}
 .tc,.pc{border-radius:10px;overflow:visible;cursor:grab;position:relative;flex-shrink:0;border:2px solid transparent; background: var(--bg3);
-  transition:border-color .15s, box-shadow .2s, opacity .2s}
+  transition:transform .25s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s}
 .tc{width:100px;height:160px}
 .pc{width:102px;height:162px;border-color:var(--border)}
 .tc:hover{border-color:var(--accent2);transform:scale(1.1) translateY(-3px) rotate(1deg);z-index:20;box-shadow:0 10px 24px rgba(0,0,0,.55)}
@@ -104,15 +104,12 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 
 /* DRAGGING STATE - wobble */
 .tc.is-dragging,.pc.is-dragging{opacity:.15;transform:scale(.9);pointer-events:none}
-.drag-float{position:fixed;pointer-events:none;z-index:9999;width:102px;height:162px;border-radius:10px;overflow:hidden;border:2px solid var(--accent2);box-shadow:0 20px 60px rgba(124,92,191,.7),0 0 0 1px var(--accent);
-  background:#000;will-change:transform,left,top;transition: none !important;}
+.drag-float{position:fixed;pointer-events:none;z-index:9999;width:102px;height:162px;border-radius:10px;overflow:hidden;border:2px solid var(--accent2);box-shadow:0 20px 60px rgba(124,92,191,.7);
+  background:#000;will-change:transform,left,top;transition:none!important}
 .drag-float img{width:100%;height:100%;object-fit:cover;object-position:center 10%;display:block;pointer-events:none}
 
 /* SLOTS - push apart effect */
-.tc.slot-left > *, .tc.slot-right > *{ transition:transform .25s cubic-bezier(0.2, 0, 0.2, 1); pointer-events: none; }
-.tc.slot-left > *{transform:translateX(-100px)}
-.tc.slot-right > *{transform:translateX(100px)}
-.drop-indicator{width:4px;height:165px;background:var(--accent2);border-radius:2px;flex-shrink:0;animation:blink .5s ease-in-out infinite alternate;box-shadow:0 0 8px var(--accent2)}
+.drop-indicator{width:4px;height:140px;background:var(--accent2);border-radius:2px;flex-shrink:0;animation:blink .5s ease-in-out infinite alternate;box-shadow:0 0 8px var(--accent2)}
 @keyframes blink{from{opacity:.5;transform:scaleY(.9)}to{opacity:1;transform:scaleY(1)}}
 
 .tc img,.pc img{width:100%;height:100%;object-fit:cover;object-position:center 10%;display:block;pointer-events:none; border-radius:8px;}
@@ -548,10 +545,10 @@ function h(tag,a,...ch){
 
 // ============ DRAG (smooth floating image) ============
 let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
-let scrollDir=0, scrollInt=null;
+let scrollDir=0, scrollInt=null, lastZone=null;
 
 function updateScroll(){
-  if(scrollDir!==0) window.scrollBy(0, scrollDir*45);
+  if(scrollDir!==0) window.scrollBy(0, scrollDir*30);
 }
 
 function createFloat(imgSrc){
@@ -568,8 +565,8 @@ function removeFloat(){
 }
 function moveFloat(e){
   if(dragFloatEl){
-    dragFloatEl.style.left=(e.clientX-51)+'px';
-    dragFloatEl.style.top=(e.clientY-81)+'px';
+    dragFloatEl.style.left=(e.clientX-50)+'px';
+    dragFloatEl.style.top=(e.clientY-90)+'px';
     
     const h = window.innerHeight;
     const threshold = 100;
@@ -583,15 +580,7 @@ function moveFloat(e){
 }
 document.addEventListener('dragover',moveFloat);
 document.addEventListener('drop',()=>removeFloat());
-
-const manualWheel = e => { 
-  if(DG) {
-    e.preventDefault();
-    window.scrollBy({top: e.deltaY, behavior: 'instant'});
-  }
-};
-window.addEventListener('wheel', manualWheel, {passive:false});
-document.addEventListener('wheel', manualWheel, {passive:false});
+window.addEventListener('wheel', e=>{ if(DG) window.scrollBy(0, e.deltaY); }, {passive:true});
 
 function dgstart(e,id,src,idx,imgSrc){
   DG=id;DS=src;DGidx=idx;
@@ -608,9 +597,9 @@ function dgstart(e,id,src,idx,imgSrc){
 }
 function dgend(){
   DG=null;DS=null;DGidx=-1;
-  removeFloat();
+  removeFloat(); lastZone=null;
   document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
-  document.querySelectorAll('.slot-left,.slot-right').forEach(el=>el.classList.remove('slot-left','slot-right'));
+  document.querySelectorAll('.tc').forEach(el=>el.style.transform='');
   document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
 }
 
@@ -784,33 +773,50 @@ function Editor(){
     oo.appendChild(h('button',{title:'Eliminar',style:{color:'var(--red)'},onclick:()=>{if(confirm('\xBFEliminar tier?')){tl.pool=[...tl.pool,...tier.chars];tl.tiers=tl.tiers.filter(t=>t.id!==tier.id);markUnsaved();}}},'✕'));
     lbl.appendChild(oo);
     const ce=h('div',{class:'tchars'});
-    let lastZone=null;
-    const removeGaps=()=>document.querySelectorAll('.slot-left,.slot-right').forEach(x=>x.classList.remove('slot-left','slot-right'));
+    ce.ondragover = e => {
+      e.preventDefault();
+      const cards = Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
+      let targetIdx = cards.length;
+      for(let i=0; i<cards.length; i++){
+        const r = cards[i].getBoundingClientRect();
+        if(e.clientX < r.left + r.width/2){ targetIdx = i; break; }
+      }
+      
+      // Anti-flicker: Si es su propia posicion, resetear
+      if(DS === tier.id && (targetIdx === DGidx || targetIdx === DGidx + 1)){
+        cards.forEach(c => c.style.transform = '');
+        lastZone = null; return;
+      }
+
+      const zone = tier.id + '_' + targetIdx;
+      if(lastZone === zone) return;
+      lastZone = zone;
+
+      cards.forEach((c, idx) => {
+        c.style.transform = idx >= targetIdx ? 'translateX(104px)' : '';
+      });
+    };
+    ce.ondragleave = e => { if(!ce.contains(e.relatedTarget)) ce.querySelectorAll('.tc').forEach(c => c.style.transform = ''); };
+
     (tier.chars||[]).forEach((cid,ci)=>{
       const c=getChar(cid,tl);if(!c)return;
       const el=h('div',{class:'tc',draggable:'true'});
       el.dataset.cid=cid;
       el.title=(c.name||cid)+' \u2014 '+(c.anime||'');
+      const im=h('img',{src:charImg(cid,tl),alt:c.name||cid,loading:'lazy'});
+      im.onerror=()=>{im.src='https://api.dicebear.com/7.x/initials/svg?seed='+encodeURIComponent(c.name||cid)+'&size=64';};
+      el.appendChild(im);el.appendChild(h('div',{class:'cn'},c.name||cid));
       const imgSrcVal=charImg(cid,tl);
-      el.appendChild(h('img',{src:imgSrcVal,onerror:(e)=>e.target.src='https://api.dicebear.com/7.x/initials/svg?seed='+encodeURIComponent(c.name||cid)}));
-      el.appendChild(h('div',{class:'cn'},c.name||cid));
       el.ondragstart=e=>dgstart(e,cid,tier.id,ci,imgSrcVal);
       el.ondragend=dgend;
       el.ondragover=e=>{
         e.preventDefault();e.stopPropagation();
         const rect=el.getBoundingClientRect();
         const isLeft = e.clientX < rect.left + rect.width/2;
-
-        // Lógica inteligente: Si el drop no cambia la posición, no abrir hueco
-        if(DS === tier.id) {
-          let dropIdx = isLeft ? ci : ci + 1;
-          if(dropIdx === DGidx || dropIdx === DGidx + 1) { removeGaps(); lastZone=null; return; }
-        }
-
         const zone = cid + (isLeft?'L':'R');
         if(lastZone === zone) return;
         lastZone = zone;
-        removeGaps();
+        document.querySelectorAll('.slot-left,.slot-right').forEach(x=>x.classList.remove('slot-left','slot-right'));
         if(isLeft){el.classList.add('slot-right');}
         else{el.classList.add('slot-left');}
       };
@@ -1265,7 +1271,7 @@ function MEditChar(){
 // ============ EXPORT PNG ============
 function expPNG(){
   const tl=S.workingTL;if(!tl)return;
-  const TH=172,LW=120,W=1600;
+  const TH=192,LW=130,W=1600;
   const canvas=document.createElement('canvas');
   canvas.width=W;canvas.height=52+(TH+3)*tl.tiers.length;
   const ctx=canvas.getContext('2d');
@@ -1285,13 +1291,13 @@ function expPNG(){
         const src=charImg(cid,tl);if(!src||cx+98>W)break;
         await new Promise(res=>{
           const im=new Image();im.crossOrigin='anonymous';
-          im.onload=()=>{ctx.drawImage(im,cx,y+6,96,160);res();};
+          im.onload=()=>{ctx.drawImage(im,cx,y+6,96,180);res();};
           im.onerror=()=>{
-            const c=getChar(cid,tl);ctx.fillStyle='#2a2a45';ctx.fillRect(cx,y+6,96,160);
+            const c=getChar(cid,tl);ctx.fillStyle='#2a2a45';ctx.fillRect(cx,y+6,96,180);
             ctx.fillStyle='#9090b0';ctx.font='7px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-            ctx.fillText((c&&c.name||'?').slice(0,10),cx+48,y+86);ctx.textAlign='left';res();
+            ctx.fillText((c&&c.name||'?').slice(0,10),cx+48,y+96);ctx.textAlign='left';res();
           };im.src=src;
-        });cx+=102;
+        });cx+=106;
       }
     }
     ctx.fillStyle='#3a3a60';ctx.font='11px sans-serif';ctx.textBaseline='bottom';
