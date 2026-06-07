@@ -1544,8 +1544,10 @@ function render(){
 let userSession = null;
 let currentUserProfile = null;
 let isFetchingProfile = false;
+let isDeletingAccount = false;
 
 async function handleAuthSession(session) {
+  if (isDeletingAccount) return;
   userSession = session;
   // Solo saltamos el fetch si ya tenemos el perfil cargado Y hay sesión activa
   // Si currentUserProfile fue borrado o hay cuenta nueva, siempre re-fetching
@@ -1630,6 +1632,7 @@ async function handleDeleteAccount() {
   if(!confirm('¿Seguro que quieres eliminar tu cuenta? Se borrarán tus rankings personales y tu perfil, pero las tierlists y personajes creados se mantendrán para la comunidad.')) return;
   if(!sbClient || !userSession) return;
   const uid = userSession.user.id;
+  isDeletingAccount = true;
   try {
     toast('Eliminando datos personales...','info');
 
@@ -1660,9 +1663,11 @@ async function handleDeleteAccount() {
     S.workingTL = null;
     S.modal = null;
     history.replaceState(null,'',location.pathname);
+    isDeletingAccount = false;
     render();
     toast('Cuenta eliminada. La próxima vez que inicies sesión se te pedirá un nombre.');
   } catch(e) {
+    isDeletingAccount = false;
     console.error('Error eliminando cuenta:',e);
     toast('Error al eliminar la cuenta: '+e.message,'err');
   }
