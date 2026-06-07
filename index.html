@@ -1267,19 +1267,26 @@ async function delTL(id){
 
   toast('Eliminando...','info');
   try{
-    // 1. Borrar imágenes custom del bucket (si las hay)
-    const customChars = (tl && tl.customChars)||[];
-    const paths = customChars.map(c=>{
-      if(c.file){const marker='/tierlists/';const idx=c.file.indexOf(marker);return idx>=0?c.file.slice(idx+marker.length):null;}
-      return null;
-    }).filter(Boolean);
-    if(paths.length>0) await sbClient.storage.from('tierlists').remove(paths);
+    // 1. Borrar TODAS las imágenes del bucket para esta tierlist (listando la carpeta completa)
+    const folder = (tl && tl.folder) ? tl.folder : id;
+    try {
+      const { data: fileList, error: listErr } = await sbClient.storage.from('tierlists').list(folder);
+      if (!listErr && fileList && fileList.length > 0) {
+        const allPaths = fileList.map(f => `${folder}/${f.name}`);
+        const { error: rmErr } = await sbClient.storage.from('tierlists').remove(allPaths);
+        if (rmErr) console.warn('Advertencia borrando imágenes del bucket:', rmErr.message);
+      }
+    } catch(storageErr) {
+      console.warn('No se pudo limpiar el bucket (puede que no exista la carpeta):', storageErr.message);
+    }
 
     // 2. Borrar TODOS los rankings de TODOS los usuarios para esta tierlist
-    await sbClient.from('user_rankings').delete().eq('tierlist_id',id);
+    const { error: rankErr } = await sbClient.from('user_rankings').delete().eq('tierlist_id',id);
+    if(rankErr) throw new Error('Error borrando rankings: ' + rankErr.message);
 
-    // 3. Borrar personajes custom
-    await sbClient.from('characters').delete().eq('tierlist_id',id);
+    // 3. Borrar TODOS los personajes de esta tierlist
+    const { error: charErr } = await sbClient.from('characters').delete().eq('tierlist_id',id);
+    if(charErr) throw new Error('Error borrando personajes: ' + charErr.message);
 
     // 4. Borrar la tierlist de Supabase (global — desaparece para todos)
     const {error} = await sbClient.from('tierlists').delete().eq('id',id);
@@ -1451,14 +1458,15 @@ async function handleDeleteAccount() {
     const p = S.profiles.find(x=>x.id===uid);
     if(p && p.tls) {
       for(const tl of p.tls) {
-        const customChars = tl.customChars||[];
-        const paths = customChars.map(c=>{
-          if(c.file){const marker='/tierlists/';const idx=c.file.indexOf(marker);return idx>=0?c.file.slice(idx+marker.length):null;}
-          return null;
-        }).filter(Boolean);
-        if(paths.length>0){
-          try { await sbClient.storage.from('tierlists').remove(paths); } catch(e){}
-        }
+        // Listar y borrar TODOS los archivos del folder en el bucket
+        const folder = tl.folder || tl.id;
+        try {
+          const { data: fileList } = await sbClient.storage.from('tierlists').list(folder);
+          if(fileList && fileList.length > 0) {
+            const allPaths = fileList.map(f => `${folder}/${f.name}`);
+            await sbClient.storage.from('tierlists').remove(allPaths);
+          }
+        } catch(e){}
         try { await sbClient.from('user_rankings').delete().eq('tierlist_id',tl.id); } catch(e){}
         try { await sbClient.from('characters').delete().eq('tierlist_id',tl.id); } catch(e){}
         try { await sbClient.from('tierlists').delete().eq('id',tl.id); } catch(e){}
