@@ -349,20 +349,34 @@ async function saveProfiles() {
 
 async function fetchGlobalTemplates() {
   const { data: templates } = await sbClient.from('tierlists').select('*');
-  if (templates) {
-    const p = activeProfile();
-    if (p) {
-      // Cargar lista negra de tierlists borradas por el usuario
-      const deletedIds = new Set(JSON.parse(localStorage.getItem('at4_deleted_tls') || '[]'));
-      templates.forEach(t => {
-        // No re-añadir tierlists que el usuario ha borrado explícitamente
-        if (!p.tls.find(local => local.id === t.id) && !deletedIds.has(t.id)) {
-          p.tls.push({ ...t, tiers: t.tiers_config, isRemoteTemplate: true });
-        }
-      });
-      render();
+  if (!templates) return;
+  const p = activeProfile();
+  if (!p) return;
+
+  // IDs que existen en Supabase ahora mismo
+  const remoteIds = new Set(templates.map(t => t.id));
+
+  // 1. Añadir las que están en Supabase y no en local
+  templates.forEach(t => {
+    if (!p.tls.find(local => local.id === t.id)) {
+      p.tls.push({ ...t, tiers: t.tiers_config, isRemoteTemplate: true });
     }
-  }
+  });
+
+  // 2. Eliminar del local las que ya NO existen en Supabase
+  // (alguien las borró desde otra cuenta)
+  const before = p.tls.length;
+  p.tls = p.tls.filter(tl => {
+    // Mantener siempre tierlists que son creación local pura (sin id en Supabase)
+    // Una tierlist "local pura" nunca debería existir en este flujo (todas se suben),
+    // pero por seguridad: si no tiene isRemoteTemplate Y no está en remoteIds, la dejamos.
+    if (!tl.isRemoteTemplate && !remoteIds.has(tl.id)) return true;
+    // Si está marcada como remota pero ya no existe en Supabase → eliminar
+    return remoteIds.has(tl.id);
+  });
+
+  saveProfiles();
+  render();
 }
 
 async function syncFromSupabase() {
@@ -933,7 +947,8 @@ function MNewTL(){
       id, title: title.trim(), folder: fl,
       tiers: sel.value==='waifus' ? JSON.parse(JSON.stringify(DT)) : defT,
       pool: sel.value==='waifus' ? [...DP] : [],
-      customChars: [], createdAt: Date.now(), updatedAt: Date.now()
+      customChars: [], createdAt: Date.now(), updatedAt: Date.now(),
+      isRemoteTemplate: true  // marcada como global desde el inicio
     };
 
     if (userSession) {
@@ -1238,44 +1253,49 @@ function addTier(tl){
   markUnsaved();
 }
 async function delTL(id){
-  if(!confirm('¿Eliminar esta tierlist? Se borrarán también sus imágenes en la nube.'))return;
+  if(!confirm('¿Eliminar esta tierlist para TODOS los usuarios? Esta acción no se puede deshacer.'))return;
   const p=activeProfile();if(!p)return;
   const tl=p.tls.find(t=>t.id===id);
 
-  // Registrar en lista negra local ANTES de cualquier operación async
-  // para que fetchGlobalTemplates no la vuelva a añadir aunque el borrado remoto tarde
-  const deletedIds = new Set(JSON.parse(localStorage.getItem('at4_deleted_tls') || '[]'));
-  deletedIds.add(id);
-  localStorage.setItem('at4_deleted_tls', JSON.stringify([...deletedIds]));
+  if(!userSession || !sbClient){
+    // Sin sesión: solo borrar local
+    p.tls = p.tls.filter(t=>t.id!==id);
+    if(S.cid===id){S.cid=null;S.workingTL=null;S.hasUnsaved=false;setRoute('home');}
+    saveProfiles(); render(); toast('Eliminada localmente');
+    return;
+  }
 
-  // Borrar de local PRIMERO para que la UI responda inmediatamente
-  p.tls = p.tls.filter(t=>t.id!==id);
-  if(S.cid===id){S.cid=null;S.workingTL=null;S.hasUnsaved=false;setRoute('home');}
-  saveProfiles();
-  render();
-  toast('Eliminada');
+  toast('Eliminando...','info');
+  try{
+    // 1. Borrar imágenes custom del bucket (si las hay)
+    const customChars = (tl && tl.customChars)||[];
+    const paths = customChars.map(c=>{
+      if(c.file){const marker='/tierlists/';const idx=c.file.indexOf(marker);return idx>=0?c.file.slice(idx+marker.length):null;}
+      return null;
+    }).filter(Boolean);
+    if(paths.length>0) await sbClient.storage.from('tierlists').remove(paths);
 
-  // Borrar de Supabase en background
-  if(userSession && sbClient && tl){
-    try{
-      // 1. Borrar imágenes custom del bucket
-      const customChars = tl.customChars||[];
-      const paths = customChars.map(c=>{
-        if(c.file){const marker='/tierlists/';const idx=c.file.indexOf(marker);return idx>=0?c.file.slice(idx+marker.length):null;}
-        return null;
-      }).filter(Boolean);
-      if(paths.length>0) await sbClient.storage.from('tierlists').remove(paths);
+    // 2. Borrar TODOS los rankings de TODOS los usuarios para esta tierlist
+    await sbClient.from('user_rankings').delete().eq('tierlist_id',id);
 
-      // 2. Borrar rankings del usuario para esta tierlist
-      await sbClient.from('user_rankings').delete().eq('tierlist_id',id);
+    // 3. Borrar personajes custom
+    await sbClient.from('characters').delete().eq('tierlist_id',id);
 
-      // 3. Borrar personajes custom (tabla characters)
-      await sbClient.from('characters').delete().eq('tierlist_id',id);
+    // 4. Borrar la tierlist de Supabase (global — desaparece para todos)
+    const {error} = await sbClient.from('tierlists').delete().eq('id',id);
+    if(error) throw error;
 
-      // 4. Borrar la tierlist de Supabase
-      const {error} = await sbClient.from('tierlists').delete().eq('id',id);
-      if(error) console.error('Error borrando tierlist remota:',error);
-    }catch(e){console.error('Error borrando tierlist de Supabase:',e);}
+    // 5. Eliminar del local de TODOS los perfiles cargados
+    S.profiles.forEach(prof => {
+      prof.tls = (prof.tls||[]).filter(t=>t.id!==id);
+    });
+    if(S.cid===id){S.cid=null;S.workingTL=null;S.hasUnsaved=false;setRoute('home');}
+    saveProfiles();
+    render();
+    toast('Tierlist eliminada para todos ✓');
+  }catch(e){
+    console.error('Error borrando tierlist:',e);
+    toast('Error al eliminar: '+e.message,'err');
   }
 }
 function dupTL(id){
