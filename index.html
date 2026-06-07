@@ -1426,30 +1426,43 @@ function addTier(tl){
 }
 // Borrar recursivamente todos los archivos de una carpeta del bucket 'tierlists'
 async function deleteBucketFolder(bucketFolder) {
-  while (true) {
-    const { data: items, error } = await sbClient.storage.from('tierlists').list(bucketFolder, { limit: 1000 });
-    if (error || !items || items.length === 0) break;
-
-    const filePaths = [];
-    const subFolders = [];
-    for (const item of items) {
-      if (item.id === null || item.metadata === null) {
-        subFolders.push(`${bucketFolder}/${item.name}`);
-      } else {
-        filePaths.push(`${bucketFolder}/${item.name}`);
+  // Listar TODOS los archivos recursivamente primero
+  async function collectAll(folder) {
+    const paths = [];
+    let offset = 0;
+    while (true) {
+      const { data: items, error } = await sbClient.storage.from('tierlists').list(folder, { limit: 1000, offset });
+      if (error || !items || items.length === 0) break;
+      for (const item of items) {
+        const fullPath = `${folder}/${item.name}`;
+        if (item.id === null || item.metadata === null) {
+          // Subcarpeta → recursivo
+          const sub = await collectAll(fullPath);
+          paths.push(...sub);
+        } else {
+          paths.push(fullPath);
+        }
       }
+      if (items.length < 1000) break;
+      offset += items.length;
     }
-
-    if (filePaths.length > 0) {
-      await sbClient.storage.from('tierlists').remove(filePaths);
-    }
-
-    for (const sub of subFolders) {
-      await deleteBucketFolder(sub);
-    }
-
-    if (items.length < 1000) break;
+    return paths;
   }
+
+  const allPaths = await collectAll(bucketFolder);
+
+  // Borrar en lotes de 100 (límite de Supabase por llamada)
+  const BATCH = 100;
+  for (let i = 0; i < allPaths.length; i += BATCH) {
+    const batch = allPaths.slice(i, i + BATCH);
+    const { error } = await sbClient.storage.from('tierlists').remove(batch);
+    if (error) console.warn('Error borrando lote:', error.message);
+  }
+
+  // Intentar borrar también el placeholder de carpeta si existe (.emptyKeep o .folder)
+  try {
+    await sbClient.storage.from('tierlists').remove([`${bucketFolder}/.emptyKeep`, `${bucketFolder}/.folder`]);
+  } catch(_){}
 }
 async function delTL(id){
   if(!confirm('¿Eliminar esta tierlist para TODOS los usuarios? Esta acción no se puede deshacer.'))return;
@@ -1519,7 +1532,7 @@ async function dupTL(id){
 
   const newId = uid();
   const oldFolder = tl.folder || tl.id;
-  const newFolder = sanFolder(newTitle) + '_' + Math.random().toString(36).slice(-4);
+  const newFolder = sanFolder(newTitle);
   
   const copy = JSON.parse(JSON.stringify(tl));
   copy.id = newId;
@@ -1591,35 +1604,49 @@ async function dupTL(id){
         });
       }
 
-      toast("Copiando imágenes del bucket...","info");
-      // 4. Copia física en Storage (recursiva: download + upload por archivo)
-      async function copyBucketFolder(srcFolder, dstFolder) {
+      // 4. Copia física en Storage (recursiva, paralela por lotes para miles de archivos)
+      async function listAllFiles(folder) {
+        const allFiles = [];
         let offset = 0;
-        const limit = 100;
+        const limit = 1000;
         while (true) {
-          const { data: files, error: listErr } = await sbClient.storage.from('tierlists').list(srcFolder, { limit, offset });
-          if (listErr || !files || files.length === 0) break;
-          for (const f of files) {
-            if (f.name.startsWith('.') || f.name === '.emptyKeep') continue;
-            const srcPath = `${srcFolder}/${f.name}`;
-            const dstPath = `${dstFolder}/${f.name}`;
-            if (f.id === null || f.metadata === null) {
-              // Es subcarpeta → recursivo
-              await copyBucketFolder(srcPath, dstPath);
+          const { data: items, error } = await sbClient.storage.from('tierlists').list(folder, { limit, offset });
+          if (error || !items || items.length === 0) break;
+          for (const item of items) {
+            const path = `${folder}/${item.name}`;
+            if (item.name.startsWith('.') || item.name === '.emptyKeep') continue;
+            if (item.id === null || item.metadata === null) {
+              // Subcarpeta: listar recursivamente
+              const sub = await listAllFiles(path);
+              allFiles.push(...sub);
             } else {
-              // Es archivo → download + upload
-              const { data: blob, error: dlErr } = await sbClient.storage.from('tierlists').download(srcPath);
-              if (dlErr || !blob) { console.warn('No se pudo descargar:', srcPath, dlErr?.message); continue; }
-              const contentType = f.metadata?.mimetype || 'application/octet-stream';
-              const { error: ulErr } = await sbClient.storage.from('tierlists').upload(dstPath, blob, { contentType, upsert: true });
-              if (ulErr) console.warn('No se pudo subir:', dstPath, ulErr.message);
+              allFiles.push({ srcPath: path, dstPath: path.replace(oldFolder, newFolder), contentType: item.metadata?.mimetype || 'application/octet-stream' });
             }
           }
-          if (files.length < limit) break;
+          if (items.length < limit) break;
           offset += limit;
         }
+        return allFiles;
       }
-      await copyBucketFolder(oldFolder, newFolder);
+
+      async function copyOneFile(srcPath, dstPath, contentType) {
+        const { data: blob, error: dlErr } = await sbClient.storage.from('tierlists').download(srcPath);
+        if (dlErr || !blob) { console.warn('No se pudo descargar:', srcPath, dlErr?.message); return; }
+        const { error: ulErr } = await sbClient.storage.from('tierlists').upload(dstPath, blob, { contentType, upsert: true });
+        if (ulErr) console.warn('No se pudo subir:', dstPath, ulErr.message);
+      }
+
+      toast(`Listando archivos del bucket...`, 'info');
+      const allFiles = await listAllFiles(oldFolder);
+      const total = allFiles.length;
+      let done = 0;
+      const BATCH = 10; // 10 en paralelo para no saturar
+      for (let i = 0; i < allFiles.length; i += BATCH) {
+        const batch = allFiles.slice(i, i + BATCH);
+        await Promise.all(batch.map(f => copyOneFile(f.srcPath, f.dstPath, f.contentType)));
+        done += batch.length;
+        toast(`Copiando imágenes... ${done}/${total}`, 'info');
+      }
 
       toast("Copia finalizada con éxito ✓");
     } catch (e) {
