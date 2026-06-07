@@ -1117,8 +1117,7 @@ function MNewTL(){
       // Crear la tierlist en la tabla tierlists
       sbClient.from('tierlists').insert({
         id, title: newTL.title, folder: fl,
-        tiers_config: newTL.tiers,
-        created_by: userSession.user.id
+        tiers_config: newTL.tiers
       }).then(async ({error}) => {
         if(error) { toast("Error guardando tierlist", "err"); return; }
         // Crear tabla propia para personajes de esta tierlist via RPC
@@ -1297,10 +1296,9 @@ function MAddChar(){
         const { data: { publicUrl } } = sbClient.storage.from('tierlists').getPublicUrl(filePath);
         cloudUrl = publicUrl;
 
-        // Registrar en la tabla de personajes para que sea global
-        // Insertar personaje en la tabla de characters de ESTA tierlist
+        // Registrar personaje de forma comunitaria
         await sbClient.from('characters').insert({
-          id: cid, tierlist_id: tl.id, name: charName.trim(), anime: animeName.trim()||'Custom', image_url: cloudUrl, created_by: userSession.user.id
+          id: cid, tierlist_id: tl.id, name: charName.trim(), anime: animeName.trim()||'Custom', image_url: cloudUrl
         });
         // También intentar insertar en tabla específica si existe
         try {
@@ -1536,19 +1534,29 @@ async function dupTL(id){
       // 1. Clonar Tierlist
       await sbClient.from('tierlists').insert({
         id: newId, title: newTitle, folder: newFolder,
-        tiers_config: copy.tiers.map(t => ({ id: t.id, label: t.label, color: t.color })),
-        created_by: userSession.user.id
+        tiers_config: copy.tiers.map(t => ({ id: t.id, label: t.label, color: t.color }))
       });
 
-      // 2. Clonar Personajes y Archivos
-      const { data: chars } = await sbClient.from('characters').select('*').eq('tierlist_id', id);
+      // 2. Clonar Personajes (Paginado para traer +1000 si existen)
+      let allChars = [];
+      let from = 0;
+      const step = 1000;
+      while (true) {
+        const { data: batch, error: batchErr } = await sbClient.from('characters').select('*').eq('tierlist_id', id).range(from, from + step - 1);
+        if (batchErr || !batch || batch.length === 0) break;
+        allChars = allChars.concat(batch);
+        if (batch.length < step) break;
+        from += step;
+      }
+
+      const chars = allChars;
       const idMap = {};
       if (chars && chars.length) {
         const newChars = chars.map(c => {
           const nid = 'c_' + uid();
           idMap[c.id] = nid;
           return {
-            ...c, id: nid, tierlist_id: newId, created_by: userSession.user.id,
+            ...c, id: nid, tierlist_id: newId,
             image_url: c.image_url ? c.image_url.replace(`/${oldFolder}/`, `/${newFolder}/`) : null
           };
         });
@@ -1582,14 +1590,22 @@ async function dupTL(id){
         });
       }
 
-      // 4. Copia física en Storage
-      const { data: files } = await sbClient.storage.from('tierlists').list(oldFolder);
-      if (files) {
+      // 4. Copia física en Storage (Paginado para asegurar todas las imágenes)
+      let offset = 0;
+      const limit = 1000;
+      while (true) {
+        const { data: files, error: listErr } = await sbClient.storage.from('tierlists').list(oldFolder, { limit, offset });
+        if (listErr || !files || files.length === 0) break;
+        
         for (const f of files) {
-          if (f.name.startsWith('.')) continue;
+          if (f.name.startsWith('.') || f.name === ".emptyKeep") continue;
           await sbClient.storage.from('tierlists').copy(`${oldFolder}/${f.name}`, `${newFolder}/${f.name}`);
         }
+        
+        if (files.length < limit) break;
+        offset += limit;
       }
+
       toast("Copia finalizada con éxito ✓");
     } catch (e) {
       console.error(e);
@@ -1755,29 +1771,27 @@ async function handleDeleteAccount() {
   const uid = userSession.user.id;
   isDeletingAccount = true;
   try {
-    toast('Eliminando cuenta y datos personales...','info');
+    toast('Eliminando datos personales y cuenta...','info');
 
     currentUserProfile = null;
     isFetchingProfile = false;
 
-    // 1. Borrar rankings personales (posiciones de personajes en los tiers)
+    // 1. Borrar rankings personales (viculados al usuario)
     await sbClient.from('user_rankings').delete().eq('user_id', uid);
 
-    // 2. Borrar perfil de la tabla public.profiles (OBLIGATORIO antes de borrar auth)
-    // Nota: Asegúrate de que RLS permita DELETE al dueño en la tabla profiles
+    // 2. Borrar perfil de la tabla public.profiles
     await sbClient.from('profiles').delete().eq('id', uid);
 
     // 3. Borrar el usuario de Supabase Auth (Pestaña Authentication)
-    // Llamamos a la función SQL que creamos en el Paso 1
     const { error: authErr } = await sbClient.rpc('delete_user_account');
     if (authErr) console.error("Error en Auth:", authErr);
 
-    // 4. Limpiar localStorage por completo
+    // 5. Limpiar localStorage por completo
     localStorage.removeItem('at4_profiles');
     localStorage.removeItem('at4_activeProfile');
     localStorage.removeItem('at4_deleted_tls');
 
-    // 5. Reset de variables y sesión
+    // 6. Reset de variables y sesión
     userSession = null;
     S.activeProfile = null;
     S.profiles = [];
