@@ -788,14 +788,14 @@ function Editor(){
     ce.ondragover = e => {
       e.preventDefault();
       const cards = Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
-      const rect = ce.getBoundingClientRect();
       let targetIdx = cards.length;
 
       for(let i=0; i<cards.length; i++){
-        const cRect = cards[i].getBoundingClientRect();
-        // Usamos el offsetLeft para obtener la posición original sin el transform
-        const originalMid = rect.left + cards[i].offsetLeft + cards[i].offsetWidth/2;
-        if(e.clientX < originalMid){ targetIdx = i; break; }
+        const r = cards[i].getBoundingClientRect();
+        // Si el cursor está por encima de la fila actual, el hueco va aquí
+        if (e.clientY < r.top) { targetIdx = i; break; }
+        // Si está en la misma fila y antes de la mitad de la carta
+        if (e.clientY < r.bottom && e.clientX < r.left + r.width / 2) { targetIdx = i; break; }
       }
 
       const zone = tier.id + '_' + targetIdx;
@@ -815,10 +815,10 @@ function Editor(){
       if(!DG) return;
       const cards = Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
       let dropIdx = cards.length;
-      const rect = ce.getBoundingClientRect();
       for(let i=0; i<cards.length; i++){
-        const originalMid = rect.left + cards[i].offsetLeft + cards[i].offsetWidth/2;
-        if(e.clientX < originalMid){ dropIdx = i; break; }
+        const r = cards[i].getBoundingClientRect();
+        if (e.clientY < r.top) { dropIdx = i; break; }
+        if (e.clientY < r.bottom && e.clientX < r.left + r.width / 2) { dropIdx = i; break; }
       }
       ce.querySelectorAll('.tc').forEach(c => c.style.transform = '');
       tdrop(e, tier.id, dropIdx);
