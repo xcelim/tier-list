@@ -1252,6 +1252,27 @@ function addTier(tl){
   tl.tiers.push({id:uid(),label:lbl,color:cols[tl.tiers.length%cols.length],chars:[]});
   markUnsaved();
 }
+// Borrar recursivamente todos los archivos de una carpeta del bucket 'tierlists'
+async function deleteBucketFolder(bucketFolder) {
+  const { data: items, error } = await sbClient.storage.from('tierlists').list(bucketFolder, { limit: 1000 });
+  if (error || !items || items.length === 0) return;
+  const filePaths = [];
+  const subFolders = [];
+  for (const item of items) {
+    if (item.id === null || item.metadata === null) {
+      // Es una subcarpeta (los folders en Supabase tienen id=null)
+      subFolders.push(`${bucketFolder}/${item.name}`);
+    } else {
+      filePaths.push(`${bucketFolder}/${item.name}`);
+    }
+  }
+  if (filePaths.length > 0) {
+    await sbClient.storage.from('tierlists').remove(filePaths);
+  }
+  for (const sub of subFolders) {
+    await deleteBucketFolder(sub);
+  }
+}
 async function delTL(id){
   if(!confirm('¿Eliminar esta tierlist para TODOS los usuarios? Esta acción no se puede deshacer.'))return;
   const p=activeProfile();if(!p)return;
@@ -1266,18 +1287,14 @@ async function delTL(id){
   }
 
   toast('Eliminando...','info');
+
   try{
-    // 1. Borrar TODAS las imágenes del bucket para esta tierlist (listando la carpeta completa)
+    // 1. Borrar TODAS las imágenes del bucket para esta tierlist (recursivo)
     const folder = (tl && tl.folder) ? tl.folder : id;
     try {
-      const { data: fileList, error: listErr } = await sbClient.storage.from('tierlists').list(folder);
-      if (!listErr && fileList && fileList.length > 0) {
-        const allPaths = fileList.map(f => `${folder}/${f.name}`);
-        const { error: rmErr } = await sbClient.storage.from('tierlists').remove(allPaths);
-        if (rmErr) console.warn('Advertencia borrando imágenes del bucket:', rmErr.message);
-      }
+      await deleteBucketFolder(folder);
     } catch(storageErr) {
-      console.warn('No se pudo limpiar el bucket (puede que no exista la carpeta):', storageErr.message);
+      console.warn('No se pudo limpiar el bucket:', storageErr.message);
     }
 
     // 2. Borrar TODOS los rankings de TODOS los usuarios para esta tierlist
@@ -1458,15 +1475,9 @@ async function handleDeleteAccount() {
     const p = S.profiles.find(x=>x.id===uid);
     if(p && p.tls) {
       for(const tl of p.tls) {
-        // Listar y borrar TODOS los archivos del folder en el bucket
+        // Borrar TODOS los archivos del folder recursivamente
         const folder = tl.folder || tl.id;
-        try {
-          const { data: fileList } = await sbClient.storage.from('tierlists').list(folder);
-          if(fileList && fileList.length > 0) {
-            const allPaths = fileList.map(f => `${folder}/${f.name}`);
-            await sbClient.storage.from('tierlists').remove(allPaths);
-          }
-        } catch(e){}
+        try { await deleteBucketFolder(folder); } catch(e){}
         try { await sbClient.from('user_rankings').delete().eq('tierlist_id',tl.id); } catch(e){}
         try { await sbClient.from('characters').delete().eq('tierlist_id',tl.id); } catch(e){}
         try { await sbClient.from('tierlists').delete().eq('id',tl.id); } catch(e){}
