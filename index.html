@@ -597,126 +597,6 @@ function h(tag,a,...ch){
 }
 
 // ============ DRAG (smooth floating image) ============
-let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
-let scrollDir=0, scrollInt=null;
-
-function updateScroll(){
-  if(scrollDir!==0) window.scrollBy(0, scrollDir*60);
-}
-
-function createFloat(imgSrc){
-  removeFloat();
-  dragFloatEl=document.createElement('div');
-  dragFloatEl.className='drag-float';
-  const im=document.createElement('img');im.src=imgSrc;
-  dragFloatEl.appendChild(im);document.body.appendChild(dragFloatEl);
-}
-function removeFloat(){
-  if(dragFloatEl){dragFloatEl.remove();dragFloatEl=null;}
-  if(scrollInt){clearInterval(scrollInt); scrollInt=null;}
-  scrollDir=0;
-}
-function moveFloat(e){
-  if(!e.clientX || !e.clientY) return;
-  if(dragFloatEl){
-    dragFloatEl.style.left=(e.clientX-51)+'px';
-    dragFloatEl.style.top=(e.clientY-81)+'px';
-    
-    const h = window.innerHeight;
-    const threshold = 100;
-    if(e.clientY < threshold) scrollDir = -1;
-    else if(e.clientY > h - threshold) scrollDir = 1;
-    else scrollDir = 0;
-    
-    if(scrollDir!==0 && !scrollInt) scrollInt = setInterval(updateScroll, 16);
-    else if(scrollDir===0 && scrollInt) { clearInterval(scrollInt); scrollInt=null; }
-  }
-}
-document.addEventListener('dragover',moveFloat);
-document.addEventListener('drop',()=>removeFloat());
-
-// El Drag API del navegador bloquea wheel a nivel de sistema.
-// Solución: iframe invisible que recibe wheel events (no afectados por el drag nativo)
-let _wheelIframe = null;
-function _createWheelIframe(){
-  if(_wheelIframe) return;
-  _wheelIframe = document.createElement('iframe');
-  Object.assign(_wheelIframe.style, {
-    position:'fixed',top:'0',left:'0',width:'100%',height:'100%',
-    opacity:'0',border:'none',zIndex:'9998',pointerEvents:'all',background:'transparent'
-  });
-  _wheelIframe.src = 'about:blank';
-  document.body.appendChild(_wheelIframe);
-  function _attachWheelListener(){
-    try {
-      _wheelIframe.contentWindow.addEventListener('wheel', (e) => {
-        window.scrollBy({ top: e.deltaY, left: e.deltaX });
-      }, {passive: true});
-    } catch(err){}
-  }
-  _wheelIframe.onload = _attachWheelListener;
-  // Intentar inmediatamente también (por si ya cargó)
-  _attachWheelListener();
-}
-function _removeWheelIframe(){
-  if(_wheelIframe){ _wheelIframe.remove(); _wheelIframe = null; }
-}
-
-function dgstart(e,id,src,idx,imgSrc){
-  DG=id;DS=src;DGidx=idx;
-  e.dataTransfer.effectAllowed='move';
-  // invisible native ghost
-  const blank=document.createElement('canvas');blank.width=1;blank.height=1;
-  e.dataTransfer.setDragImage(blank,0,0);
-  createFloat(imgSrc||'');
-  if(dragFloatEl){
-    dragFloatEl.style.left=(e.clientX-51)+'px';
-    dragFloatEl.style.top=(e.clientY-81)+'px';
-  }
-  _createWheelIframe();
-  setTimeout(()=>{
-    document.querySelectorAll('.tc,.pc').forEach(el=>{
-      if(el.dataset.cid===id)el.classList.add('is-dragging');
-    });
-  },0);
-}
-function dgend(){
-  DG=null;DS=null;DGidx=-1;
-  removeFloat(); _removeWheelIframe(); lastZone=null;
-  const ph=document.getElementById('drop-ph'); if(ph) ph.remove();
-  document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
-  document.querySelectorAll('.tc').forEach(el=>el.style.transform='');
-  document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
-}
-
-function tover(e,tid){
-  e.preventDefault();
-  document.querySelectorAll('.trow.dov').forEach(el=>el.classList.remove('dov'));
-  document.getElementById('t'+tid)?.classList.add('dov');
-}
-function tdrop(e,tid,toIdx){
-  e.preventDefault();if(!DG)return;
-  const tl=S.workingTL;
-  if(DS==='pool')tl.pool=tl.pool.filter(x=>x!==DG);
-  else{const s=tl.tiers.find(t=>t.id===DS);if(s)s.chars=s.chars.filter(x=>x!==DG);}
-  const dest=tl.tiers.find(t=>t.id===tid);
-  if(dest){
-    dest.chars=dest.chars.filter(x=>x!==DG);
-    if(typeof toIdx==='number'&&toIdx>=0)dest.chars.splice(toIdx,0,DG);
-    else dest.chars.push(DG);
-  }
-  markUnsaved();
-}
-function pover(e){e.preventDefault();document.getElementById('pdrop')?.classList.add('dov');}
-function pdrop(e){
-  e.preventDefault();if(!DG||DS==='pool')return;
-  const tl=S.workingTL;
-  const s=tl.tiers.find(t=>t.id===DS);
-  if(s)s.chars=s.chars.filter(x=>x!==DG);
-  if(!tl.pool.includes(DG))tl.pool.push(DG);
-  markUnsaved();
-}
-
 // ============ NAV ============
 function Nav(){
   const n=h('nav',{});
@@ -943,14 +823,12 @@ function Editor(){
 
     (tier.chars||[]).forEach((cid,ci)=>{
       const c=getChar(cid,tl);if(!c)return;
-      const el=h('div',{class:'tc',draggable:'true'});
+      const el=h('div',{class:'tc'}); // Eliminado draggable="true"
       el.dataset.cid=cid;
       el.title=(c.name||cid)+' \u2014 '+(c.anime||'');
       const imgSrcVal=charImg(cid,tl);
-      el.appendChild(h('img',{src:imgSrcVal,onerror:(e)=>e.target.src='https://api.dicebear.com/7.x/initials/svg?seed='+encodeURIComponent(c.name||cid)}));
+      el.appendChild(h('img',{src:imgSrcVal,onerror:(e)=>e.target.src='https://api.dicebear.com/7.x/initials/svg?seed='+encodeURIComponent(c.name||cid), draggable:'false'})); // Añadido draggable="false" a la imagen
       el.appendChild(h('div',{class:'cn'},c.name||cid));
-      el.ondragstart=e=>dgstart(e,cid,tier.id,ci,imgSrcVal);
-      el.ondragend=dgend;
       el.ondblclick=()=>{tier.chars=tier.chars.filter(x=>x!==cid);if(!tl.pool.includes(cid))tl.pool.unshift(cid);markUnsaved();};
       ce.appendChild(el);
     });
@@ -960,8 +838,9 @@ function Editor(){
   w.appendChild(tw);
   // Pool
   const ps=h('div',{class:'pool',id:'pdrop'});
-  ps.ondragover=pover;ps.ondrop=pdrop;
-  ps.ondragleave=e=>{if(!ps.contains(e.relatedTarget))ps.classList.remove('dov');};
+  // ps.ondragover=pover; // Eliminado
+  // ps.ondrop=pdrop; // Eliminado
+  // ps.ondragleave=e=>{if(!ps.contains(e.relatedTarget))ps.classList.remove('dov');}; // Eliminado
   const ph=h('div',{class:'pool-hdr'});
   ph.appendChild(h('h3',{},'Pool'));
   ph.appendChild(h('span',{class:'badge'},(tl.pool||[]).length+''));
@@ -1012,25 +891,12 @@ function updPool(cont,tl){
   const shown=chars.slice(0,(S.poolPage+1)*PAGE);
   shown.forEach(cid=>{
     const c=getChar(cid,tl);if(!c)return;
-    const el=h('div',{class:'pc',style:{position:'relative'}});el.dataset.cid=cid;
+    const el=h('div',{class:'pc',style:{position:'relative'}});el.dataset.cid=cid; // Eliminado draggable="true"
     el.title=(c.name||cid)+' \u2014 '+(c.anime||'');
-    const im=h('img',{src:charImg(cid,tl),alt:c.name||cid,loading:'lazy',draggable:'false'});
+    const im=h('img',{src:charImg(cid,tl),alt:c.name||cid,loading:'lazy',draggable:'false'}); // Añadido draggable="false" a la imagen
     im.onerror=()=>{im.src='https://api.dicebear.com/7.x/initials/svg?seed='+encodeURIComponent(c.name||cid)+'&size=66';};
     el.appendChild(im);el.appendChild(h('div',{class:'cn'},c.name||cid));
     // Botón de borrar solo para personajes custom
-    if(c.isCustom){
-      const db=h('button',{
-        title:'Eliminar permanentemente',
-        style:{position:'absolute',top:'1px',right:'1px',background:'rgba(224,85,84,.85)',color:'#fff',border:'none',borderRadius:'3px',width:'14px',height:'14px',fontSize:'9px',display:'none',alignItems:'center',justifyContent:'center',cursor:'pointer',padding:'0',lineHeight:'1',zIndex:'10'},
-        onclick:(e)=>{e.stopPropagation();deleteCustomChar(cid,tl);}
-      },'✕');
-      el.addEventListener('mouseenter',()=>{db.style.display='flex';});
-      el.addEventListener('mouseleave',()=>{db.style.display='none';});
-      el.appendChild(db);
-    }
-    const imgSrcVal=charImg(cid,tl);
-    el.ondragstart=e=>dgstart(e,cid,'pool',-1,imgSrcVal);
-    el.ondragend=dgend;
     cont.appendChild(el);
   });
   if(shown.length<chars.length){
