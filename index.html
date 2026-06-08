@@ -634,33 +634,13 @@ function moveFloat(e){
 }
 document.addEventListener('dragover',moveFloat);
 document.addEventListener('drop',()=>removeFloat());
-
-// El Drag API del navegador bloquea wheel a nivel de sistema.
-// Solución: iframe invisible que recibe wheel events (no afectados por el drag nativo)
-let _wheelIframe = null;
-function _createWheelIframe(){
-  if(_wheelIframe) return;
-  _wheelIframe = document.createElement('iframe');
-  Object.assign(_wheelIframe.style, {
-    position:'fixed',top:'0',left:'0',width:'100%',height:'100%',
-    opacity:'0',border:'none',zIndex:'9998',pointerEvents:'all',background:'transparent'
-  });
-  _wheelIframe.src = 'about:blank';
-  document.body.appendChild(_wheelIframe);
-  function _attachWheelListener(){
-    try {
-      _wheelIframe.contentWindow.addEventListener('wheel', (e) => {
-        window.scrollBy({ top: e.deltaY, left: e.deltaX });
-      }, {passive: true});
-    } catch(err){}
+window.addEventListener('wheel', e => { 
+  if(DG) {
+    e.preventDefault();
+    window.scrollBy({ top: e.deltaY, behavior: 'instant' });
+    moveFloat(e);
   }
-  _wheelIframe.onload = _attachWheelListener;
-  // Intentar inmediatamente también (por si ya cargó)
-  _attachWheelListener();
-}
-function _removeWheelIframe(){
-  if(_wheelIframe){ _wheelIframe.remove(); _wheelIframe = null; }
-}
+}, {passive:false});
 
 function dgstart(e,id,src,idx,imgSrc){
   DG=id;DS=src;DGidx=idx;
@@ -673,7 +653,6 @@ function dgstart(e,id,src,idx,imgSrc){
     dragFloatEl.style.left=(e.clientX-51)+'px';
     dragFloatEl.style.top=(e.clientY-81)+'px';
   }
-  _createWheelIframe();
   setTimeout(()=>{
     document.querySelectorAll('.tc,.pc').forEach(el=>{
       if(el.dataset.cid===id)el.classList.add('is-dragging');
@@ -682,7 +661,7 @@ function dgstart(e,id,src,idx,imgSrc){
 }
 function dgend(){
   DG=null;DS=null;DGidx=-1;
-  removeFloat(); _removeWheelIframe(); lastZone=null;
+  removeFloat(); lastZone=null;
   const ph=document.getElementById('drop-ph'); if(ph) ph.remove();
   document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
   document.querySelectorAll('.tc').forEach(el=>el.style.transform='');
