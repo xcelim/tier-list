@@ -20,7 +20,8 @@
   --accent:#7c5cbf;--accent2:#9b7dd4;--accentbg:#7c5cbf22;
   --red:#e05555;--green:#55c87d;--gold:#f0b429;
 }
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow:hidden;height:100vh}
+#scroll-root{height:100vh;overflow-y:auto;overflow-x:hidden}
 h1,h2,h3,.hf{font-family:'Rajdhani',sans-serif;letter-spacing:.5px}
 button{cursor:pointer;border:none;background:none;color:inherit;font-family:inherit;font-size:inherit}
 input,select,textarea{font-family:inherit;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 11px;font-size:13px;outline:none;transition:.15s}
@@ -176,6 +177,7 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+<div id="scroll-root">
 <div id="app"></div>
 <div class="tw" id="tw"></div>
 <script>
@@ -601,7 +603,7 @@ let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
 let scrollDir=0, scrollInt=null;
 
 function updateScroll(){
-  if(scrollDir!==0) window.scrollBy(0, scrollDir*60);
+  if(scrollDir!==0) document.getElementById('scroll-root').scrollBy(0, scrollDir*60);
 }
 
 function createFloat(imgSrc){
@@ -634,33 +636,7 @@ function moveFloat(e){
 }
 document.addEventListener('dragover',moveFloat);
 document.addEventListener('drop',()=>removeFloat());
-
-// El Drag API del navegador bloquea wheel a nivel de sistema.
-// Solución: iframe invisible que recibe wheel events (no afectados por el drag nativo)
-let _wheelIframe = null;
-function _createWheelIframe(){
-  if(_wheelIframe) return;
-  _wheelIframe = document.createElement('iframe');
-  Object.assign(_wheelIframe.style, {
-    position:'fixed',top:'0',left:'0',width:'100%',height:'100%',
-    opacity:'0',border:'none',zIndex:'9998',pointerEvents:'all',background:'transparent'
-  });
-  _wheelIframe.src = 'about:blank';
-  document.body.appendChild(_wheelIframe);
-  function _attachWheelListener(){
-    try {
-      _wheelIframe.contentWindow.addEventListener('wheel', (e) => {
-        window.scrollBy({ top: e.deltaY, left: e.deltaX });
-      }, {passive: true});
-    } catch(err){}
-  }
-  _wheelIframe.onload = _attachWheelListener;
-  // Intentar inmediatamente también (por si ya cargó)
-  _attachWheelListener();
-}
-function _removeWheelIframe(){
-  if(_wheelIframe){ _wheelIframe.remove(); _wheelIframe = null; }
-}
+// wheel scroll handled by scroll-root container natively
 
 function dgstart(e,id,src,idx,imgSrc){
   DG=id;DS=src;DGidx=idx;
@@ -673,7 +649,6 @@ function dgstart(e,id,src,idx,imgSrc){
     dragFloatEl.style.left=(e.clientX-51)+'px';
     dragFloatEl.style.top=(e.clientY-81)+'px';
   }
-  _createWheelIframe();
   setTimeout(()=>{
     document.querySelectorAll('.tc,.pc').forEach(el=>{
       if(el.dataset.cid===id)el.classList.add('is-dragging');
@@ -682,7 +657,7 @@ function dgstart(e,id,src,idx,imgSrc){
 }
 function dgend(){
   DG=null;DS=null;DGidx=-1;
-  removeFloat(); _removeWheelIframe(); lastZone=null;
+  removeFloat(); lastZone=null;
   const ph=document.getElementById('drop-ph'); if(ph) ph.remove();
   document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
   document.querySelectorAll('.tc').forEach(el=>el.style.transform='');
@@ -1012,9 +987,9 @@ function updPool(cont,tl){
   const shown=chars.slice(0,(S.poolPage+1)*PAGE);
   shown.forEach(cid=>{
     const c=getChar(cid,tl);if(!c)return;
-    const el=h('div',{class:'pc',style:{position:'relative'}});el.dataset.cid=cid; // Eliminado draggable="true"
+    const el=h('div',{class:'pc',draggable:'true',style:{position:'relative'}});el.dataset.cid=cid;
     el.title=(c.name||cid)+' \u2014 '+(c.anime||'');
-    const im=h('img',{src:charImg(cid,tl),alt:c.name||cid,loading:'lazy',draggable:'false'}); // Añadido draggable="false" a la imagen
+    const im=h('img',{src:charImg(cid,tl),alt:c.name||cid,loading:'lazy'});
     im.onerror=()=>{im.src='https://api.dicebear.com/7.x/initials/svg?seed='+encodeURIComponent(c.name||cid)+'&size=66';};
     el.appendChild(im);el.appendChild(h('div',{class:'cn'},c.name||cid));
     // Botón de borrar solo para personajes custom
@@ -1029,7 +1004,8 @@ function updPool(cont,tl){
       el.appendChild(db);
     }
     const imgSrcVal=charImg(cid,tl);
-    // Eliminados el.ondragstart y el.ondragend
+    el.ondragstart=e=>dgstart(e,cid,'pool',-1,imgSrcVal);
+    el.ondragend=dgend;
     cont.appendChild(el);
   });
   if(shown.length<chars.length){
@@ -1956,5 +1932,6 @@ initSupabase();
 })();
 render();
 </script>
+</div><!-- scroll-root -->
 </body>
 </html>
