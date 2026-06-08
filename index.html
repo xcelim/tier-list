@@ -1012,9 +1012,9 @@ function updPool(cont,tl){
   const shown=chars.slice(0,(S.poolPage+1)*PAGE);
   shown.forEach(cid=>{
     const c=getChar(cid,tl);if(!c)return;
-    const el=h('div',{class:'pc',draggable:'true',style:{position:'relative'}});el.dataset.cid=cid;
+    const el=h('div',{class:'pc',style:{position:'relative'}});el.dataset.cid=cid;
     el.title=(c.name||cid)+' \u2014 '+(c.anime||'');
-    const im=h('img',{src:charImg(cid,tl),alt:c.name||cid,loading:'lazy'});
+    const im=h('img',{src:charImg(cid,tl),alt:c.name||cid,loading:'lazy',draggable:'false'});
     im.onerror=()=>{im.src='https://api.dicebear.com/7.x/initials/svg?seed='+encodeURIComponent(c.name||cid)+'&size=66';};
     el.appendChild(im);el.appendChild(h('div',{class:'cn'},c.name||cid));
     // Botón de borrar solo para personajes custom
