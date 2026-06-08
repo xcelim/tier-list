@@ -951,6 +951,7 @@ function Editor(){
       el.appendChild(h('img',{src:imgSrcVal,onerror:(e)=>e.target.src='https://api.dicebear.com/7.x/initials/svg?seed='+encodeURIComponent(c.name||cid)}));
       el.appendChild(h('div',{class:'cn'},c.name||cid));
       el.ondragstart=e=>dgstart(e,cid,tier.id,ci,imgSrcVal);
+      el.ondragend=dgend;
       el.ondblclick=()=>{tier.chars=tier.chars.filter(x=>x!==cid);if(!tl.pool.includes(cid))tl.pool.unshift(cid);markUnsaved();};
       ce.appendChild(el);
     });
@@ -1030,6 +1031,7 @@ function updPool(cont,tl){
     }
     const imgSrcVal=charImg(cid,tl);
     el.ondragstart=e=>dgstart(e,cid,'pool',-1,imgSrcVal);
+    el.ondragend=dgend;
     cont.appendChild(el);
   });
   if(shown.length<chars.length){
