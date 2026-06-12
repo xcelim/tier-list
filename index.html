@@ -598,102 +598,92 @@ function h(tag,a,...ch){
 
 // ============ DRAG (smooth floating image) ============
 let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
-let scrollDir=0,scrollInt=null;
-let _mdActive=false,_mdMoved=false,_mdStartX=0,_mdStartY=0,_mdImgSrc='';
-let _mdLastTarget=null,_lastZoneKey='';
+let scrollDir=0, scrollInt=null;
 
 function updateScroll(){
-  if(scrollDir!==0) window.scrollBy(0,scrollDir*60);
+  if(scrollDir!==0) window.scrollBy(0, scrollDir*60);
 }
+
 function createFloat(imgSrc){
   removeFloat();
   dragFloatEl=document.createElement('div');
   dragFloatEl.className='drag-float';
   const im=document.createElement('img');im.src=imgSrc;
-  dragFloatEl.appendChild(im);
-  document.body.appendChild(dragFloatEl);
+  dragFloatEl.appendChild(im);document.body.appendChild(dragFloatEl);
 }
 function removeFloat(){
   if(dragFloatEl){dragFloatEl.remove();dragFloatEl=null;}
-  if(scrollInt){clearInterval(scrollInt);scrollInt=null;}
+  if(scrollInt){clearInterval(scrollInt); scrollInt=null;}
   scrollDir=0;
 }
-function moveFloatXY(cx,cy){
-  if(!dragFloatEl)return;
-  dragFloatEl.style.left=(cx-51)+'px';
-  dragFloatEl.style.top=(cy-81)+'px';
-  const wh=window.innerHeight,th=100;
-  if(cy<th)scrollDir=-1;
-  else if(cy>wh-th)scrollDir=1;
-  else scrollDir=0;
-  if(scrollDir!==0&&!scrollInt)scrollInt=setInterval(updateScroll,16);
-  else if(scrollDir===0&&scrollInt){clearInterval(scrollInt);scrollInt=null;}
-}
-// moveFloat para compatibilidad con dragover existente (animaciones FLIP)
 function moveFloat(e){
-  if(!e.clientX||!e.clientY)return;
-  moveFloatXY(e.clientX,e.clientY);
+  if(!e.clientX || !e.clientY) return;
+  if(dragFloatEl){
+    dragFloatEl.style.left=(e.clientX-51)+'px';
+    dragFloatEl.style.top=(e.clientY-81)+'px';
+    
+    const h = window.innerHeight;
+    const threshold = 100;
+    if(e.clientY < threshold) scrollDir = -1;
+    else if(e.clientY > h - threshold) scrollDir = 1;
+    else scrollDir = 0;
+    
+    if(scrollDir!==0 && !scrollInt) scrollInt = setInterval(updateScroll, 16);
+    else if(scrollDir===0 && scrollInt) { clearInterval(scrollInt); scrollInt=null; }
+  }
 }
-
-// El drag nativo lo necesitamos SOLO para que los eventos dragover/dragleave/drop
-// del DOM funcionen (animaciones FLIP). Pero desactivamos su efecto visual.
 document.addEventListener('dragover',moveFloat);
 document.addEventListener('drop',()=>removeFloat());
 
-// mousedown -> activar seguimiento sin crear float todavía (así la rueda no se bloquea)
-function dgPointerDown(e,id,src,idx,imgSrc){
-  if(e.button!==0)return;
-  DG=id;DS=src;DGidx=idx;
-  _mdActive=true;_mdMoved=false;
-  _mdStartX=e.clientX;_mdStartY=e.clientY;
-  _mdImgSrc=imgSrc||'';
-}
-
-document.addEventListener('mousemove',e=>{
-  if(!_mdActive)return;
-  const dx=e.clientX-_mdStartX,dy=e.clientY-_mdStartY;
-  if(!_mdMoved){
-    if(Math.sqrt(dx*dx+dy*dy)<5)return;
-    _mdMoved=true;
-    createFloat(_mdImgSrc);
-    moveFloatXY(e.clientX,e.clientY);
-    document.querySelectorAll('.tc,.pc').forEach(el=>{
-      if(el.dataset.cid===DG)el.classList.add('is-dragging');
-    });
+// El Drag API del navegador bloquea wheel a nivel de sistema.
+// Solución: iframe invisible que recibe wheel events (no afectados por el drag nativo)
+let _wheelIframe = null;
+function _createWheelIframe(){
+  if(_wheelIframe) return;
+  _wheelIframe = document.createElement('iframe');
+  Object.assign(_wheelIframe.style, {
+    position:'fixed',top:'0',left:'0',width:'100%',height:'100%',
+    opacity:'0',border:'none',zIndex:'9998',pointerEvents:'all',background:'transparent'
+  });
+  _wheelIframe.src = 'about:blank';
+  document.body.appendChild(_wheelIframe);
+  function _attachWheelListener(){
+    try {
+      _wheelIframe.contentWindow.addEventListener('wheel', (e) => {
+        window.scrollBy({ top: e.deltaY, left: e.deltaX });
+      }, {passive: true});
+    } catch(err){}
   }
-  moveFloatXY(e.clientX,e.clientY);
-},{passive:true});
-
-document.addEventListener('mouseup',e=>{
-  if(!_mdActive)return;
-  _mdActive=false;
-  if(!_mdMoved){DG=null;DS=null;DGidx=-1;removeFloat();return;}
-  // El drop lo gestiona ondrop del DOM (dragover/drop nativos siguen activos)
-  // Pero si el mouseup no dispara un drop nativo, limpiamos igualmente
-  setTimeout(()=>{
-    if(DG){
-      DG=null;DS=null;DGidx=-1;
-      removeFloat();lastZone=null;
-      const ph=document.getElementById('drop-ph');if(ph)ph.remove();
-      document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
-      document.querySelectorAll('.tc').forEach(el=>el.style.transform='');
-      document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
-    }
-  },50);
-},{passive:true});
+  _wheelIframe.onload = _attachWheelListener;
+  // Intentar inmediatamente también (por si ya cargó)
+  _attachWheelListener();
+}
+function _removeWheelIframe(){
+  if(_wheelIframe){ _wheelIframe.remove(); _wheelIframe = null; }
+}
 
 function dgstart(e,id,src,idx,imgSrc){
-  // Drag nativo activo solo para eventos dragover/drop del DOM
   DG=id;DS=src;DGidx=idx;
   e.dataTransfer.effectAllowed='move';
+  // invisible native ghost
   const blank=document.createElement('canvas');blank.width=1;blank.height=1;
   e.dataTransfer.setDragImage(blank,0,0);
+  createFloat(imgSrc||'');
+  if(dragFloatEl){
+    dragFloatEl.style.left=(e.clientX-51)+'px';
+    dragFloatEl.style.top=(e.clientY-81)+'px';
+  }
+  _createWheelIframe();
+  setTimeout(()=>{
+    document.querySelectorAll('.tc,.pc').forEach(el=>{
+      if(el.dataset.cid===id)el.classList.add('is-dragging');
+    });
+  },0);
 }
 function dgend(){
-  _mdActive=false;_mdMoved=false;
   DG=null;DS=null;DGidx=-1;
-  removeFloat();lastZone=null;
-  const ph=document.getElementById('drop-ph');if(ph)ph.remove();
+  removeFloat(); _removeWheelIframe(); lastZone=null;
+  const ph=document.getElementById('drop-ph'); if(ph) ph.remove();
   document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
   document.querySelectorAll('.tc').forEach(el=>el.style.transform='');
   document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
@@ -961,7 +951,6 @@ function Editor(){
       el.appendChild(h('div',{class:'cn'},c.name||cid));
       el.ondragstart=e=>dgstart(e,cid,tier.id,ci,imgSrcVal);
       el.ondragend=dgend;
-      el.addEventListener('mousedown',e=>dgPointerDown(e,cid,tier.id,ci,imgSrcVal));
       el.ondblclick=()=>{tier.chars=tier.chars.filter(x=>x!==cid);if(!tl.pool.includes(cid))tl.pool.unshift(cid);markUnsaved();};
       ce.appendChild(el);
     });
@@ -1042,7 +1031,6 @@ function updPool(cont,tl){
     const imgSrcVal=charImg(cid,tl);
     el.ondragstart=e=>dgstart(e,cid,'pool',-1,imgSrcVal);
     el.ondragend=dgend;
-    el.addEventListener('mousedown',e=>dgPointerDown(e,cid,'pool',-1,imgSrcVal));
     cont.appendChild(el);
   });
   if(shown.length<chars.length){
