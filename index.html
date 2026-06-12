@@ -646,34 +646,42 @@ function _getDropZone(cx,cy){
   return null;
 }
 function _updatePlaceholder(zone){
-  const ph=document.getElementById('drop-ph');if(ph)ph.remove();
+  // Limpiar highlights
   document.querySelectorAll('.trow.dov').forEach(e=>e.classList.remove('dov'));
   document.getElementById('pdrop')?.classList.remove('dov');
-  if(!zone)return;
-  if(zone.type==='pool'){document.getElementById('pdrop')?.classList.add('dov');return;}
+  if(!zone){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
+  if(zone.type==='pool'){
+    const ph=document.getElementById('drop-ph');if(ph)ph.remove();
+    document.getElementById('pdrop')?.classList.add('dov');
+    return;
+  }
   if(zone.type==='tier'){
     document.getElementById('t'+zone.tid)?.classList.add('dov');
     const ce=document.getElementById('t'+zone.tid)?.querySelector('.tchars');
-    if(!ce)return;
+    if(!ce){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
     const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
-    if(DS===zone.tid&&zone.idx===DGidx)return;
-    const children=Array.from(ce.children);
-    const positions=children.map(c=>c.getBoundingClientRect());
+    if(DS===zone.tid&&zone.idx===DGidx){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
+    // 1. Capturar posiciones ANTES de cualquier cambio DOM
+    const allCards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
+    const snapshots=allCards.map(c=>({el:c,rect:c.getBoundingClientRect()}));
+    // 2. Quitar placeholder viejo
+    const oldph=document.getElementById('drop-ph');if(oldph)oldph.remove();
+    // 3. Insertar nuevo placeholder
     const newph=document.createElement('div');
     newph.id='drop-ph';newph.className='drop-placeholder';
-    if(zone.idx>=cards.length)ce.appendChild(newph);
-    else ce.insertBefore(newph,cards[zone.idx]);
-    Array.from(ce.children).forEach(child=>{
-      if(child.classList.contains('is-dragging'))return;
-      const oi=children.indexOf(child);if(oi===-1)return;
-      const or2=positions[oi],nr=child.getBoundingClientRect();
-      const dx=or2.left-nr.left,dy=or2.top-nr.top;
+    const freshCards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
+    if(zone.idx>=freshCards.length)ce.appendChild(newph);
+    else ce.insertBefore(newph,freshCards[zone.idx]);
+    // 4. FLIP: animar solo las cartas que se movieron
+    snapshots.forEach(({el,rect:oldRect})=>{
+      const newRect=el.getBoundingClientRect();
+      const dx=oldRect.left-newRect.left,dy=oldRect.top-newRect.top;
       if(dx||dy){
-        child.style.transition='none';
-        child.style.transform=`translate(${dx}px,${dy}px)`;
-        child.offsetHeight;
-        child.style.transition='';
-        child.style.transform='';
+        el.style.transition='none';
+        el.style.transform=`translate(${dx}px,${dy}px)`;
+        el.offsetHeight;
+        el.style.transition='';
+        el.style.transform='';
       }
     });
   }
