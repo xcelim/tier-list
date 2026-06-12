@@ -103,15 +103,22 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .tchars{flex:1;display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;gap:4px;padding:6px;min-height:172px;position:relative}
 .tc,.pc{border-radius:10px;overflow:visible;cursor:grab;position:relative;flex-shrink:0;border:2px solid transparent; background: var(--bg3);
   transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s}
+.tc:hover,.pc:hover{transform:translateY(-3px) scale(1.04);box-shadow:0 8px 24px rgba(124,92,191,.5);border-color:var(--accent)!important;z-index:2}
 .tc{width:100px;height:160px}
 .pc{width:102px;height:162px;border-color:var(--border)}
 .tc:hover{border-color:var(--accent2);transform:scale(1.1) translateY(-3px) rotate(1deg);z-index:20;box-shadow:0 10px 24px rgba(0,0,0,.55)}
 .pc:hover{border-color:var(--accent2);transform:scale(1.08) translateY(-2px);z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.5)}
 
 /* DRAGGING STATE - wobble */
-.tc.is-dragging,.pc.is-dragging{width:0!important;height:0!important;margin:0!important;padding:0!important;border:none!important;opacity:0!important;pointer-events:none!important;position:absolute!important}
-.drag-float{position:fixed;pointer-events:none;z-index:9999;width:102px;height:162px;border-radius:10px;overflow:hidden;border:2px solid var(--accent2);box-shadow:0 20px 60px rgba(124,92,191,.7);
-  background:#000;will-change:transform,left,top;transition:none !important}
+.tc.is-dragging,.pc.is-dragging{opacity:.18!important;transform:scale(.92)!important;filter:blur(1px)!important;pointer-events:none!important;border-color:var(--accent)!important;transition:all .15s ease!important}
+..drag-float{position:fixed;pointer-events:none;z-index:9999;width:102px;height:162px;border-radius:10px;overflow:hidden;border:2px solid var(--accent2);
+  box-shadow:0 28px 70px rgba(124,92,191,.85), 0 0 0 1px rgba(155,125,212,.3), inset 0 1px 0 rgba(255,255,255,.15);
+  background:#000;will-change:transform,left,top;transition:none !important;
+  animation:floatIn .15s cubic-bezier(0.34,1.56,0.64,1) forwards}
+@keyframes floatIn{
+  from{transform:rotate(-4deg) scale(.85);opacity:0}
+  to{transform:rotate(-4deg) scale(1.08);opacity:1}
+}
 .drag-float img{width:100%;height:100%;object-fit:cover;object-position:center 10%;display:block;pointer-events:none}
 
 /* SLOTS - push apart effect */
@@ -614,6 +621,7 @@ function removeFloat(){
   if(scrollInt){clearInterval(scrollInt);scrollInt=null;}
   scrollDir=0;
 }
+let _prevCx=0,_prevCy=0,_tiltRaf=null,_currentTilt=0;
 function _posFloat(cx,cy){
   if(!dragFloatEl)return;
   dragFloatEl.style.left=(cx-51)+'px';
@@ -622,6 +630,12 @@ function _posFloat(cx,cy){
   scrollDir=cy<th?-1:cy>wh-th?1:0;
   if(scrollDir&&!scrollInt)scrollInt=setInterval(updateScroll,16);
   else if(!scrollDir&&scrollInt){clearInterval(scrollInt);scrollInt=null;}
+  // Tilt dinámico según velocidad horizontal
+  const vx=cx-_prevCx;
+  _prevCx=cx;_prevCy=cy;
+  const targetTilt=Math.max(-18,Math.min(18,vx*1.8))-4; // base -4 siempre (estilo natural)
+  _currentTilt+=(targetTilt-_currentTilt)*0.25;
+  dragFloatEl.style.transform=`rotate(${_currentTilt.toFixed(1)}deg) scale(1.08)`;
 }
 function _getDropZone(cx,cy){
   if(dragFloatEl)dragFloatEl.style.visibility='hidden';
