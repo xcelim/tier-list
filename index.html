@@ -626,14 +626,94 @@ function _posFloat(cx,cy){
   if(scrollDir&&!scrollInt)scrollInt=setInterval(updateScroll,16);
   else if(!scrollDir&&scrollInt){clearInterval(scrollInt);scrollInt=null;}
 }
-
-function dgPointerDown(e,id,src,idx,imgSrc){
-  if(e.button!==0)return;
-  DG=id;DS=src;DGidx=idx;
-  _md=true;_mdMoved=false;
-  _mdX=e.clientX;_mdY=e.clientY;
-  _mdImg=imgSrc||'';
+function _getDropZone(cx,cy){
+  if(dragFloatEl)dragFloatEl.style.visibility='hidden';
+  const el=document.elementFromPoint(cx,cy);
+  if(dragFloatEl)dragFloatEl.style.visibility='';
+  if(!el)return null;
+  if(el.closest('#pdrop'))return{type:'pool'};
+  const trow=el.closest('.trow');
+  if(trow){
+    const tid=trow.id.replace(/^t/,'');
+    const ce=trow.querySelector('.tchars');
+    if(!ce)return{type:'tier',tid,idx:0};
+    const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
+    let idx=cards.length;
+    for(let i=0;i<cards.length;i++){
+      const r=cards[i].getBoundingClientRect();
+      if(cy<r.top){idx=i;break;}
+      if(cy<r.bottom&&cx<r.left+r.width/2){idx=i;break;}
+    }
+    return{type:'tier',tid,idx};
+  }
+  return null;
 }
+function _updatePlaceholder(zone){
+  const ph=document.getElementById('drop-ph');if(ph)ph.remove();
+  document.querySelectorAll('.trow.dov').forEach(e=>e.classList.remove('dov'));
+  document.getElementById('pdrop')?.classList.remove('dov');
+  if(!zone)return;
+  if(zone.type==='pool'){document.getElementById('pdrop')?.classList.add('dov');return;}
+  if(zone.type==='tier'){
+    document.getElementById('t'+zone.tid)?.classList.add('dov');
+    const ce=document.getElementById('t'+zone.tid)?.querySelector('.tchars');
+    if(!ce)return;
+    const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
+    if(DS===zone.tid&&zone.idx===DGidx)return;
+    const newph=document.createElement('div');
+    newph.id='drop-ph';newph.className='drop-placeholder';
+    // FLIP: capturar posiciones antes
+    const children=Array.from(ce.children);
+    const positions=children.map(c=>c.getBoundingClientRect());
+    if(zone.idx>=cards.length)ce.appendChild(newph);
+    else ce.insertBefore(newph,cards[zone.idx]);
+    // FLIP: animar
+    Array.from(ce.children).forEach(child=>{
+      if(child.classList.contains('is-dragging'))return;
+      const oi=children.indexOf(child);if(oi===-1)return;
+      const or=positions[oi],nr=child.getBoundingClientRect();
+      const dx=or.left-nr.left,dy=or.top-nr.top;
+      if(dx||dy){
+        child.style.transition='none';
+        child.style.transform=`translate(${dx}px,${dy}px)`;
+        child.offsetHeight;
+        child.style.transition='';
+        child.style.transform='';
+      }
+    });
+  }
+}
+function _executeDrop(zone){
+  if(!zone||!DG)return;
+  const tl=S.workingTL;
+  if(zone.type==='pool'){
+    if(DS==='pool')return;
+    const s=tl.tiers.find(t=>t.id===DS);
+    if(s)s.chars=s.chars.filter(x=>x!==DG);
+    if(!tl.pool.includes(DG))tl.pool.push(DG);
+    markUnsaved();
+  }else if(zone.type==='tier'){
+    if(DS==='pool')tl.pool=tl.pool.filter(x=>x!==DG);
+    else{const s=tl.tiers.find(t=>t.id===DS);if(s)s.chars=s.chars.filter(x=>x!==DG);}
+    const dest=tl.tiers.find(t=>t.id===zone.tid);
+    if(dest){
+      dest.chars=dest.chars.filter(x=>x!==DG);
+      if(typeof zone.idx==='number'&&zone.idx>=0)dest.chars.splice(zone.idx,0,DG);
+      else dest.chars.push(DG);
+    }
+    markUnsaved();
+  }
+}
+function _dragCleanup(){
+  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;
+  removeFloat();lastZone=null;
+  const ph=document.getElementById('drop-ph');if(ph)ph.remove();
+  document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
+  document.querySelectorAll('.tc').forEach(el=>el.style.transform='');
+  document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
+}
+
+let _lastZoneKey='';
 document.addEventListener('mousemove',e=>{
   if(!_md)return;
   if(!_mdMoved){
@@ -646,38 +726,33 @@ document.addEventListener('mousemove',e=>{
     });
   }
   _posFloat(e.clientX,e.clientY);
-},{passive:true});
-document.addEventListener('mouseup',e=>{
-  if(!_md)return;
-  _md=false;
-  if(!_mdMoved){DG=null;DS=null;DGidx=-1;return;}
-  // El drop nativo (ondrop) ya habrá ejecutado tdrop/pdrop antes de este mouseup
-  // Solo limpiamos visual
-  setTimeout(()=>{
-    DG=null;DS=null;DGidx=-1;
-    removeFloat();lastZone=null;
-    const ph=document.getElementById('drop-ph');if(ph)ph.remove();
-    document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
-    document.querySelectorAll('.tc').forEach(el=>el.style.transform='');
-    document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
-  },0);
+  const zone=_getDropZone(e.clientX,e.clientY);
+  const key=zone?(zone.type+(zone.tid||'')+(zone.idx??'')):'';
+  if(key!==_lastZoneKey){_lastZoneKey=key;_updatePlaceholder(zone);}
 },{passive:true});
 
-// dragstart: solo para que ondragover/ondrop del DOM sigan funcionando (animaciones FLIP)
-function dgstart(e,id,src,idx,imgSrc){
-  e.dataTransfer.effectAllowed='move';
-  const blank=document.createElement('canvas');blank.width=1;blank.height=1;
-  e.dataTransfer.setDragImage(blank,0,0);
+document.addEventListener('mouseup',e=>{
+  if(!_md)return;
+  if(!_mdMoved){_dragCleanup();return;}
+  const zone=_getDropZone(e.clientX,e.clientY);
+  _executeDrop(zone);
+  _dragCleanup();
+},{passive:true});
+
+function dgPointerDown(e,id,src,idx,imgSrc){
+  if(e.button!==0)return;
+  DG=id;DS=src;DGidx=idx;
+  _md=true;_mdMoved=false;
+  _mdX=e.clientX;_mdY=e.clientY;
+  _mdImg=imgSrc||'';
 }
-function dgend(){
-  _md=false;_mdMoved=false;
-  DG=null;DS=null;DGidx=-1;
-  removeFloat();lastZone=null;
-  const ph=document.getElementById('drop-ph');if(ph)ph.remove();
-  document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
-  document.querySelectorAll('.tc').forEach(el=>el.style.transform='');
-  document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
-}
+// Stubs — drag nativo desactivado
+function dgstart(e){e.preventDefault();}
+function dgend(){}
+function tover(e){e.preventDefault();}
+function tdrop(e){e.preventDefault();}
+function pover(e){e.preventDefault();}
+function pdrop(e){e.preventDefault();}
 
 function tover(e,tid){
   e.preventDefault();
@@ -933,14 +1008,12 @@ function Editor(){
 
     (tier.chars||[]).forEach((cid,ci)=>{
       const c=getChar(cid,tl);if(!c)return;
-      const el=h('div',{class:'tc',draggable:'true'});
+      const el=h('div',{class:'tc'});
       el.dataset.cid=cid;
       el.title=(c.name||cid)+' \u2014 '+(c.anime||'');
       const imgSrcVal=charImg(cid,tl);
       el.appendChild(h('img',{src:imgSrcVal,onerror:(e)=>e.target.src='https://api.dicebear.com/7.x/initials/svg?seed='+encodeURIComponent(c.name||cid)}));
       el.appendChild(h('div',{class:'cn'},c.name||cid));
-      el.ondragstart=e=>dgstart(e,cid,tier.id,ci,imgSrcVal);
-      el.ondragend=dgend;
       el.addEventListener('mousedown',e=>dgPointerDown(e,cid,tier.id,ci,imgSrcVal));
       el.ondblclick=()=>{tier.chars=tier.chars.filter(x=>x!==cid);if(!tl.pool.includes(cid))tl.pool.unshift(cid);markUnsaved();};
       ce.appendChild(el);
@@ -1003,7 +1076,7 @@ function updPool(cont,tl){
   const shown=chars.slice(0,(S.poolPage+1)*PAGE);
   shown.forEach(cid=>{
     const c=getChar(cid,tl);if(!c)return;
-    const el=h('div',{class:'pc',draggable:'true',style:{position:'relative'}});el.dataset.cid=cid;
+    const el=h('div',{class:'pc',style:{position:'relative'}});el.dataset.cid=cid;
     el.title=(c.name||cid)+' \u2014 '+(c.anime||'');
     const im=h('img',{src:charImg(cid,tl),alt:c.name||cid,loading:'lazy'});
     im.onerror=()=>{im.src='https://api.dicebear.com/7.x/initials/svg?seed='+encodeURIComponent(c.name||cid)+'&size=66';};
@@ -1020,8 +1093,6 @@ function updPool(cont,tl){
       el.appendChild(db);
     }
     const imgSrcVal=charImg(cid,tl);
-    el.ondragstart=e=>dgstart(e,cid,'pool',-1,imgSrcVal);
-    el.ondragend=dgend;
     el.addEventListener('mousedown',e=>dgPointerDown(e,cid,'pool',-1,imgSrcVal));
     cont.appendChild(el);
   });
