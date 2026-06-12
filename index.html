@@ -599,18 +599,15 @@ function h(tag,a,...ch){
 // ============ DRAG (smooth floating image) ============
 let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
 let scrollDir=0,scrollInt=null;
-let _md=false,_mdMoved=false,_mdX=0,_mdY=0,_mdImg='';
+let _md=false,_mdMoved=false,_mdX=0,_mdY=0,_mdImg='',_lastZoneKey='';
 
-function updateScroll(){
-  if(scrollDir!==0)window.scrollBy(0,scrollDir*60);
-}
+function updateScroll(){if(scrollDir!==0)window.scrollBy(0,scrollDir*60);}
 function createFloat(imgSrc){
   removeFloat();
   dragFloatEl=document.createElement('div');
   dragFloatEl.className='drag-float';
   const im=document.createElement('img');im.src=imgSrc;
-  dragFloatEl.appendChild(im);
-  document.body.appendChild(dragFloatEl);
+  dragFloatEl.appendChild(im);document.body.appendChild(dragFloatEl);
 }
 function removeFloat(){
   if(dragFloatEl){dragFloatEl.remove();dragFloatEl=null;}
@@ -660,19 +657,17 @@ function _updatePlaceholder(zone){
     if(!ce)return;
     const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
     if(DS===zone.tid&&zone.idx===DGidx)return;
-    const newph=document.createElement('div');
-    newph.id='drop-ph';newph.className='drop-placeholder';
-    // FLIP: capturar posiciones antes
     const children=Array.from(ce.children);
     const positions=children.map(c=>c.getBoundingClientRect());
+    const newph=document.createElement('div');
+    newph.id='drop-ph';newph.className='drop-placeholder';
     if(zone.idx>=cards.length)ce.appendChild(newph);
     else ce.insertBefore(newph,cards[zone.idx]);
-    // FLIP: animar
     Array.from(ce.children).forEach(child=>{
       if(child.classList.contains('is-dragging'))return;
       const oi=children.indexOf(child);if(oi===-1)return;
-      const or=positions[oi],nr=child.getBoundingClientRect();
-      const dx=or.left-nr.left,dy=or.top-nr.top;
+      const or2=positions[oi],nr=child.getBoundingClientRect();
+      const dx=or2.left-nr.left,dy=or2.top-nr.top;
       if(dx||dy){
         child.style.transition='none';
         child.style.transform=`translate(${dx}px,${dy}px)`;
@@ -705,7 +700,8 @@ function _executeDrop(zone){
   }
 }
 function _dragCleanup(){
-  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;
+  document.body.style.userSelect='';
+  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;_lastZoneKey='';
   removeFloat();lastZone=null;
   const ph=document.getElementById('drop-ph');if(ph)ph.remove();
   document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
@@ -713,12 +709,12 @@ function _dragCleanup(){
   document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
 }
 
-let _lastZoneKey='';
 document.addEventListener('mousemove',e=>{
   if(!_md)return;
   if(!_mdMoved){
     if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)<5)return;
     _mdMoved=true;
+    document.body.style.userSelect='none';
     createFloat(_mdImg);
     _posFloat(e.clientX,e.clientY);
     document.querySelectorAll('.tc,.pc').forEach(el=>{
@@ -746,7 +742,6 @@ function dgPointerDown(e,id,src,idx,imgSrc){
   _mdX=e.clientX;_mdY=e.clientY;
   _mdImg=imgSrc||'';
 }
-// Stubs — drag nativo desactivado
 function dgstart(e){e.preventDefault();}
 function dgend(){}
 function tover(e){e.preventDefault();}
