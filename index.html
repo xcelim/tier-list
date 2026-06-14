@@ -18,7 +18,7 @@
   --border:#2a2a45;--border2:#3a3a60;
   --text:#e8e8f0;--text2:#9090b0;--text3:#5050a0;
   --accent:#7c5cbf;--accent2:#9b7dd4;--accentbg:#7c5cbf22;
-  --red:#e05555;--green:#55c87d;--gold:#f0b429;--blue:#7ea8e0;
+  --red:#e05555;--green:#55c87d;--gold:#f0b429;
   --glass:rgba(18,18,26,0.8);
 }
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
@@ -66,42 +66,12 @@ nav{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 16px;d
 main{padding:14px;max-width:1320px;margin:0 auto}
 
 /* HOME */
-.hh{text-align:center;padding:56px 16px 30px;position:relative}
-.hh h1{font-family:'Cinzel',serif;font-size:clamp(40px,7vw,68px);font-weight:700;letter-spacing:3px;background:linear-gradient(100deg,var(--accent2),var(--gold),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:16px;text-shadow:0 0 40px rgba(124,92,191,.25)}
-.hh-divider{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px}
-.hh-divider i{display:block;width:70px;height:1px;background:linear-gradient(90deg,transparent,var(--border2),transparent)}
-.hh-divider span{color:var(--accent2);font-size:13px}
-.hh p{color:var(--text2);font-size:14px;margin-bottom:8px}
+.hh{text-align:center;padding:28px 0 18px}
+.hh h1{font-size:44px;font-weight:700;background:linear-gradient(135deg,var(--accent2),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
+.hh p{color:var(--text2);font-size:14px}
 .profile-notice{text-align:center;padding:40px 20px;color:var(--text3)}
 .profile-notice h2{font-size:22px;margin-bottom:8px;font-family:'Rajdhani',sans-serif;color:var(--text2)}
-
-.home-cards{display:flex;justify-content:center;align-items:stretch;gap:22px;flex-wrap:wrap;padding:28px 16px 8px;max-width:1080px;margin:0 auto}
-.home-card{width:270px;height:360px;border-radius:18px;position:relative;overflow:hidden;cursor:pointer;border:1px solid var(--border2);background:var(--bg2);box-shadow:0 14px 40px rgba(0,0,0,.35);transition:transform .3s ease,box-shadow .3s ease}
-.home-card:hover{transform:translateY(-8px) scale(1.02)}
-.home-card::before{content:"";position:absolute;inset:0;background-size:cover;background-position:center;opacity:.28;filter:brightness(.55) blur(1px);z-index:1;transition:.4s ease}
-.home-card:hover::before{opacity:.4}
-.home-card::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,10,15,.15),rgba(10,10,15,.92));z-index:2}
-.hc-tierlists::before{background-image:url('https://images.unsplash.com/photo-1578632738980-4334635c890a?q=80&w=1000')}
-.hc-users::before{background-image:url('https://images.unsplash.com/photo-1541562232579-512a21360020?q=80&w=1000')}
-.hc-profile::before{background-image:url('https://images.unsplash.com/photo-1516339901600-2e1a6298ed34?q=80&w=1000')}
-.hc-content{position:relative;z-index:3;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px}
-.hc-icon{width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid currentColor;transition:.3s ease}
-.hc-icon svg{width:30px;height:30px;stroke:currentColor;fill:none}
-.hc-tierlists .hc-icon{color:var(--accent2);background:rgba(155,125,212,.18)}
-.hc-users .hc-icon{color:var(--gold);background:rgba(240,180,41,.18)}
-.hc-profile .hc-icon{color:var(--blue);background:rgba(126,168,224,.18)}
-.hc-title{font-family:'Playfair Display',serif;font-size:25px;font-weight:600;color:var(--text);letter-spacing:.5px}
-.hc-line{width:54px;height:2px;border-radius:2px}
-.hc-tierlists .hc-line{background:var(--accent2)}
-.hc-users .hc-line{background:var(--gold)}
-.hc-profile .hc-line{background:var(--blue)}
-.hc-tierlists:hover{box-shadow:0 0 44px rgba(155,125,212,.35)}
-.hc-users:hover{box-shadow:0 0 44px rgba(240,180,41,.3)}
-.hc-profile:hover{box-shadow:0 0 44px rgba(126,168,224,.3)}
-
-.hh-footer{text-align:center;color:var(--text3);font-size:12px;padding:36px 16px 44px;display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:.3px}
-.hh-footer i{display:block;width:60px;height:1px;background:linear-gradient(90deg,transparent,var(--border2),transparent)}
-
+.tlg{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:16px}
 .tlc{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:.2s;position:relative}
 .tlc:hover{border-color:var(--border2);background:var(--bg3);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
 .tlc h3{font-size:16px;font-weight:600;font-family:'Rajdhani',sans-serif;margin-bottom:4px}
@@ -111,9 +81,6 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .nc{border:2px dashed var(--border);background:none;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;min-height:110px;border-radius:10px;cursor:pointer;color:var(--text3);transition:.2s}
 .nc:hover{border-color:var(--accent);color:var(--accent2);background:var(--accentbg)}
 .nc .plus{font-size:30px;font-weight:300}
-
-/* TIERLISTS GRID */
-.tlg{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:16px}
 
 /* EDITOR */
 .etbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
@@ -216,6 +183,13 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 .confirm-bar{background:var(--bg3);border:1px solid var(--gold);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:12px}
 .confirm-bar span{flex:1;color:var(--gold)}
+
+/* MENU HOME */
+.menu-grid{display:flex;justify-content:center;gap:28px;flex-wrap:wrap;margin-top:40px}
+.menu-box{width:220px;height:280px;background:var(--bg2);border:1px solid var(--border2);border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;cursor:pointer;transition:.25s;position:relative;overflow:hidden}
+.menu-box:hover{transform:translateY(-8px) scale(1.03);border-color:var(--accent2);box-shadow:0 16px 48px rgba(124,92,191,.35);background:var(--bg3)}
+.menu-box .icon{font-size:52px;line-height:1}
+.menu-box h2{font-size:22px;font-weight:600;font-family:'Rajdhani',sans-serif;color:var(--text)}
 </style>
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -892,20 +866,11 @@ function Nav(){
 }
 
 // ============ HOME ============
-const HOME_ICONS = {
-  tierlists: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7Z"/><path d="M5 20h14"/></svg>',
-  users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
-  profile: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.66V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.66"/></svg>'
-};
 function Home(){
   document.body.classList.add('bg-main');
   const w=h('div',{});
-  w.appendChild(h('div',{class:'hh'},
-    h('h1',{},'AnimeTier'),
-    h('div',{class:'hh-divider'},h('i',{}),h('span',{},'\u2726'),h('i',{})),
-    h('p',{},'Rankea tus waifus – el catálogo definitivo')
-  ));
-
+  w.appendChild(h('div',{class:'hh'},h('h1',{},'AnimeTier'),h('p',{},'Rankea tus waifus – el catálogo definitivo')));
+  
   if(!userSession){
     w.appendChild(h('div',{class:'profile-notice'},
       h('h2',{},'Bienvenido'),
@@ -915,25 +880,21 @@ function Home(){
     return w;
   }
 
-  const cards = h('div', { class: 'home-cards' });
+  const menu = h('div', { class: 'menu-grid' });
   const items = [
-    { id: 'tierlists', title: 'Tierlists', icon: HOME_ICONS.tierlists },
-    { id: 'users', title: 'Usuarios', icon: HOME_ICONS.users },
-    { id: 'profile', title: 'Mi Perfil', icon: HOME_ICONS.profile }
+    { id: 'tierlists', title: 'Tierlists', icon: '📊' },
+    { id: 'users', title: 'Usuarios', icon: '👥' },
+    { id: 'profile', title: 'Mi Perfil', icon: '👤' }
   ];
+
   items.forEach(item => {
-    const iconWrap = h('div', { class: 'hc-icon', html: item.icon });
-    cards.appendChild(h('div', { class: 'home-card hc-'+item.id, onclick: () => { S.page = item.id; render(); } },
-      h('div', { class: 'hc-content' },
-        iconWrap,
-        h('h2', { class: 'hc-title' }, item.title),
-        h('div', { class: 'hc-line' })
-      )
+    menu.appendChild(h('div', { class: 'menu-box', onclick: () => { S.page = item.id; render(); } },
+      h('span', { class: 'icon' }, item.icon),
+      h('h2', {}, item.title)
     ));
   });
-  w.appendChild(cards);
 
-  w.appendChild(h('div', { class: 'hh-footer' }, h('i',{}), 'Hecho para verdaderos fans de las tierlists', h('i',{})));
+  w.appendChild(menu);
   return w;
 }
 
