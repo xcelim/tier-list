@@ -190,7 +190,7 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 
 /* MENU HOME */
 /* Luz azulada desde abajo */
-body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420px;background:radial-gradient(ellipse 80% 65% at 50% 100%,rgba(40,100,255,.28) 0%,transparent 80%);pointer-events:none;z-index:0}
+body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420px;background:radial-gradient(ellipse 80% 65% at 50% 100%,rgba(40,100,255,.28) 0%,transparent 80%);pointer-events:none;z-index:-1}
 
 /* Rayas con diamante bajo el título */
 .hh-diamond-sep{display:flex;align-items:center;gap:10px;margin:8px auto 18px;width:260px}
@@ -203,7 +203,7 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 /* Base de todas las tarjetas — resplandor base visible */
 .menu-box{width:240px;height:320px;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;cursor:pointer;transition:.35s cubic-bezier(.25,.8,.25,1);position:relative;overflow:hidden;border:2.5px solid var(--card-border);box-shadow:var(--card-glow-base)}
 .menu-box::before{content:'';position:absolute;inset:0;background-image:var(--card-bg);background-size:cover;background-position:center;opacity:.22;transition:.3s}
-.menu-box::after{content:'';position:absolute;inset:0;background:var(--card-gradient);opacity:1}
+.menu-box::after{content:'';position:absolute;inset:0;background:var(--card-gradient);opacity:.88}
 .menu-box:hover{transform:translateY(-10px) scale(1.03);box-shadow:var(--card-glow-hover)}
 .menu-box:hover::before{opacity:.35}
 .menu-box .mb-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:18px}
@@ -262,15 +262,15 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 .users-search-wrap{margin:0 auto 28px;max-width:440px;width:100%;position:relative}
 .users-search-wrap input{width:100%;padding:11px 18px 11px 42px;border-radius:12px;background:rgba(30,35,70,.7);border:1px solid rgba(130,150,255,.2);color:var(--text);font-size:13px;backdrop-filter:blur(8px)}
 .users-search-wrap::before{content:'⌕';position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:18px;pointer-events:none}
-.user-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
-.user-card{background:linear-gradient(160deg,rgba(22,26,60,.85) 0%,rgba(14,18,45,.9) 100%);border:1px solid rgba(120,145,255,.2);border-radius:18px;padding:28px 20px 22px;display:flex;flex-direction:column;align-items:center;gap:0;cursor:pointer;transition:.3s ease;position:relative;backdrop-filter:blur(10px)}
-.user-card:hover{transform:translateY(-6px);border-color:rgba(150,175,255,.38);box-shadow:0 0 28px rgba(100,140,255,.18),0 16px 40px rgba(0,0,0,.4)}
-.user-avatar-wrap{position:relative;width:105px;height:105px;margin-bottom:16px}
-.user-avatar-ring{position:absolute;inset:-4px;border-radius:50%;background:linear-gradient(135deg,#7c6aff,#4a9eff);opacity:.5;filter:blur(8px)}
-.user-avatar-border{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(160,185,255,.45);z-index:1}
-.user-avatar{position:relative;width:100%;height:100%;border-radius:50%;object-fit:cover;z-index:2;display:block}
-.user-name{font-family:'Cinzel',serif;font-size:15px;font-weight:600;color:#e8eaff;margin-bottom:5px;text-align:center}
-.user-stats{font-size:11px;color:var(--text2);text-align:center;margin-bottom:18px;line-height:1.6}
+.user-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px !important}
+.user-card{background:linear-gradient(160deg,rgba(22,26,60,.85) 0%,rgba(14,18,45,.9) 100%) !important;border:1px solid rgba(120,145,255,.2) !important;border-radius:18px !important;padding:28px 20px 22px !important;display:flex !important;flex-direction:column !important;align-items:center !important;gap:0 !important;cursor:pointer;transition:.3s ease;position:relative;backdrop-filter:blur(10px)}
+.user-card:hover{transform:translateY(-6px) !important;border-color:rgba(150,175,255,.38) !important;box-shadow:0 0 28px rgba(100,140,255,.18),0 16px 40px rgba(0,0,0,.4) !important}
+.user-avatar-wrap{position:relative !important;width:105px !important;height:105px !important;margin-bottom:16px !important}
+.user-avatar-ring{position:absolute !important;inset:-4px !important;border-radius:50% !important;background:linear-gradient(135deg,#7c6aff,#4a9eff) !important;opacity:.5 !important;filter:blur(8px) !important}
+.user-avatar-border{position:absolute !important;inset:0 !important;border-radius:50% !important;border:2px solid rgba(160,185,255,.45) !important;z-index:1 !important}
+.user-avatar{position:relative !important;width:100% !important;height:100% !important;border-radius:50% !important;object-fit:cover !important;z-index:2 !important;display:block !important;border:none !important;background:none !important}
+.user-name{font-family:'Cinzel',serif !important;font-size:15px !important;font-weight:600 !important;color:#e8eaff !important;margin-bottom:5px !important;text-align:center !important;display:block !important}
+.user-stats{font-size:11px !important;color:var(--text2) !important;text-align:center !important;margin-bottom:18px !important;line-height:1.6 !important}
 .user-add-btn{width:42px;height:42px;border-radius:50%;background:#3ec47a;border:none;color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s;box-shadow:0 0 12px rgba(62,196,122,.35);line-height:1}
 .user-add-btn:hover{transform:scale(1.12);box-shadow:0 0 22px rgba(62,196,122,.55)}
 .users-footer{text-align:center;margin-top:40px;color:var(--text3);font-size:12px;display:flex;align-items:center;gap:8px;justify-content:center}
