@@ -202,10 +202,10 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 
 /* Base de todas las tarjetas — resplandor base visible */
 .menu-box{width:240px;height:320px;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;cursor:pointer;transition:.35s cubic-bezier(.25,.8,.25,1);position:relative;overflow:hidden;border:2px solid var(--card-border);box-shadow:var(--card-glow-base)}
-.menu-box::before{content:'';position:absolute;inset:0;background-image:var(--card-bg);background-size:cover;background-position:center;opacity:.55;transition:.3s}
-.menu-box::after{content:'';position:absolute;inset:0;background:var(--card-gradient);opacity:.65}
+.menu-box::before{content:'';position:absolute;inset:0;background-image:var(--card-bg);background-size:cover;background-position:center;opacity:.85;transition:.3s}
+.menu-box::after{content:'';position:absolute;inset:0;background:var(--card-gradient);opacity:.35}
 .menu-box:hover{transform:translateY(-10px) scale(1.03);box-shadow:var(--card-glow-hover)}
-.menu-box:hover::before{opacity:.75}
+.menu-box:hover::before{opacity:1}
 .menu-box .mb-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:18px}
 .menu-box .mb-icon{width:56px;height:56px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:2px solid rgba(255,255,255,.3)}
 .menu-box .mb-icon svg{width:28px;height:28px;stroke:rgba(255,255,255,.9);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -219,8 +219,8 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 /* Tierlists — rosa claro */
 .mb-tierlists{
   --card-bg:url('resources/tierlistlogo.png');
-  --card-gradient:linear-gradient(160deg,rgba(255,182,213,.7) 0%,rgba(224,187,228,.7) 100%);
-  --card-border:rgba(255,210,230,.6);
+  --card-gradient:linear-gradient(160deg,rgba(255,210,235,.5) 0%,rgba(235,210,255,.5) 100%);
+  --card-border:rgba(255,230,245,.8);
   --card-glow-base:0 0 18px rgba(255,120,190,.22), 0 8px 32px rgba(0,0,0,.4);
   --card-glow-hover:0 0 40px rgba(255,130,200,.38), 0 20px 55px rgba(0,0,0,.55);
   --sep-color:rgba(255,190,230,.75);
@@ -229,8 +229,8 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 /* Usuarios — lila claro */
 .mb-users{
   --card-bg:url('resources/userslogo.png');
-  --card-gradient:linear-gradient(160deg,rgba(210,180,255,.7) 0%,rgba(180,190,255,.7) 100%);
-  --card-border:rgba(230,210,255,.6);
+  --card-gradient:linear-gradient(160deg,rgba(230,210,255,.5) 0%,rgba(210,220,255,.5) 100%);
+  --card-border:rgba(240,230,255,.8);
   --card-glow-base:0 0 18px rgba(160,100,255,.22), 0 8px 32px rgba(0,0,0,.4);
   --card-glow-hover:0 0 40px rgba(170,110,255,.38), 0 20px 55px rgba(0,0,0,.55);
   --sep-color:rgba(215,185,255,.75);
@@ -239,8 +239,8 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 /* Perfil — azul claro */
 .mb-profile{
   --card-bg:url('resources/profilelogo.png');
-  --card-gradient:linear-gradient(160deg,rgba(180,220,255,.7) 0%,rgba(160,200,255,.7) 100%);
-  --card-border:rgba(210,235,255,.6);
+  --card-gradient:linear-gradient(160deg,rgba(210,240,255,.5) 0%,rgba(200,230,255,.5) 100%);
+  --card-border:rgba(230,245,255,.8);
   --card-glow-base:0 0 18px rgba(80,130,255,.22), 0 8px 32px rgba(0,0,0,.4);
   --card-glow-hover:0 0 40px rgba(100,150,255,.38), 0 20px 55px rgba(0,0,0,.55);
   --sep-color:rgba(175,205,255,.75);
