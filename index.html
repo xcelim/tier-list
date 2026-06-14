@@ -203,7 +203,7 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 /* Base de todas las tarjetas — resplandor base visible */
 .menu-box{width:240px;height:320px;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;cursor:pointer;transition:.35s cubic-bezier(.25,.8,.25,1);position:relative;overflow:hidden;border:2.5px solid var(--card-border);box-shadow:var(--card-glow-base)}
 .menu-box::before{content:'';position:absolute;inset:0;background-image:var(--card-bg);background-size:cover;background-position:center;opacity:.22;transition:.3s}
-.menu-box::after{content:'';position:absolute;inset:0;background:var(--card-gradient);opacity:.85}
+.menu-box::after{content:'';position:absolute;inset:0;background:var(--card-gradient);opacity:1}
 .menu-box:hover{transform:translateY(-10px) scale(1.03);box-shadow:var(--card-glow-hover)}
 .menu-box:hover::before{opacity:.35}
 .menu-box .mb-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:18px}
@@ -217,37 +217,37 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 .menu-box .mb-icon{width:56px;height:56px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:2px solid var(--icon-border);box-shadow:0 0 0 0 var(--icon-border);transition:box-shadow .35s}
 .menu-box:hover .mb-icon{box-shadow:0 0 14px var(--icon-border)}
 
-/* Tierlists — rosa fucsia vibrante como en la referencia */
+/* Tierlists — rosa fucsia vibrante, totalmente opaco */
 .mb-tierlists{
   --card-bg:url('resources/tierlistlogo.png');
-  --card-gradient:linear-gradient(160deg,rgba(200,40,110,.82) 0%,rgba(130,30,160,.88) 100%);
-  --card-border:rgba(255,140,200,.7);
+  --card-gradient:linear-gradient(160deg,#c0285a 0%,#7a1a9a 100%);
+  --card-border:#ffb8d8;
   --card-glow-base:0 0 22px rgba(230,80,160,.30), 0 8px 32px rgba(0,0,0,.4);
   --card-glow-hover:0 0 50px rgba(240,90,170,.50), 0 20px 55px rgba(0,0,0,.55);
-  --sep-color:rgba(255,180,225,.85);
-  --icon-border:rgba(255,160,215,.65);
+  --sep-color:#ffcce6;
+  --icon-border:#ffcce6;
 }
 
-/* Usuarios — púrpura medio vibrante */
+/* Usuarios — púrpura vibrante, totalmente opaco */
 .mb-users{
   --card-bg:url('resources/userslogo.png');
-  --card-gradient:linear-gradient(160deg,rgba(100,40,180,.85) 0%,rgba(60,25,150,.90) 100%);
-  --card-border:rgba(200,160,255,.65);
+  --card-gradient:linear-gradient(160deg,#5a28b4 0%,#3a1896 100%);
+  --card-border:#d4b8ff;
   --card-glow-base:0 0 22px rgba(150,90,255,.28), 0 8px 32px rgba(0,0,0,.4);
   --card-glow-hover:0 0 50px rgba(170,110,255,.48), 0 20px 55px rgba(0,0,0,.55);
-  --sep-color:rgba(215,185,255,.85);
-  --icon-border:rgba(200,170,255,.65);
+  --sep-color:#e2d4ff;
+  --icon-border:#e2d4ff;
 }
 
-/* Perfil — azul índigo oscuro con toque más luminoso */
+/* Perfil — azul índigo vibrante, totalmente opaco */
 .mb-profile{
   --card-bg:url('resources/profilelogo.png');
-  --card-gradient:linear-gradient(160deg,rgba(35,50,140,.88) 0%,rgba(20,35,110,.92) 100%);
-  --card-border:rgba(150,185,255,.60);
+  --card-gradient:linear-gradient(160deg,#1e2e8a 0%,#141e6e 100%);
+  --card-border:#b8ccff;
   --card-glow-base:0 0 22px rgba(90,130,255,.25), 0 8px 32px rgba(0,0,0,.4);
   --card-glow-hover:0 0 50px rgba(110,155,255,.45), 0 20px 55px rgba(0,0,0,.55);
-  --sep-color:rgba(180,205,255,.85);
-  --icon-border:rgba(155,190,255,.65);
+  --sep-color:#ccdaff;
+  --icon-border:#ccdaff;
 }
 </style>
 <!-- Supabase SDK -->
