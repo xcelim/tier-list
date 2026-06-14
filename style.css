@@ -26,7 +26,7 @@ body.bg-main {
     align-items: center;
 }
 
-.main-container { width: 100%; max-width: 1400px; text-align: center; padding: 40px 20px; z-index: 10; position: relative; }
+.container { width: 100%; max-width: 1400px; text-align: center; padding: 40px 20px; z-index: 10; position: relative; }
 
 .title {
     font-family: "Cinzel", serif; font-size: 92px; font-weight: 700;
