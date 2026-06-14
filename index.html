@@ -866,8 +866,8 @@ function Home(){
   [...(p.tls||[])].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).forEach(tl=>{
     const card=h('div',{class:'tlc',onclick:()=>{openEditor(tl.id);render();}});
     const ca=h('div',{class:'tlca'});
-    ca.appendChild(h('button',{class:'btn bg bsm',onclick:(e)=>{e.stopPropagation();dupTL(tl.id);},'title':'Duplicar'},'⧇'));
     if (p.is_admin) {
+      ca.appendChild(h('button',{class:'btn bg bsm',onclick:(e)=>{e.stopPropagation();dupTL(tl.id);},'title':'Duplicar'},'⧇'));
       ca.appendChild(h('button',{class:'btn bd bsm',onclick:(e)=>{e.stopPropagation();delTL(tl.id);},'title':'Eliminar'},'✕'));
     }
     const tot=(tl.tiers||[]).reduce((a,t)=>a+(t.chars||[]).length,0)+(tl.pool||[]).length;
@@ -1926,6 +1926,11 @@ async function handleAuthSession(session) {
       localP = { ...profile, tls: oldY ? oldY.tls : [] };
       S.profiles.push(localP);
       if(oldY) toast("¡Tierlist de Waifus migrada con éxito!", "info");
+    } else {
+      // Sincronizar datos del perfil desde Supabase (is_admin, nombre, etc)
+      localP.is_admin = profile.is_admin;
+      localP.name = profile.name;
+      localP.color = profile.color;
     }
 
     S.profiles = S.profiles.filter(x => x.id === S.activeProfile);
