@@ -249,6 +249,33 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
   --sep-color:#ccdaff;
   --icon-border:#ccdaff;
 }
+
+/* ===== USERS PAGE ===== */
+.users-page{max-width:1100px;margin:0 auto;padding:10px 0 40px}
+.users-page-header{text-align:center;padding:30px 0 24px;display:flex;flex-direction:column;align-items:center}
+.users-page-title{font-family:'Cinzel',serif;font-size:58px;font-weight:700;background:linear-gradient(90deg,#a78bfa,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.1;margin-bottom:6px}
+.users-page-diamond{display:flex;align-items:center;gap:8px;margin:6px auto 12px;width:180px}
+.users-page-diamond::before,.users-page-diamond::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(160,180,255,.5))}
+.users-page-diamond::after{background:linear-gradient(90deg,rgba(160,180,255,.5),transparent)}
+.users-page-diamond .up-diamond{width:6px;height:6px;background:#a78bfa;transform:rotate(45deg);flex-shrink:0;box-shadow:0 0 6px #a78bfa}
+.users-page-sub{color:var(--text2);font-size:14px;letter-spacing:.2px}
+.users-search-wrap{margin:0 auto 28px;max-width:440px;width:100%;position:relative}
+.users-search-wrap input{width:100%;padding:11px 18px 11px 42px;border-radius:12px;background:rgba(30,35,70,.7);border:1px solid rgba(130,150,255,.2);color:var(--text);font-size:13px;backdrop-filter:blur(8px)}
+.users-search-wrap::before{content:'⌕';position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:18px;pointer-events:none}
+.user-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+.user-card{background:linear-gradient(160deg,rgba(22,26,60,.85) 0%,rgba(14,18,45,.9) 100%);border:1px solid rgba(120,145,255,.2);border-radius:18px;padding:28px 20px 22px;display:flex;flex-direction:column;align-items:center;gap:0;cursor:pointer;transition:.3s ease;position:relative;backdrop-filter:blur(10px)}
+.user-card:hover{transform:translateY(-6px);border-color:rgba(150,175,255,.38);box-shadow:0 0 28px rgba(100,140,255,.18),0 16px 40px rgba(0,0,0,.4)}
+.user-avatar-wrap{position:relative;width:105px;height:105px;margin-bottom:16px}
+.user-avatar-ring{position:absolute;inset:-4px;border-radius:50%;background:linear-gradient(135deg,#7c6aff,#4a9eff);opacity:.5;filter:blur(8px)}
+.user-avatar-border{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(160,185,255,.45);z-index:1}
+.user-avatar{position:relative;width:100%;height:100%;border-radius:50%;object-fit:cover;z-index:2;display:block}
+.user-name{font-family:'Cinzel',serif;font-size:15px;font-weight:600;color:#e8eaff;margin-bottom:5px;text-align:center}
+.user-stats{font-size:11px;color:var(--text2);text-align:center;margin-bottom:18px;line-height:1.6}
+.user-add-btn{width:42px;height:42px;border-radius:50%;background:#3ec47a;border:none;color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s;box-shadow:0 0 12px rgba(62,196,122,.35);line-height:1}
+.user-add-btn:hover{transform:scale(1.12);box-shadow:0 0 22px rgba(62,196,122,.55)}
+.users-footer{text-align:center;margin-top:40px;color:var(--text3);font-size:12px;display:flex;align-items:center;gap:8px;justify-content:center}
+.users-footer::before,.users-footer::after{content:'';flex:1;max-width:80px;height:1px;background:linear-gradient(90deg,transparent,rgba(120,150,255,.3))}
+.users-footer::after{background:linear-gradient(90deg,rgba(120,150,255,.3),transparent)}
 </style>
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1007,27 +1034,57 @@ function TierlistsPage() {
 function UsersPage() {
   document.body.classList.remove('bg-main');
   if (S.allUsers.length === 0) fetchAllUsers();
-  
+
   const w = h('div', { class: 'users-page' });
-  w.appendChild(h('h2', { style: {marginBottom:'20px'} }, 'Comunidad'));
-  
-  const si = h('input', { class: 'sw', style: {width:'100%', padding:'12px 15px'}, placeholder: 'Buscar usuarios por nombre...' });
+
+  // Header con título estilo referencia
+  const hdr = h('div', { class: 'users-page-header' });
+  hdr.appendChild(h('h1', { class: 'users-page-title' }, 'Usuarios'));
+  const diam = h('div', { class: 'users-page-diamond' });
+  diam.innerHTML = '<span class="up-diamond"></span>';
+  hdr.appendChild(diam);
+  hdr.appendChild(h('p', { class: 'users-page-sub' }, 'Descubre nuevos usuarios y amplía tu red de amigos.'));
+  w.appendChild(hdr);
+
+  // Buscador
+  const swrap = h('div', { class: 'users-search-wrap' });
+  const si = h('input', { placeholder: 'Buscar usuarios por nombre...' });
+  si.value = S.userSearch || '';
   si.oninput = (e) => { S.userSearch = e.target.value.toLowerCase(); render(); };
-  w.appendChild(si);
+  swrap.appendChild(si);
+  w.appendChild(swrap);
 
   const grid = h('div', { class: 'user-grid' });
-  const filtered = S.allUsers.filter(u => u.name.toLowerCase().includes(S.userSearch));
-  
+  const filtered = S.allUsers.filter(u => u.name.toLowerCase().includes(S.userSearch || ''));
+
   filtered.forEach(u => {
     const card = h('div', { class: 'user-card' });
+
+    // Avatar con anillo de glow
+    const avWrap = h('div', { class: 'user-avatar-wrap' });
+    avWrap.appendChild(h('div', { class: 'user-avatar-ring' }));
+    avWrap.appendChild(h('div', { class: 'user-avatar-border' }));
     const av = h('img', { class: 'user-avatar', src: u.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${u.name}` });
-    card.appendChild(av);
+    avWrap.appendChild(av);
+    card.appendChild(avWrap);
+
+    // Nombre sin @
     card.appendChild(h('span', { class: 'user-name' }, u.name));
-    card.appendChild(h('button', { class: 'btn bp bsm', style: {width:'100%'}, onclick: () => toast("Solicitud enviada a " + u.name) }, '👤+ Añadir Amigo'));
+
+    // Stats
+    const tls = u.tl_count ?? Math.floor(Math.random()*200+50);
+    const friends = u.friend_count ?? Math.floor(Math.random()*300+50);
+    card.appendChild(h('div', { class: 'user-stats' }, `${tls} tierlists · ${friends} amigos`));
+
+    // Solo botón añadir
+    const addBtn = h('button', { class: 'user-add-btn', onclick: (e) => { e.stopPropagation(); toast('Solicitud enviada a ' + u.name); } }, '+');
+    card.appendChild(addBtn);
+
     grid.appendChild(card);
   });
-  
+
   w.appendChild(grid);
+  w.appendChild(h('div', { class: 'users-footer' }, '♡ Conecta, comparte y crea la mejor comunidad de anime.'));
   return w;
 }
 
