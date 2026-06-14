@@ -108,6 +108,9 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .tc:hover{border-color:var(--accent2);transform:scale(1.1) translateY(-3px) rotate(1deg);z-index:20;box-shadow:0 10px 24px rgba(0,0,0,.55)}
 .pc:hover{border-color:var(--accent2);transform:scale(1.08) translateY(-2px);z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.5)}
 
+.del-btn{position:absolute;top:1px;right:1px;background:rgba(224,85,84,.85);color:#fff;border:none;border-radius:3px;width:14px;height:14px;font-size:9px;display:none;align-items:center;justify-content:center;cursor:pointer;padding:0;line-height:1;z-index:10}
+.tc:hover .del-btn,.pc:hover .del-btn{display:flex!important}
+
 /* DRAGGING STATE - wobble */
 .tc.is-dragging,.pc.is-dragging{width:0!important;height:0!important;margin:0!important;padding:0!important;border:none!important;opacity:0!important;pointer-events:none!important;position:absolute!important}
 .drag-float{position:fixed;pointer-events:none;z-index:9999;width:102px;height:162px;border-radius:10px;overflow:hidden;border:2px solid var(--accent2);box-shadow:0 20px 60px rgba(124,92,191,.7);
@@ -414,8 +417,9 @@ async function syncFromSupabase() {
   }
 
   // Catálogo dinámico para esta tierlist
-  AC = {};
+  AC = JSON.parse(JSON.stringify(AC_BASE));
   const sharedIds = new Set();
+  Object.keys(AC_BASE).forEach(id => sharedIds.add(id));
 
   // 1. Cargar TODOS los personajes compartidos (Paginado para evitar límite de 1000)
   let allChars = [];
@@ -437,14 +441,7 @@ async function syncFromSupabase() {
     AC[c.id] = { id: c.id, name: c.name, anime: c.anime, file: c.image_url, isRemote: true };
     sharedIds.add(c.id);
   });
-
-  // 2. Si es la tierlist de Waifus original, incluimos los 2000+ personajes base
-  if (S.cid === 'waifus_v1') {
-    Object.entries(AC_BASE).forEach(([id, c]) => {
-      if (!AC[id]) AC[id] = c;
-      sharedIds.add(id);
-    });
-  }
+  // Catálogo base integrado globalmente
 
   // 3. Cargar el ranking personal del usuario (donde ha puesto cada uno)
   const { data: myRank } = await sbClient.from('user_rankings').select('*').eq('user_id', userSession.user.id).eq('tierlist_id', S.cid).maybeSingle();
@@ -1022,16 +1019,7 @@ function Editor(){
       const imgSrcVal=charImg(cid,tl);
       el.appendChild(h('img',{src:imgSrcVal,onerror:(e)=>e.target.src='https://api.dicebear.com/7.x/initials/svg?seed='+encodeURIComponent(c.name||cid)}));
       el.appendChild(h('div',{class:'cn'},c.name||cid));
-      if(c.isCustom){
-        const db=h('button',{
-          title:'Eliminar permanentemente',
-          style:{position:'absolute',top:'1px',right:'1px',background:'rgba(224,85,84,.85)',color:'#fff',border:'none',borderRadius:'3px',width:'14px',height:'14px',fontSize:'9px',display:'none',alignItems:'center',justifyContent:'center',cursor:'pointer',padding:'0',lineHeight:'1',zIndex:'10'},
-          onclick:(e)=>{e.stopPropagation();deleteCustomChar(cid,tl);}
-        },'✕');
-        el.addEventListener('mouseenter',()=>{db.style.display='flex';});
-        el.addEventListener('mouseleave',()=>{db.style.display='none';});
-        el.appendChild(db);
-      }
+      el.appendChild(h('button',{class:'del-btn',title:'Eliminar permanentemente',onclick:(e)=>{e.stopPropagation();deleteCustomChar(cid,tl);}},'✕'));
       el.addEventListener('mousedown',e=>dgPointerDown(e,cid,tier.id,ci,imgSrcVal));
       el.ondblclick=()=>{tier.chars=tier.chars.filter(x=>x!==cid);if(!tl.pool.includes(cid))tl.pool.unshift(cid);markUnsaved();};
       ce.appendChild(el);
@@ -1148,17 +1136,7 @@ function updPool(cont,tl){
     const im=h('img',{src:charImg(cid,tl),alt:c.name||cid,loading:'lazy'});
     im.onerror=()=>{im.src='https://api.dicebear.com/7.x/initials/svg?seed='+encodeURIComponent(c.name||cid)+'&size=66';};
     el.appendChild(im);el.appendChild(h('div',{class:'cn'},c.name||cid));
-    // Botón de borrar solo para personajes custom
-    if(c.isCustom){
-      const db=h('button',{
-        title:'Eliminar permanentemente',
-        style:{position:'absolute',top:'1px',right:'1px',background:'rgba(224,85,84,.85)',color:'#fff',border:'none',borderRadius:'3px',width:'14px',height:'14px',fontSize:'9px',display:'none',alignItems:'center',justifyContent:'center',cursor:'pointer',padding:'0',lineHeight:'1',zIndex:'10'},
-        onclick:(e)=>{e.stopPropagation();deleteCustomChar(cid,tl);}
-      },'✕');
-      el.addEventListener('mouseenter',()=>{db.style.display='flex';});
-      el.addEventListener('mouseleave',()=>{db.style.display='none';});
-      el.appendChild(db);
-    }
+    el.appendChild(h('button',{class:'del-btn',title:'Eliminar permanentemente',onclick:(e)=>{e.stopPropagation();deleteCustomChar(cid,tl);}},'✕'));
     const imgSrcVal=charImg(cid,tl);
     el.addEventListener('mousedown',e=>dgPointerDown(e,cid,'pool',-1,imgSrcVal));
     cont.appendChild(el);
