@@ -208,7 +208,7 @@ function render() {
     else if (S.page === 'editor') main.appendChild(Editor());
     app.appendChild(main);
     const m = ModalEl(); if (m) app.appendChild(m);
-  if(window.lucide) lucide.createIcons();
+    if(window.lucide) lucide.createIcons();
 }
 
 window.onload = () => {
