@@ -205,6 +205,7 @@ function render() {
     const main = h('main', {});
     if (S.page === 'home') main.appendChild(Home());
     else if (S.page === 'tierlists') main.appendChild(TierlistsPage());
+    else if (S.page === 'users') main.appendChild(UsersPage());
     else if (S.page === 'editor') main.appendChild(Editor());
     app.appendChild(main);
     const m = ModalEl(); if (m) app.appendChild(m);
