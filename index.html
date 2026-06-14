@@ -19,11 +19,14 @@
   --text:#e8e8f0;--text2:#9090b0;--text3:#5050a0;
   --accent:#7c5cbf;--accent2:#9b7dd4;--accentbg:#7c5cbf22;
   --red:#e05555;--green:#55c87d;--gold:#f0b429;
+  --glass:rgba(18,18,26,0.8);
 }
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body.bg-main::before{content:"";position:fixed;inset:0;background:url('https://images.unsplash.com/photo-1578632738980-4334635c890a?q=80&w=2000') center/cover;filter:blur(8px) brightness(0.3);z-index:-1;opacity:0.6}
 h1,h2,h3,.hf{font-family:'Rajdhani',sans-serif;letter-spacing:.5px}
 button{cursor:pointer;border:none;background:none;color:inherit;font-family:inherit;font-size:inherit}
 input,select,textarea{font-family:inherit;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 11px;font-size:13px;outline:none;transition:.15s}
+input::placeholder{color:var(--text3)}
 input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accentbg)}
 
 /* NAV */
@@ -33,6 +36,7 @@ nav{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 16px;d
 .ntab:hover{background:var(--bg3);color:var(--text)}
 .ntab.on{background:var(--accentbg);color:var(--accent2)}
 .nav-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+
 
 /* PROFILES */
 .profile-btn{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;cursor:pointer;border:2px solid var(--border);transition:.2s;flex-shrink:0;position:relative}
@@ -316,8 +320,11 @@ const DB={
 // ============ STATE ============
 let S={
   page:'home',
+  prevPage: null,
   profiles:DB.l('profiles',null),
   activeProfile:DB.l('activeProfile',null),
+  allUsers: [],
+  userSearch: '',
   profileMenu:null, // null | profileId
   modal:null,md:{},
   q:'',poolPage:0,
@@ -805,6 +812,14 @@ function Nav(){
   }
   const nr=h('div',{class:'nav-right'});
   
+  if(userSession) {
+    const notif = h('div', { class: 'nav-notif', onclick: () => toast("No tienes notificaciones", "info") }, 
+      h('span', {style:{fontSize:'18px'}}, '🔔'),
+      h('div', { class: 'notif-badge' }, '0')
+    );
+    nr.appendChild(notif);
+  }
+
   if (!userSession) {
     nr.appendChild(h('div', { 
       class: 'profile-btn', 
@@ -845,17 +860,40 @@ function Nav(){
 
 // ============ HOME ============
 function Home(){
+  document.body.classList.add('bg-main');
   const w=h('div',{});
-  w.appendChild(h('div',{class:'hh'},h('h1',{},'AnimeTier'),h('p',{},'Rankea tus waifus \u2014 todo local, todo tuyo')));
+  w.appendChild(h('div',{class:'hh'},h('h1',{},'AnimeTier'),h('p',{},'Rankea tus waifus – el catálogo definitivo')));
+  
   if(!userSession){
     w.appendChild(h('div',{class:'profile-notice'},
-      h('h2',{},'🔒 Acceso Privado'),
-      h('p',{style:{color:'var(--text3)',fontSize:'13px'}},'Inicia sesión con Google para crear y guardar tus propias tierlists de forma segura.'),
+      h('h2',{},'Bienvenido'),
+      h('p',{style:{color:'var(--text2)',fontSize:'14px'}},'Inicia sesión para empezar a rankear'),
       h('button', { class: 'btn bp', style: {marginTop: '20px'}, onclick: handleGoogleLogin }, 'Iniciar Sesión con Google')
     ));
     return w;
   }
 
+  const menu = h('div', { class: 'menu-grid' });
+  const items = [
+    { id: 'tierlists', title: 'Tierlists', icon: '📊' },
+    { id: 'users', title: 'Usuarios', icon: '👥' },
+    { id: 'profile', title: 'Mi Perfil', icon: '👤' }
+  ];
+
+  items.forEach(item => {
+    menu.appendChild(h('div', { class: 'menu-box', onclick: () => { S.page = item.id; render(); } },
+      h('span', { class: 'icon' }, item.icon),
+      h('h2', {}, item.title)
+    ));
+  });
+
+  w.appendChild(menu);
+  return w;
+}
+
+function TierlistsPage() {
+  document.body.classList.remove('bg-main');
+  const w=h('div',{});
   // Sincronización automática al entrar a la pantalla principal
   if (!S._ref) { S._ref = true; fetchGlobalTemplates().finally(() => setTimeout(() => S._ref = false, 5000)); }
 
@@ -870,18 +908,86 @@ function Home(){
       ca.appendChild(h('button',{class:'btn bg bsm',onclick:(e)=>{e.stopPropagation();dupTL(tl.id);},'title':'Duplicar'},'⧇'));
       ca.appendChild(h('button',{class:'btn bd bsm',onclick:(e)=>{e.stopPropagation();delTL(tl.id);},'title':'Eliminar'},'✕'));
     }
+    // ... resto de la lógica de card que ya tenías ...
     const tot=(tl.tiers||[]).reduce((a,t)=>a+(t.chars||[]).length,0)+(tl.pool||[]).length;
-    card.appendChild(ca);
-    card.appendChild(h('h3',{},tl.title||'Sin t\xedtulo'));
-    card.appendChild(h('div',{class:'meta'},
-      h('span',{},(tl.tiers||[]).length+' tiers'),
-      h('span',{},tot+' chars'),
-      (tl.customChars||[]).length?h('span',{style:{color:'var(--accent2)'}},'+'+tl.customChars.length+' custom'):'',
-      h('span',{},new Date(tl.updatedAt||tl.createdAt).toLocaleDateString('es'))
-    ));
+    card.appendChild(ca); card.appendChild(h('h3',{},tl.title||'Sin título'));
+    card.appendChild(h('div',{class:'meta'},h('span',{},(tl.tiers||[]).length+' tiers'),h('span',{},tot+' chars')));
     g.appendChild(card);
   });
-  w.appendChild(g);return w;
+  w.appendChild(g); return w;
+}
+
+function UsersPage() {
+  document.body.classList.remove('bg-main');
+  if (S.allUsers.length === 0) fetchAllUsers();
+  
+  const w = h('div', { class: 'users-page' });
+  w.appendChild(h('h2', { style: {marginBottom:'20px'} }, 'Comunidad'));
+  
+  const si = h('input', { class: 'sw', style: {width:'100%', padding:'12px 15px'}, placeholder: 'Buscar usuarios por nombre...' });
+  si.oninput = (e) => { S.userSearch = e.target.value.toLowerCase(); render(); };
+  w.appendChild(si);
+
+  const grid = h('div', { class: 'user-grid' });
+  const filtered = S.allUsers.filter(u => u.name.toLowerCase().includes(S.userSearch));
+  
+  filtered.forEach(u => {
+    const card = h('div', { class: 'user-card' });
+    const av = h('img', { class: 'user-avatar', src: u.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${u.name}` });
+    card.appendChild(av);
+    card.appendChild(h('span', { class: 'user-name' }, u.name));
+    card.appendChild(h('button', { class: 'btn bp bsm', style: {width:'100%'}, onclick: () => toast("Solicitud enviada a " + u.name) }, '👤+ Añadir Amigo'));
+    grid.appendChild(card);
+  });
+  
+  w.appendChild(grid);
+  return w;
+}
+
+function ProfilePage() {
+  document.body.classList.remove('bg-main');
+  const p = currentUserProfile || { name: '...', color: '#888' };
+  const w = h('div', { class: 'profile-page' });
+  
+  const header = h('div', { class: 'pp-header' });
+  const avWrap = h('div', { class: 'pp-avatar-wrap' });
+  const av = h('img', { class: 'pp-avatar', src: p.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${p.name}` });
+  const editBtn = h('label', { class: 'pp-avatar-edit', title: 'Cambiar foto' }, 
+    h('span', {}, '📷'),
+    h('input', { type: 'file', hidden: true, accept: 'image/*', onchange: async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      toast("Subiendo foto...", "info");
+      const path = `avatars/${userSession.user.id}_${Date.now()}.png`;
+      const { error } = await sbClient.storage.from('tierlists').upload(path, file);
+      if (!error) {
+        const { data: { publicUrl } } = sbClient.storage.from('tierlists').getPublicUrl(path);
+        updateProfileField('avatar_url', publicUrl);
+      }
+    }})
+  );
+  avWrap.appendChild(av); avWrap.appendChild(editBtn);
+  header.appendChild(avWrap);
+
+  const info = h('div', { class: 'pp-info' });
+  const nameInp = h('input', { value: p.name, style: {fontSize:'24px', textAlign:'center', background:'none', border:'none', borderBottom:'1px dashed var(--border2)', width:'auto'} });
+  nameInp.onchange = (e) => updateProfileField('name', e.target.value);
+  info.appendChild(nameInp);
+  
+  const colorRow = h('div', { style: {marginTop:'15px', display:'flex', justifyContent:'center', gap:'10px', alignItems:'center'} });
+  colorRow.appendChild(h('label', {style:{fontSize:'11px'}}, 'Color de perfil:'));
+  const ci = h('input', { type: 'color', value: p.color });
+  ci.onchange = (e) => updateProfileField('color', e.target.value);
+  colorRow.appendChild(ci);
+  info.appendChild(colorRow);
+  
+  header.appendChild(info);
+  w.appendChild(header);
+
+  w.appendChild(h('div', { class: 'pp-section-title' }, 'Mis Amigos'));
+  w.appendChild(h('div', { style: {padding:'40px', textAlign:'center', color:'var(--text3)'} }, 'Aún no tienes amigos añadidos. ¡Busca gente en Usuarios!'));
+
+  return w;
 }
 
 // ============ EDITOR ============
@@ -1860,12 +1966,34 @@ window.addEventListener('popstate',()=>{
   render();
 });
 
+async function fetchAllUsers() {
+  if (!sbClient) return;
+  const { data, error } = await sbClient.from('profiles').select('*').order('name');
+  if (!error) S.allUsers = data;
+  render();
+}
+
+async function updateProfileField(field, value) {
+  if (!userSession || !sbClient) return;
+  const { error } = await sbClient.from('profiles').update({ [field]: value }).eq('id', userSession.user.id);
+  if (!error) {
+    if (currentUserProfile) currentUserProfile[field] = value;
+    const localP = activeProfile();
+    if (localP) localP[field] = value;
+    saveProfiles(); toast("Perfil actualizado"); render();
+  }
+}
+
 // ============ RENDER ============
 function render(){
   const app=document.getElementById('app');app.innerHTML='';
+  document.body.classList.remove('bg-main'); // reset by default
   app.appendChild(Nav());
   const main=document.createElement('main');
   if(S.page==='home')main.appendChild(Home());
+  else if(S.page==='tierlists')main.appendChild(TierlistsPage());
+  else if(S.page==='users')main.appendChild(UsersPage());
+  else if(S.page==='profile')main.appendChild(ProfilePage());
   else if(S.page==='editor')main.appendChild(Editor());
   app.appendChild(main);
   const mo=ModalEl();if(mo)app.appendChild(mo);
