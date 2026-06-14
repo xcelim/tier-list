@@ -66,9 +66,12 @@ nav{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 16px;d
 main{padding:14px;max-width:1320px;margin:0 auto}
 
 /* HOME */
-.hh{text-align:center;padding:28px 0 18px}
-.hh h1{font-size:44px;font-weight:700;background:linear-gradient(135deg,var(--accent2),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
-.hh p{color:var(--text2);font-size:14px}
+.hh{text-align:center;padding:60px 0 10px;display:flex;flex-direction:column;align-items:center}
+.hh h1{font-size:72px;font-weight:800;background:linear-gradient(135deg,var(--accent2) 0%,#c084fc 50%,var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:10px;font-family:'Cinzel',serif;letter-spacing:2px;line-height:1}
+.hh .hh-sep{width:6px;height:6px;background:var(--accent2);border-radius:50%;margin:10px auto 14px;box-shadow:0 0 8px var(--accent2)}
+.hh p{color:var(--text2);font-size:15px;letter-spacing:.3px}
+.hh-footer{text-align:center;padding:28px 0 10px;color:var(--text3);font-size:12px;display:flex;align-items:center;gap:8px;justify-content:center}
+.hh-footer::before,.hh-footer::after{content:'';flex:1;max-width:80px;height:1px;background:linear-gradient(90deg,transparent,var(--border2))}
 .profile-notice{text-align:center;padding:40px 20px;color:var(--text3)}
 .profile-notice h2{font-size:22px;margin-bottom:8px;font-family:'Rajdhani',sans-serif;color:var(--text2)}
 .tlg{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:16px}
@@ -185,11 +188,20 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .confirm-bar span{flex:1;color:var(--gold)}
 
 /* MENU HOME */
-.menu-grid{display:flex;justify-content:center;gap:28px;flex-wrap:wrap;margin-top:40px}
-.menu-box{width:220px;height:280px;background:var(--bg2);border:1px solid var(--border2);border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;cursor:pointer;transition:.25s;position:relative;overflow:hidden}
-.menu-box:hover{transform:translateY(-8px) scale(1.03);border-color:var(--accent2);box-shadow:0 16px 48px rgba(124,92,191,.35);background:var(--bg3)}
-.menu-box .icon{font-size:52px;line-height:1}
-.menu-box h2{font-size:22px;font-weight:600;font-family:'Rajdhani',sans-serif;color:var(--text)}
+.menu-grid{display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin-top:44px}
+.menu-box{width:240px;height:320px;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;cursor:pointer;transition:.3s cubic-bezier(.25,.8,.25,1);position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+.menu-box::before{content:'';position:absolute;inset:0;background-image:var(--card-bg);background-size:cover;background-position:center;opacity:.22;transition:.3s}
+.menu-box::after{content:'';position:absolute;inset:0;background:var(--card-gradient);opacity:.85}
+.menu-box:hover{transform:translateY(-10px) scale(1.03);box-shadow:0 24px 60px rgba(0,0,0,.5);border-color:rgba(255,255,255,.18)}
+.menu-box:hover::before{opacity:.32}
+.menu-box .mb-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:18px}
+.menu-box .mb-icon{width:56px;height:56px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:2px solid rgba(255,255,255,.3)}
+.menu-box .mb-icon svg{width:28px;height:28px;stroke:rgba(255,255,255,.9);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.menu-box h2{font-size:22px;font-weight:600;font-family:'Cinzel',serif;color:#fff;letter-spacing:.5px}
+.menu-box .mb-sep{width:20px;height:2px;border-radius:2px;background:rgba(255,255,255,.4)}
+.mb-tierlists{--card-gradient:linear-gradient(160deg,rgba(140,30,80,.9) 0%,rgba(80,20,120,.9) 100%)}
+.mb-users{--card-gradient:linear-gradient(160deg,rgba(70,30,130,.9) 0%,rgba(40,20,100,.9) 100%)}
+.mb-profile{--card-gradient:linear-gradient(160deg,rgba(20,30,90,.9) 0%,rgba(15,25,70,.9) 100%)}
 </style>
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -869,8 +881,14 @@ function Nav(){
 function Home(){
   document.body.classList.add('bg-main');
   const w=h('div',{});
-  w.appendChild(h('div',{class:'hh'},h('h1',{},'AnimeTier'),h('p',{},'Rankea tus waifus – el catálogo definitivo')));
-  
+
+  // Header
+  const hdr=h('div',{class:'hh'});
+  hdr.appendChild(h('h1',{},'AnimeTier'));
+  hdr.appendChild(h('div',{class:'hh-sep'}));
+  hdr.appendChild(h('p',{},'Crea, compara y descubre los mejores rankings de anime'));
+  w.appendChild(hdr);
+
   if(!userSession){
     w.appendChild(h('div',{class:'profile-notice'},
       h('h2',{},'Bienvenido'),
@@ -880,21 +898,32 @@ function Home(){
     return w;
   }
 
+  const ICONS = {
+    tierlists: `<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+    users: `<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    profile: `<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`
+  };
+
   const menu = h('div', { class: 'menu-grid' });
   const items = [
-    { id: 'tierlists', title: 'Tierlists', icon: '📊' },
-    { id: 'users', title: 'Usuarios', icon: '👥' },
-    { id: 'profile', title: 'Mi Perfil', icon: '👤' }
+    { id: 'tierlists', title: 'Tierlists', cls: 'mb-tierlists' },
+    { id: 'users',     title: 'Usuarios',  cls: 'mb-users' },
+    { id: 'profile',   title: 'Perfil',    cls: 'mb-profile' }
   ];
 
   items.forEach(item => {
-    menu.appendChild(h('div', { class: 'menu-box', onclick: () => { S.page = item.id; render(); } },
-      h('span', { class: 'icon' }, item.icon),
-      h('h2', {}, item.title)
-    ));
+    const iconEl = h('div', { class: 'mb-icon' });
+    iconEl.innerHTML = ICONS[item.id];
+    const content = h('div', { class: 'mb-content' },
+      iconEl,
+      h('h2', {}, item.title),
+      h('div', { class: 'mb-sep' })
+    );
+    menu.appendChild(h('div', { class: `menu-box ${item.cls}`, onclick: () => { S.page = item.id; render(); } }, content));
   });
 
   w.appendChild(menu);
+  w.appendChild(h('div', {class:'hh-footer'}, 'Hecho con pasión para verdaderos amantes del anime'));
   return w;
 }
 
