@@ -867,7 +867,9 @@ function Home(){
     const card=h('div',{class:'tlc',onclick:()=>{openEditor(tl.id);render();}});
     const ca=h('div',{class:'tlca'});
     ca.appendChild(h('button',{class:'btn bg bsm',onclick:(e)=>{e.stopPropagation();dupTL(tl.id);},'title':'Duplicar'},'⧇'));
-    ca.appendChild(h('button',{class:'btn bd bsm',onclick:(e)=>{e.stopPropagation();delTL(tl.id);},'title':'Eliminar'},'✕'));
+    if (p.is_admin) {
+      ca.appendChild(h('button',{class:'btn bd bsm',onclick:(e)=>{e.stopPropagation();delTL(tl.id);},'title':'Eliminar'},'✕'));
+    }
     const tot=(tl.tiers||[]).reduce((a,t)=>a+(t.chars||[]).length,0)+(tl.pool||[]).length;
     card.appendChild(ca);
     card.appendChild(h('h3',{},tl.title||'Sin t\xedtulo'));
