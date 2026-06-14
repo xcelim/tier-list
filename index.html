@@ -130,6 +130,11 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .pool{background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-top:8px}
 .pool-hdr{padding:10px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .pool-hdr h3{font-size:14px;font-weight:600;font-family:'Rajdhani',sans-serif}
+.pool-sort-wrap{display:flex;align-items:center;gap:4px;margin-left:auto}
+.pool-sort-sel{background:var(--bg3);color:var(--text1);border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:11px;cursor:pointer;outline:none}
+.pool-sort-sel:hover{border-color:var(--accent)}
+.pool-sort-dir{background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:6px;width:26px;height:26px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.pool-sort-dir:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 .sw{position:relative;flex:1;min-width:150px}
 .sw input{width:100%;padding-left:28px}
 .sw::before{content:"⌕";position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none;font-size:16px}
@@ -479,7 +484,7 @@ function openEditor(tlid){
   S.cid=tlid;
   S.workingTL=JSON.parse(JSON.stringify(tl)); // deep copy
   S.hasUnsaved=false;
-  S.page='editor';S.q='';S.poolPage=0;
+  S.page='editor';S.q='';S.poolPage=0;S.poolSort='default';S.poolSortDir='asc';
   setRoute('editor',tlid);
   syncFromSupabase();
 }
@@ -1011,12 +1016,22 @@ function Editor(){
 
     (tier.chars||[]).forEach((cid,ci)=>{
       const c=getChar(cid,tl);if(!c)return;
-      const el=h('div',{class:'tc'});
+      const el=h('div',{class:'tc',style:{position:'relative'}});
       el.dataset.cid=cid;
       el.title=(c.name||cid)+' \u2014 '+(c.anime||'');
       const imgSrcVal=charImg(cid,tl);
       el.appendChild(h('img',{src:imgSrcVal,onerror:(e)=>e.target.src='https://api.dicebear.com/7.x/initials/svg?seed='+encodeURIComponent(c.name||cid)}));
       el.appendChild(h('div',{class:'cn'},c.name||cid));
+      if(c.isCustom){
+        const db=h('button',{
+          title:'Eliminar permanentemente',
+          style:{position:'absolute',top:'1px',right:'1px',background:'rgba(224,85,84,.85)',color:'#fff',border:'none',borderRadius:'3px',width:'14px',height:'14px',fontSize:'9px',display:'none',alignItems:'center',justifyContent:'center',cursor:'pointer',padding:'0',lineHeight:'1',zIndex:'10'},
+          onclick:(e)=>{e.stopPropagation();deleteCustomChar(cid,tl);}
+        },'✕');
+        el.addEventListener('mouseenter',()=>{db.style.display='flex';});
+        el.addEventListener('mouseleave',()=>{db.style.display='none';});
+        el.appendChild(db);
+      }
       el.addEventListener('mousedown',e=>dgPointerDown(e,cid,tier.id,ci,imgSrcVal));
       el.ondblclick=()=>{tier.chars=tier.chars.filter(x=>x!==cid);if(!tl.pool.includes(cid))tl.pool.unshift(cid);markUnsaved();};
       ce.appendChild(el);
@@ -1035,7 +1050,21 @@ function Editor(){
   const sw=h('div',{class:'sw',style:{flex:'1',minWidth:'150px'}});
   const si=h('input',{type:'text',placeholder:'Buscar...',value:S.q});
   si.oninput=e=>{S.q=e.target.value;S.poolPage=0;updPool(pc,tl);};
-  sw.appendChild(si);ph.appendChild(sw);ps.appendChild(ph);
+  sw.appendChild(si);ph.appendChild(sw);
+  // Sort controls
+  const sortWrap=h('div',{class:'pool-sort-wrap'});
+  const sortSel=h('select',{class:'pool-sort-sel',title:'Ordenar por'});
+  [['default','Sin ordenar'],['added','Fecha añadido'],['name','Nombre (A-Z)'],['anime','Anime (A-Z)'],['rating','Rareza/Custom primero']].forEach(([v,lbl])=>{
+    const op=h('option',{value:v},lbl);
+    if(S.poolSort===v)op.selected=true;
+    sortSel.appendChild(op);
+  });
+  sortSel.onchange=e=>{S.poolSort=e.target.value;S.poolPage=0;updPool(pc,tl);};
+  sortWrap.appendChild(sortSel);
+  const dirBtn=h('button',{class:'pool-sort-dir',title:'Invertir orden',onclick:()=>{S.poolSortDir=S.poolSortDir==='asc'?'desc':'asc';S.poolPage=0;updPool(pc,tl);}},S.poolSortDir==='asc'?'↑':'↓');
+  sortWrap.appendChild(dirBtn);
+  ph.appendChild(sortWrap);
+  ps.appendChild(ph);
   const pc=h('div',{class:'pchars'});
   updPool(pc,tl);ps.appendChild(pc);w.appendChild(ps);
   return w;
@@ -1072,9 +1101,44 @@ async function deleteCustomChar(cid,tl){
 }
 
 function updPool(cont,tl){
+  // Sync direction button text
+  const dirBtnEl=document.querySelector('.pool-sort-dir');
+  if(dirBtnEl)dirBtnEl.textContent=S.poolSortDir==='asc'?'↑':'↓';
   cont.innerHTML='';
   let chars=tl.pool||[];
   if(S.q){const q=S.q.toLowerCase();chars=chars.filter(cid=>{const c=getChar(cid,tl);return c&&((c.name||'').toLowerCase().includes(q)||(c.anime||'').toLowerCase().includes(q));});}
+  // Sorting
+  if(S.poolSort&&S.poolSort!=='default'){
+    const dir=S.poolSortDir==='desc'?-1:1;
+    chars=[...chars].sort((a,b)=>{
+      const ca=getChar(a,tl),cb=getChar(b,tl);
+      if(!ca&&!cb)return 0;if(!ca)return 1;if(!cb)return -1;
+      if(S.poolSort==='added'){
+        const da=ca.added_at?new Date(ca.added_at).getTime():null;
+        const db2=cb.added_at?new Date(cb.added_at).getTime():null;
+        // Sin fecha van al final siempre (independiente del dir)
+        if(da===null&&db2===null)return 0;
+        if(da===null)return 1;
+        if(db2===null)return -1;
+        return (da-db2)*dir;
+      }
+      if(S.poolSort==='name'){
+        return (ca.name||'').localeCompare(cb.name||'','es',{sensitivity:'base'})*dir;
+      }
+      if(S.poolSort==='anime'){
+        const cmp=(ca.anime||'').localeCompare(cb.anime||'','es',{sensitivity:'base'});
+        if(cmp!==0)return cmp*dir;
+        return (ca.name||'').localeCompare(cb.name||'','es',{sensitivity:'base'})*dir;
+      }
+      if(S.poolSort==='rating'){
+        // Custom primero, luego resto
+        const ac=ca.isCustom?0:1,bc2=cb.isCustom?0:1;
+        if(ac!==bc2)return (ac-bc2)*dir;
+        return (ca.name||'').localeCompare(cb.name||'','es',{sensitivity:'base'});
+      }
+      return 0;
+    });
+  }
   if(!chars.length){cont.appendChild(h('div',{class:'pempty'},S.q?'Sin resultados':'Pool vacío'));return;}
   const shown=chars.slice(0,(S.poolPage+1)*PAGE);
   shown.forEach(cid=>{
@@ -1389,7 +1453,7 @@ function MAddChar(){
         // Registrar en la tabla de personajes para que sea global
         // Insertar personaje en la tabla de characters de ESTA tierlist
         await sbClient.from('characters').insert({
-          id: cid, tierlist_id: tl.id, name: charName.trim(), anime: animeName.trim()||'Custom', image_url: cloudUrl, created_by: userSession.user.id
+          id: cid, tierlist_id: tl.id, name: charName.trim(), anime: animeName.trim()||'Custom', image_url: cloudUrl, created_by: userSession.user.id, added_at: new Date().toISOString()
         });
         // También intentar insertar en tabla específica si existe
         try {
@@ -1401,7 +1465,7 @@ function MAddChar(){
       }
     }
 
-    const cc={id:cid,name:charName.trim(),anime:animeName.trim()||'Custom',fileName,imageData:cloudUrl?null:imgData,file:cloudUrl,isCustom:true};
+    const cc={id:cid,name:charName.trim(),anime:animeName.trim()||'Custom',fileName,imageData:cloudUrl?null:imgData,file:cloudUrl,isCustom:true,added_at:new Date().toISOString()};
     if(!tl.customChars)tl.customChars=[];
     tl.customChars.push(cc);tl.pool.unshift(cid);
     S.hasUnsaved=true;S.modal=null;render();toast(charName+' a\xf1adida \u2713');
