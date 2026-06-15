@@ -2098,14 +2098,16 @@ function updPool(cont,tl){
 // ============ MODALS ============
 function ModalEl(){
   if(!S.modal)return null;
-  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'chat': MChat}; // This line is correct
-  const fn=fns[S.modal];if(fn)ov.appendChild(fn());
+  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'chat': MChat};
+  const fn=fns[S.modal];
+  if(!fn) return null;
+
   if(S.modal === 'chat') {
      // No overlay for chat to allow interaction with background
-     return fn ? fn() : null;
+     return fn();
   }
   const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}});
-  if(fn)ov.appendChild(fn());
+  ov.appendChild(fn());
   return ov;
 }
 
