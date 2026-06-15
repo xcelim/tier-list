@@ -11,6 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0/default.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -255,6 +257,10 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .ac-item-info{flex:1;min-width:0}
 .ac-item-title{font-weight:500;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ac-item-sub{font-size:10px;color:var(--text3)}
+/* Cropper Custom */
+.crop-container { width: 100%; max-height: 400px; background: #000; margin-bottom: 15px; overflow: hidden; border-radius: 8px; }
+.crop-container img { max-width: 100%; }
+.cropper-view-box, .cropper-face { border-radius: 50%; }
 .char-edit-preview{width:80px;height:100px;object-fit:cover;border-radius:6px;border:2px solid var(--border2)}
 .tw{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:5px}
 .toast{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 14px;font-size:12px;animation:si .2s ease;box-shadow:0 6px 24px rgba(0,0,0,.4);max-width:320px}
@@ -538,6 +544,9 @@ let S={
   cid:null,
   // Editor working copy (not saved until user clicks Save)
   workingTL:null,
+  // Profile draft state
+  profileDraft: null,
+  profileUnsaved: false,
   hasUnsaved:false,
   saveT:null,
 };
@@ -684,6 +693,49 @@ async function syncFromSupabase() {
     S.workingTL.pool.reverse(); 
 
     render();
+  }
+}
+
+async function saveProfileChanges() {
+  if (!userSession || !S.profileDraft) return;
+  toast("Guardando perfil...", "info");
+  
+  let finalAvatarUrl = S.profileDraft.avatar_url;
+
+  // 1. Si hay una nueva imagen (blob de recorte), subirla y borrar la anterior
+  if (S.profileDraft._newAvatarBlob) {
+    const path = `avatars/${userSession.user.id}_${Date.now()}.png`;
+    
+    // Borrar anterior si existía en storage
+    const oldPath = extractBucketPath(currentUserProfile.avatar_url);
+    if (oldPath && oldPath.includes('avatars/')) {
+        await sbClient.storage.from('tierlists').remove([oldPath]);
+    }
+
+    const { error: upErr } = await sbClient.storage.from('tierlists').upload(path, S.profileDraft._newAvatarBlob);
+    if (!upErr) {
+      const { data: { publicUrl } } = sbClient.storage.from('tierlists').getPublicUrl(path);
+      finalAvatarUrl = publicUrl;
+    }
+  }
+
+  // 2. Update de campos en la base de datos
+  const updates = {
+    name: S.profileDraft.name,
+    color: S.profileDraft.color,
+    avatar_url: finalAvatarUrl
+  };
+
+  const { error } = await sbClient.from('profiles').update(updates).eq('id', userSession.user.id);
+  if (!error) {
+    currentUserProfile = { ...currentUserProfile, ...updates };
+    const localP = activeProfile();
+    if (localP) Object.assign(localP, updates);
+    S.profileUnsaved = false;
+    S.profileDraft = null;
+    saveProfiles(); toast("Perfil actualizado ✓"); render();
+  } else {
+    toast("Error al guardar: " + error.message, "err");
   }
 }
 
@@ -1041,7 +1093,10 @@ function Nav(){
     nr.appendChild(h('div', { class: 'profile-btn', style: { background: 'var(--bg3)', color: 'var(--text2)' }, onclick: handleGoogleLogin, title: 'Iniciar Sesión con Google' }, '👤'));
   } else {
     const p = currentUserProfile || { name: '...', color: '#888' };
-    const btn = h('div', { class: 'profile-btn active', style: { background: p.color + '33', color: p.color }, onclick: (e) => { e.stopPropagation(); S.profileMenu = userSession.user.id; S.notifMenu = false; render(); } }, p.name.charAt(0).toUpperCase());
+    const btnContent = p.avatar_url 
+      ? h('img', { src: p.avatar_url, style: { width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' } }) 
+      : p.name.charAt(0).toUpperCase();
+    const btn = h('div', { class: 'profile-btn active', style: { background: p.color + '33', color: p.color }, onclick: (e) => { e.stopPropagation(); S.profileMenu = userSession.user.id; S.notifMenu = false; render(); } }, btnContent);
     nr.appendChild(btn);
   }
   n.appendChild(nr);
@@ -1051,14 +1106,8 @@ function Nav(){
     if(p){
       const pm=h('div',{class:'profile-menu'});
       pm.appendChild(h('div',{class:'pm-header'},h('div',{class:'pm-name'},p.name),h('div',{class:'pm-sub'},(p.tls||[]).length+' tierlists')));
-      if(S.activeProfile!==p.id){
-        pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.activeProfile=p.id;S.cid=null;S.workingTL=null;S.hasUnsaved=false;S.page='home';S.profileMenu=null;saveProfiles();render();}},'\u{1F464} Entrar como '+p.name));
-      }else{
-        pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.modal='edit-profile';S.md={profileId:p.id};S.profileMenu=null;render();}},'\u270F Editar perfil'));
-        pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.profileMenu=null;handleLogout();}},'🚪 Cerrar sesión'));
-      }
-      pm.appendChild(h('div',{class:'pm-divider'}));
-      pm.appendChild(h('div',{class:'pm-item danger',onclick:()=>{S.profileMenu=null;handleDeleteAccount();}},'✕ Eliminar cuenta'));
+      pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.page='profile'; S.profileMenu=null; render();}},'\u270F Editar perfil'));
+      pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.profileMenu=null;handleLogout();}},'🚪 Cerrar sesión'));
       document.addEventListener('click',()=>{S.profileMenu=null;render();},{once:true});
       n.appendChild(pm);
     }
@@ -1432,8 +1481,24 @@ function Viewer() {
 }
 
 function ProfilePage() {
-  const p = currentUserProfile || { name: '...', color: '#5b7fe8', avatar_url: null };
+  if (!userSession) return Home();
+  
+  // Inicializar borrador si no existe
+  if (!S.profileDraft) {
+    S.profileDraft = JSON.parse(JSON.stringify(currentUserProfile));
+    S.profileUnsaved = false;
+  }
+
+  const p = S.profileDraft;
   if (S.allUsers.length === 0) fetchAllUsers();
+
+  const markProfileDirty = () => {
+    // Comparar con el original para ver si realmente ha cambiado
+    const isChanged = p.name !== currentUserProfile.name || 
+                     p.color !== currentUserProfile.color || 
+                     p._newAvatarBlob;
+    S.profileUnsaved = isChanged; render();
+  };
 
   const w = h('div', {});
 
@@ -1454,6 +1519,15 @@ function ProfilePage() {
   w.appendChild(h('div', { class: 'deco-circle', style:{width:'150px',height:'150px',top:'40%',right:'-30px'} }));
 
   const content = h('div', { class: 'profile-content' });
+
+  // Barra de cambios sin guardar
+  if(S.profileUnsaved){
+    const cb=h('div',{class:'confirm-bar'});
+    cb.appendChild(h('span',{},'\u26A0\uFE0F Tienes cambios en tu perfil sin guardar'));
+    cb.appendChild(h('button',{class:'btn btn-save',onclick:saveProfileChanges},'\u2713 Guardar cambios'));
+    cb.appendChild(h('button',{class:'btn bd bsm',onclick:()=>{S.profileDraft=null; S.profileUnsaved=false; render();}},'Descartar'));
+    content.appendChild(cb);
+  }
 
   // Header
   content.appendChild(h('h1', { class: 'page-title' }, 'Perfil', h('span', { class: 'heart-icon' })));
@@ -1479,14 +1553,10 @@ function ProfilePage() {
   avWrap.appendChild(ring);
   const cameraInput = h('input', { type:'file', hidden:true, accept:'image/*', onchange: async (e) => {
     const file = e.target.files[0];
-    if (!file) return;
-    toast("Subiendo foto...", "info");
-    const path = `avatars/${userSession.user.id}_${Date.now()}.png`;
-    const { error } = await sbClient.storage.from('tierlists').upload(path, file);
-    if (!error) {
-      const { data: { publicUrl } } = sbClient.storage.from('tierlists').getPublicUrl(path);
-      updateProfileField('avatar_url', publicUrl);
-    }
+    if (!file) return; 
+    const reader = new FileReader();
+    reader.onload = (ev) => { S.modal = 'crop-avatar'; S.md = { imageSrc: ev.target.result }; render(); };
+    reader.readAsDataURL(file);
   }});
   avWrap.appendChild(h('label', { class: 'camera-btn', title: 'Cambiar foto' }, h('i', { class: 'ti ti-camera' }), cameraInput));
   top.appendChild(avWrap);
@@ -1496,10 +1566,8 @@ function ProfilePage() {
   right.appendChild(h('div', { class: 'field-label' }, 'Nombre de usuario'));
   const nameInput = h('input', { class: 'field-input', type: 'text', value: p.name });
   right.appendChild(nameInput);
-  right.appendChild(h('button', { class: 'save-btn', onclick: () => {
-    const val = nameInput.value.trim();
-    if (val && val !== p.name) updateProfileField('name', val);
-  }}, h('i', { class: 'ti ti-device-floppy' }), ' Guardar cambios'));
+  nameInput.oninput = (e) => { p.name = e.target.value; markProfileDirty(); };
+  right.appendChild(h('button', { class: 'save-btn', onclick: saveProfileChanges }, h('i', { class: 'ti ti-device-floppy' }), ' Guardar cambios'));
   top.appendChild(right);
   card.appendChild(top);
 
@@ -1521,7 +1589,7 @@ function ProfilePage() {
     const dot = h('button', { class: 'color-dot ' + c.cls + (active ? ' active' : ''), 'aria-label': c.label, onclick: (e) => {
       colorsRow.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
       e.currentTarget.classList.add('active');
-      updateProfileField('color', c.val);
+      p.color = c.val; markProfileDirty();
     }}, h('i', { class: 'ti ti-check' }));
     colorsRow.appendChild(dot);
   });
@@ -1560,7 +1628,7 @@ function ProfilePage() {
         style: { width:'100%', height:'100%', objectFit:'cover' }
       }));
       fc.appendChild(av);
-      fc.appendChild(h('div', { class: 'friend-name' }, '@' + f.name));
+      fc.appendChild(h('div', { class: 'friend-name' }, f.name));
       fc.appendChild(h('div', { class: 'friend-stats' }, `${f.tl_count || 0} tierlists`, h('br'), `${f.friend_count || 0} amigos`));
       const btns = h('div', { class: 'friend-btns' });
       btns.appendChild(h('button', { class: 'fb-add', title: 'Ver perfil', onclick: (e) => { e.stopPropagation(); viewUser(f.id); } }, h('i', { class: 'ti ti-eye' })));
@@ -1844,7 +1912,7 @@ function updPool(cont,tl){
 function ModalEl(){
   if(!S.modal)return null;
   const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}});
-  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar};
+  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar};
   const fn=fns[S.modal];if(fn)ov.appendChild(fn());
   return ov;
 }
@@ -1869,6 +1937,36 @@ function MNewProfile(){
     S.activeProfile=id;saveProfiles();S.modal=null;S.page='home';render();toast('Perfil creado \u2713');
   }},'Crear'));
   m.appendChild(row);setTimeout(()=>ni.focus(),40);return m;
+}
+
+// CROP AVATAR MODAL
+function MCropAvatar() {
+  const m = h('div', { class: 'modal', style: { maxWidth: '450px' } });
+  m.appendChild(h('h2', {}, 'Ajustar foto de perfil'));
+  const cropCont = h('div', { class: 'crop-container' });
+  const img = h('img', { src: S.md.imageSrc });
+  cropCont.appendChild(img);
+  m.appendChild(cropCont);
+  
+  const row = h('div', { style: { display: 'flex', gap: '8px' } });
+  row.appendChild(h('button', { class: 'btn bg', style: { flex: 1 }, onclick: () => { S.modal = null; render(); } }, 'Cancelar'));
+  row.appendChild(h('button', { class: 'btn bp', style: { flex: 1 }, onclick: () => {
+    const canvas = cropper.getCroppedCanvas({ width: 400, height: 400 });
+    canvas.toBlob((blob) => {
+      S.profileDraft.avatar_url = URL.createObjectURL(blob);
+      S.profileDraft._newAvatarBlob = blob;
+      S.profileUnsaved = true;
+      S.modal = null;
+      render();
+    }, 'image/png');
+  } }, 'Confirmar'));
+  m.appendChild(row);
+
+  let cropper;
+  setTimeout(() => {
+    cropper = new Cropper(img, { aspectRatio: 1, viewMode: 1, dragMode: 'move', guides: false, center: true, highlight: false, cropBoxMovable: false, cropBoxResizable: false, toggleDragModeOnDblclick: false });
+  }, 50);
+  return m;
 }
 
 // EDIT PROFILE
