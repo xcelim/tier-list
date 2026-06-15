@@ -1162,7 +1162,7 @@ function UsersPage() {
       if(u.relStatus === 'none') {
         btn = h('button', { class: 'user-add-btn', onclick: (e) => { e.stopPropagation(); sendFriendRequest(u.id); } }, '+');
       } else if(u.relStatus === 'pending_sent') {
-        btn = h('button', { class: 'user-add-btn pending', title: 'Solicitud enviada' }, '...');
+        btn = h('button', { class: 'user-add-btn bd', title: 'Cancelar solicitud', onclick: (e) => { e.stopPropagation(); removeFriend(u.relId); } }, 'Cancelar');
       } else if(u.relStatus === 'pending_received') {
         btn = h('button', { class: 'user-add-btn pending', title: 'Tienes una solicitud de este usuario' }, '!');
       } else if(u.relStatus === 'accepted') {
