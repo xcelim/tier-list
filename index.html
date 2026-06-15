@@ -866,6 +866,22 @@ async function fetchChats() {
 }
 
 async function openChat(chat) {
+  if (chat.is_temp) {
+    // Crear el chat real en la base de datos al primer contacto
+    const { data: nc } = await sbClient.from('chats').insert({ is_group: false }).select().single();
+    if (nc) {
+      const m = [
+        { chat_id: nc.id, user_id: userSession.user.id, last_read_at: new Date().toISOString() },
+        { chat_id: nc.id, user_id: chat.friend_id }
+      ];
+      await sbClient.from('chat_members').insert(m);
+      await fetchChats();
+      const real = S.chats.find(c => c.id === nc.id);
+      if (real) return openChat(real);
+    }
+    return;
+  }
+
   S.activeChat = chat;
   S.messages = [];
   render();
@@ -2319,12 +2335,10 @@ function MChat() {
   const list = h('div', { class: 'chat-list' });
   (S.chats || []).forEach(c => {
     const name = getTitle(c);
-    const item = h('div', { class: 'chat-item' + (S.activeChat?.id === c.id ? ' active' : ''), onclick: () => {
-      if (S.activeChat?.id && S.activeChat.id !== c.id) {
-        try { sbClient.channel(`chat:${S.activeChat.id}`).unsubscribe(); } catch(e){}
-      }
-      openChat(c);
-    }});
+    const item = h('div', { 
+      class: 'chat-item' + (S.activeChat?.id === c.id ? ' active' : ''), 
+      onclick: () => openChat(c) 
+    });
     item.appendChild(renderChatAvatarItem(c));
     const info = h('div', { class: 'chat-item-info' });
     info.appendChild(h('div', { class: 'chat-item-name' }, name));
@@ -3218,6 +3232,7 @@ async function handleAuthSession(session) {
     saveProfiles();
     fetchGlobalTemplates();
     // Si hay una ruta pendiente (URL con hash al cargar), abrir el editor correspondiente
+    await fetchAllUsers(); // Vital para que salgan los amigos en el chat
     fetchChats(); // Cargar chats al iniciar sesión
     fetchNotifications(); // Cargar notificaciones al iniciar sesión
     if(S._pendingTlId){
