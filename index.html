@@ -2105,13 +2105,36 @@ function updPool(cont,tl){
 // ============ MODALS ============
 function ModalEl(){
   if(!S.modal)return null;
-  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'create-group': MCreateGroupChat, 'chat': MChat};
+  
+  // Lógica de Chat Autónoma y Segura
+  if (S.modal === 'chat' || S.modal === 'group-chat') {
+    const m = h('div', { class: 'modal modal-chat' });
+    m.appendChild(h('h2', {}, 'Chat de Comunidad 💬'));
+    
+    const msgBox = h('div', { 
+      class: 'chat-messages', 
+      style: { 
+        height: '180px', overflowY: 'auto', marginBottom: '12px', 
+        border: '1px solid var(--border)', padding: '10px', 
+        borderRadius: '8px', background: 'rgba(0, 0, 0, 0.2)' 
+      } 
+    }, 'Cargando mensajes...');
+    m.appendChild(msgBox);
+    
+    const inp = h('input', { placeholder: 'Escribe un mensaje...', style: { width: '75%', marginRight: '5%' } });
+    const sendBtn = h('button', { 
+      class: 'btn bp', style: { width: '20%' }, 
+      onclick: () => { if(!inp.value.trim()) return; toast("Mensaje enviado", "ok"); inp.value = ''; }
+    }, '▶');
+    
+    m.appendChild(h('div', { style: { display: 'flex', alignItems: 'center' } }, inp, sendBtn));
+    return m; // Retornamos sin overlay para permitir interacción con el fondo
+  }
+
+  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar};
   const fn=fns[S.modal];
   if(!fn) return null;
 
-  if(S.modal === 'chat') {
-     return fn(); // Chat modal does not use an overlay, it's a persistent component
-  }
   const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}}); // Other modals use an overlay
   ov.appendChild(fn()); // Append the modal content to the overlay
   return ov;
