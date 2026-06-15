@@ -948,7 +948,15 @@ function Nav(){
   }
   const nr=h('div',{class:'nav-right'});
   if(userSession) {
-    const notifBtn = h('div', { class: 'nav-notif', onclick: (e) => { e.stopPropagation(); S.notifMenu = !S.notifMenu; S.profileMenu = null; render(); } },
+    const notifBtn = h('div', { 
+      class: 'nav-notif', 
+      onclick: (e) => { 
+        e.stopPropagation(); 
+        S.notifMenu = !S.notifMenu; S.profileMenu = null; 
+        if(S.notifMenu) fetchNotifications(); // Actualizar al abrir
+        render(); 
+      } 
+    },
       h('span', {style:{fontSize:'18px'}}, '🔔'),
       S.pendingRequests.length > 0 ? h('div', { class: 'notif-badge' }, S.pendingRequests.length + '') : null
     );
@@ -988,7 +996,8 @@ function Nav(){
     } else {
       S.pendingRequests.forEach(req => {
         const item = h('div', { class: 'notif-item' });
-        item.appendChild(h('div', { class: 'notif-msg' }, h('strong', {}, (req.profiles||{}).name || 'Usuario'), ' ha solicitado ser tu amigo.'));
+        const senderName = req.sender?.name || 'Un usuario';
+        item.appendChild(h('div', { class: 'notif-msg' }, h('strong', {}, senderName), ' ha solicitado ser tu amigo.'));
         const acts = h('div', { class: 'notif-actions' });
         acts.appendChild(h('button', { class: 'btn bp bsm btn-notif', onclick: () => respondFriendRequest(req.id, 'accepted') }, '✓ Aceptar'));
         acts.appendChild(h('button', { class: 'btn bd bsm btn-notif', onclick: () => respondFriendRequest(req.id, 'rejected') }, '✕'));
@@ -1006,8 +1015,9 @@ let isProcessingFriendship = false;
 
 async function fetchNotifications() {
   if (!userSession) return;
-  // Usamos un join explícito para obtener el nombre del que envía la solicitud
-  const { data } = await sbClient.from('friendships').select('id, user_id, profiles:user_id (name)').eq('friend_id', userSession.user.id).eq('status', 'pending');
+  // Traemos el ID de la relación y el nombre del perfil del 'user_id' (el que envió)
+  const { data, error } = await sbClient.from('friendships').select('id, user_id, sender:profiles!user_id(name)').eq('friend_id', userSession.user.id).eq('status', 'pending');
+  if(error) console.error("Error fetching notifs:", error);
   S.pendingRequests = data || [];
   render();
 }
@@ -1024,28 +1034,36 @@ async function sendFriendRequest(targetUserId) {
 async function respondFriendRequest(requestId, status) {
   if(isProcessingFriendship) return;
   isProcessingFriendship = true;
-  if(status === 'accepted') {
-    await sbClient.from('friendships').update({ status: 'accepted' }).eq('id', requestId);
-    toast('¡Ahora sois amigos!');
-  } else {
-    await sbClient.from('friendships').delete().eq('id', requestId);
-  }
-  await fetchNotifications();
-  await fetchAllUsers();
-  isProcessingFriendship = false;
+  try {
+    if(status === 'accepted') {
+      await sbClient.from('friendships').update({ status: 'accepted' }).eq('id', requestId);
+      toast('¡Ahora sois amigos!');
+    } else {
+      await sbClient.from('friendships').delete().eq('id', requestId);
+    }
+    await fetchNotifications();
+    await fetchAllUsers();
+  } catch(e) { console.error(e); }
+  finally { isProcessingFriendship = false; render(); }
 }
 
 async function removeFriend(relId, isCancel = false) {
-  if(isProcessingFriendship) return;
+  if(isProcessingFriendship || !relId) return;
   if(!isCancel && !confirm('¿Seguro que quieres eliminar a este amigo?')) return;
+  
   isProcessingFriendship = true;
   const { error } = await sbClient.from('friendships').delete().eq('id', relId);
+  
   if(!error) { 
     toast(isCancel ? 'Solicitud cancelada' : 'Amigo eliminado'); 
     await fetchAllUsers(); 
     await fetchNotifications();
+  } else {
+    console.error("Delete error:", error);
+    toast('No se pudo realizar la acción', 'err');
   }
   isProcessingFriendship = false;
+  render();
 }
 
 // ============ HOME ============
