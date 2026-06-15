@@ -281,17 +281,19 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .char-edit-preview{width:80px;height:100px;object-fit:cover;border-radius:6px;border:2px solid var(--border2)}
 /* Chat Styles */
 .chat-modal { 
-  width: 95%; max-width: 800px; height: 80vh; display: flex; overflow: hidden; padding: 0 !important; 
-  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); /* Centrar */
-  animation: chat-modal-appear 0.3s ease-out;
+  width: 360px; height: 240px; display: flex; overflow: hidden; padding: 0 !important; 
+  position: fixed; top: 60px; right: 16px; z-index: 2000;
+  animation: chat-modal-appear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  background: #0c1434; border: 1.5px solid rgba(80, 130, 230, 0.4);
+  box-shadow: 0 12px 48px rgba(0,0,0,0.6); border-radius: 12px;
 }
 @keyframes chat-modal-appear {
-  from { opacity: 0; transform: translate(-60%, -60%) scale(0.9); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  from { opacity: 0; transform: scale(0); transform-origin: top right; }
+  to { opacity: 1; transform: scale(1); transform-origin: top right; }
 }
-.chat-sidebar { width: 280px; border-right: 1px solid var(--border); display: flex; flex-direction: column; background: var(--bg2); }
-.chat-sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
-.chat-sidebar-header h2 { margin-bottom: 0; }
+.chat-sidebar { width: 110px; border-right: 1px solid rgba(80, 130, 230, 0.2); display: flex; flex-direction: column; background: #0a1128; }
+.chat-sidebar-header { padding: 8px 10px; border-bottom: 1px solid rgba(80, 130, 230, 0.2); display: flex; flex-direction: column; gap: 4px; }
+.chat-sidebar-header h2 { margin-bottom: 0; font-size: 12px; color: #4a9eff; }
 .chat-list { flex: 1; overflow-y: auto; }
 .chat-item { padding: 12px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.2s; border-bottom: 1px solid rgba(255,255,255,0.03); }
 .chat-item-info { flex: 1; min-width: 0; }
@@ -1269,15 +1271,15 @@ function Nav(){
     const btnContent = p.avatar_url 
       ? h('img', { src: p.avatar_url, style: { width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' } }) 
       : p.name.charAt(0).toUpperCase();
-    const btn = h('div', { class: 'profile-btn active', style: { background: p.color + '33', color: p.color }, onclick: (e) => { e.stopPropagation(); S.profileMenu = userSession.user.id; S.notifMenu = false; render(); } }, btnContent); // Mantener el perfil
-    nr.appendChild(btn);
-    const chatBtn = h('button', { class: 'btn bg bsm', style:{padding:'8px', marginLeft:'4px', position:'relative'}, onclick: () => { S.modal = 'chat'; fetchChats(); render(); } }, 
+    const chatBtn = h('button', { class: 'btn bg bsm', style:{padding:'8px', marginLeft:'4px', position:'relative'}, onclick: () => { S.chatModalPosition = { x: null, y: null }; S.modal = 'chat'; fetchChats(); render(); } }, 
       h('i', { class: 'ti ti-messages', style:{fontSize:'18px'} })
     );
     if (S.totalUnread > 0) {
       chatBtn.appendChild(h('span', { class: 'chat-button-badge' }, S.totalUnread > 99 ? '+99' : S.totalUnread.toString()));
     }
     nr.appendChild(chatBtn);
+    const btn = h('div', { class: 'profile-btn active', style: { background: p.color + '33', color: p.color }, onclick: (e) => { e.stopPropagation(); S.profileMenu = userSession.user.id; S.notifMenu = false; render(); } }, btnContent); // Mantener el perfil
+    nr.appendChild(btn);
   }
   n.appendChild(nr);
 
@@ -2152,7 +2154,7 @@ function MCropAvatar() {
 function MChat() { // This function is for the chat modal
   const m = h('div', { 
     class: 'modal chat-modal',
-    style: S.chatModalPosition.x !== null ? { left: S.chatModalPosition.x + 'px', top: S.chatModalPosition.y + 'px' } : {}
+    style: S.chatModalPosition.x !== null ? { left: S.chatModalPosition.x + 'px', top: S.chatModalPosition.y + 'px', right: 'auto' } : {}
   });
 
   // Draggable header
@@ -2176,6 +2178,7 @@ function MChat() { // This function is for the chat modal
         newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - m.offsetWidth));
         newTop = Math.max(0, Math.min(newTop, window.innerHeight - m.offsetHeight));
 
+        m.style.right = 'auto';
         m.style.left = newLeft + 'px';
         m.style.top = newTop + 'px';
         S.chatModalPosition = { x: newLeft, y: newTop }; // Save position
@@ -2190,16 +2193,15 @@ function MChat() { // This function is for the chat modal
       document.addEventListener('mouseup', onMouseUp);
     }
   });
-  header.appendChild(h('h2', {}, 'Mis Mensajes'));
-  header.appendChild(h('button', { class: 'btn bp bsm', onclick: () => {
+  header.appendChild(h('h2', {}, 'Mensajes'));
+  header.appendChild(h('button', { class: 'btn bp bsm', style:{fontSize:'9px', padding:'2px 6px'}, onclick: () => {
     const gname = prompt("Nombre del nuevo grupo:");
     if(gname) {
       const friends = S.allUsers.filter(u => u.relStatus === 'accepted');
-      // En un caso real aquí abrirías un selector, por simplicidad creamos grupo con todos los amigos
       createGroup(gname, friends.map(f => f.id));
     }
-  }}, '+ Nuevo Grupo'));
-  header.appendChild(h('button', { class: 'btn bg bsm', onclick: () => { S.modal = null; render(); } }, '✕')); // Close button
+  }}, '+ Grupo'));
+  header.appendChild(h('button', { class: 'btn bg bsm', onclick: () => { S.modal = null; S.chatModalPosition = { x: null, y: null }; render(); } }, '✕')); // Close button
 
   const sidebar = h('div', { class: 'chat-sidebar' });
   sidebar.appendChild(header);
@@ -2215,14 +2217,11 @@ function MChat() { // This function is for the chat modal
     }});
     item.appendChild(renderChatAvatars(c));
     const chatInfo = h('div', { class: 'chat-item-info' });
-    const name = c.is_group ? c.name : (c.chat_members.find(m => m.user_id !== userSession.user.id)?.profiles.name || 'Chat Desconocido');
-    chatInfo.appendChild(h('div', { class: 'chat-item-name' }, name));
+    const name = c.is_group ? c.name : (c.chat_members.find(m => m.user_id !== userSession.user.id)?.profiles.name || 'Usuario');
+    chatInfo.appendChild(h('div', { class: 'chat-item-name', style:{fontSize:'11px'} }, name));
     // Mostrar el último mensaje o un indicador
-    if (c.last_message_at) {
-      chatInfo.appendChild(h('div', { class: 'chat-item-last-msg' }, 'Últ. mensaje: ' + new Date(c.last_message_at).toLocaleTimeString()));
-    } else {
-      chatInfo.appendChild(h('div', { class: 'chat-item-last-msg' }, 'Sin mensajes'));
-    }
+    if (c.last_message_at) chatInfo.appendChild(h('div', { class: 'chat-item-last-msg', style:{fontSize:'9px'} }, new Date(c.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})));
+    else chatInfo.appendChild(h('div', { class: 'chat-item-last-msg', style:{fontSize:'9px'} }, 'Vacío'));
     item.appendChild(chatInfo);
     if (c.has_unread) {
       item.appendChild(h('span', { class: 'chat-item-unread-badge' }, '•')); // Simple dot for now
@@ -2241,17 +2240,14 @@ function MChat() { // This function is for the chat modal
     S.messages.forEach(msg => {
       const isMe = msg.sender_id === userSession.user.id;
       const el = h('div', { class: 'msg ' + (isMe ? 'sent' : 'received') });
-      if(S.activeChat.is_group && !isMe) {
-        const senderProfile = S.activeChat.chat_members.find(cm => cm.user_id === msg.sender_id)?.profiles;
-        el.appendChild(h('div', {style:{fontSize:'10px', fontWeight:'bold', marginBottom:'4px'}}, senderProfile?.name || 'Desconocido'));
-      }
-      el.appendChild(h('span', {}, msg.content));
-      el.appendChild(h('small', { class: 'msg-info' }, new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})));
+      if(S.activeChat.is_group && !isMe) el.appendChild(h('div', {style:{fontSize:'8px', fontWeight:'bold', marginBottom:'2px'}}, S.activeChat.chat_members.find(cm => cm.user_id === msg.sender_id)?.profiles?.name || '...'));
+      el.appendChild(h('span', {style:{wordBreak:'break-word'}}, msg.content));
+      if(msg.created_at) el.appendChild(h('small', { class: 'msg-info' }, new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})));
       msgs.appendChild(el);
     });
     main.appendChild(msgs);
     const inpArea = h('div', { class: 'chat-input-area' });
-    const ci = h('input', { class: 'chat-input', placeholder: 'Escribe un mensaje...' });
+    const ci = h('input', { class: 'chat-input', style:{fontSize:'11px', padding:'4px 8px'}, placeholder: 'Mensaje...' });
     ci.onkeydown = async e => { 
       if(e.key === 'Enter') { 
         await sendChatMessage(ci.value); 
