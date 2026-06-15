@@ -8,13 +8,12 @@
 <link rel="icon" href="./favicon.ico" type="image/x-icon">
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0a0a0f">
-<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0/default.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -322,7 +321,7 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 
 .tw{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:5px}
 .chat-button-badge {
-  position: absolute; top: -5px; right: -5px; background: var(--red); color: white; border: 2px solid #0c1434; /* Adjusted border */
+  position: absolute; top: -5px; right: -5px; background: var(--red); color: white;
   font-size: 10px; padding: 2px 5px; border-radius: 10px; min-width: 20px; text-align: center;
 }
 .toast{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 14px;font-size:12px;animation:si .2s ease;box-shadow:0 6px 24px rgba(0,0,0,.4);max-width:320px}
@@ -621,7 +620,6 @@ let S={
 if (!S.profiles) S.profiles = [];
 if(!S.activeProfile) S.activeProfile=null;
 
-let lastZone = null; // For drag and drop
 function uid(){return Math.random().toString(36).slice(2)+Date.now().toString(36)}
 function sanFolder(n){return(n||'').replace(/[^a-zA-Z0-9_\- ]/g,'').trim().replace(/ +/g,'_').slice(0,40)||'tierlist'}
 
@@ -892,7 +890,7 @@ async function createGroup(name, friendIds) {
 function renderChatAvatars(chat) {
   const members = chat.chat_members.filter(m => m.user_id !== userSession?.user.id);
   
-  if (!chat.is_group || members.length === 0) { // Handle single friend chat or empty group
+  if (!chat.is_group) {
     const other = members[0]?.profiles || { name: 'Usuario', avatar_url: null };
     return h('img', {
         src: other.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${other.name}`,
@@ -902,18 +900,18 @@ function renderChatAvatars(chat) {
   
   const wrap = h('div', { class: 'group-avatars-container' });
   if (members.length <= 2) {
-      members.slice(0,2).forEach((m, idx) => { // Limit to 2 for stacked
+      members.forEach((m, idx) => {
           const img = h('img', {
               src: m.profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${m.profiles.name}`,
               class: 'group-avatar-stacked',
-              style: { left: (idx * 8) + 'px', zIndex: 3 - idx } // Adjusted left offset
+              style: { left: (idx * 10) + 'px', zIndex: 3 - idx }
           });
           wrap.appendChild(img);
       });
   } else {
-      wrap.appendChild(h('img', { src: members[0].profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${members[0].profiles.name}`, class: 'group-avatar-stacked', style: { left: '0px', zIndex: 3 } })); // First avatar
-      wrap.appendChild(h('img', { src: members[1].profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${members[1].profiles.name}`, class: 'group-avatar-stacked', style: { left: '8px', zIndex: 2 } })); // Second avatar, adjusted left
-      wrap.appendChild(h('div', { class: 'group-avatar-extra' }, '+' + (members.length - 2))); // Extra count
+      wrap.appendChild(h('img', { src: members[0].profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${members[0].profiles.name}`, class: 'group-avatar-stacked', style: { left: '0px', zIndex: 3 } }));
+      wrap.appendChild(h('img', { src: members[1].profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${members[1].profiles.name}`, class: 'group-avatar-stacked', style: { left: '10px', zIndex: 2 } }));
+      wrap.appendChild(h('div', { class: 'group-avatar-extra' }, '+' + (members.length - 2)));
   }
   return wrap;
 }
@@ -1268,25 +1266,27 @@ function Nav(){
     );
     nr.appendChild(notifBtn);
     
-    const chatBtn = h('button', { class: 'btn bg bsm', style:{padding:'8px', marginLeft:'4px', position:'relative'}, onclick: (e) => {
-        e.stopPropagation();
+    const chatBtn = h('button', { class: 'btn bg bsm', style:{padding:'8px', marginLeft:'4px', position:'relative'}, onclick: () => { 
         if(S.modal === 'chat') S.modal = null;
         else { S.chatModalPosition = { x: null, y: null }; S.modal = 'chat'; fetchChats(); }
         render(); 
     } }, 
       h('i', { class: 'ti ti-messages', style:{fontSize:'18px'} })
     );
-    if (S.totalUnread > 0) chatBtn.appendChild(h('span', { class: 'chat-button-badge' }, S.totalUnread > 99 ? '+99' : S.totalUnread.toString()));
+    if (S.totalUnread > 0) {
+      chatBtn.appendChild(h('span', { class: 'chat-button-badge' }, S.totalUnread > 99 ? '+99' : S.totalUnread.toString()));
+    }
     nr.appendChild(chatBtn);
-
+  }
+  if (!userSession) {
+    nr.appendChild(h('div', { class: 'profile-btn', style: { background: 'var(--bg3)', color: 'var(--text2)' }, onclick: handleGoogleLogin, title: 'Iniciar Sesión con Google' }, '👤'));
+  } else {
     const p = currentUserProfile || { name: '...', color: '#888' };
     const btnContent = p.avatar_url 
       ? h('img', { src: p.avatar_url, style: { width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' } }) 
       : p.name.charAt(0).toUpperCase();
     const btn = h('div', { class: 'profile-btn active', style: { background: p.color + '33', color: p.color }, onclick: (e) => { e.stopPropagation(); S.profileMenu = userSession.user.id; S.notifMenu = false; render(); } }, btnContent); // Mantener el perfil
     nr.appendChild(btn);
-  } else {
-    nr.appendChild(h('div', { class: 'profile-btn', style: { background: 'var(--bg3)', color: 'var(--text2)' }, onclick: handleGoogleLogin, title: 'Iniciar Sesión con Google' }, '👤'));
   }
   n.appendChild(nr);
 
@@ -1410,7 +1410,7 @@ async function viewUser(userId) {
   if(!u) return;
   
   S.prevPage = S.page;
-  S.viewingUser = { ...u, rankings: [], loading: true };
+  S.viewingUser = { ...u, rankings: [] };
   S.page = 'user-view';
   render();
 
@@ -1422,7 +1422,7 @@ async function viewUser(userId) {
     .eq('user_id', userId);
 
   if(!error && data) {
-    S.viewingUser.rankings = data; S.viewingUser.loading = false; // Set loading to false
+    S.viewingUser.rankings = data;
     render();
   }
 }
@@ -1613,11 +1613,6 @@ function UserViewPage() {
   hdr.appendChild(h('h1', { class: 'users-page-title' }, u.name));
   hdr.appendChild(h('p', { class: 'users-page-sub' }, `Viendo los rankings de tu amigo`));
   w.appendChild(hdr);
-  
-  if (u.loading) {
-    w.appendChild(h('div', {style:{gridColumn:'1/-1', textAlign:'center', padding:'40px', color:'var(--text3)'}}, 'Cargando rankings...'));
-    return w;
-  }
 
   const grid = h('div', { class: 'tlg' });
   if(u.rankings.length === 0) {
@@ -1679,8 +1674,7 @@ function ProfilePage() {
   
   // Inicializar borrador si no existe
   if (!S.profileDraft) {
-    // Paso 2: Blindaje de propiedad de perfil (undefined check)
-    S.profileDraft = currentUserProfile ? JSON.parse(JSON.stringify(currentUserProfile)) : { name: 'Usuario', color: '#7c5cbf' };
+    S.profileDraft = JSON.parse(JSON.stringify(currentUserProfile));
     S.profileUnsaved = false;
   }
 
@@ -2105,36 +2099,13 @@ function updPool(cont,tl){
 // ============ MODALS ============
 function ModalEl(){
   if(!S.modal)return null;
-  
-  // Lógica de Chat Autónoma y Segura
-  if (S.modal === 'chat' || S.modal === 'group-chat') {
-    const m = h('div', { class: 'modal modal-chat' });
-    m.appendChild(h('h2', {}, 'Chat de Comunidad 💬'));
-    
-    const msgBox = h('div', { 
-      class: 'chat-messages', 
-      style: { 
-        height: '180px', overflowY: 'auto', marginBottom: '12px', 
-        border: '1px solid var(--border)', padding: '10px', 
-        borderRadius: '8px', background: 'rgba(0, 0, 0, 0.2)' 
-      } 
-    }, 'Cargando mensajes...');
-    m.appendChild(msgBox);
-    
-    const inp = h('input', { placeholder: 'Escribe un mensaje...', style: { width: '75%', marginRight: '5%' } });
-    const sendBtn = h('button', { 
-      class: 'btn bp', style: { width: '20%' }, 
-      onclick: () => { if(!inp.value.trim()) return; toast("Mensaje enviado", "ok"); inp.value = ''; }
-    }, '▶');
-    
-    m.appendChild(h('div', { style: { display: 'flex', alignItems: 'center' } }, inp, sendBtn));
-    return m; // Retornamos sin overlay para permitir interacción con el fondo
-  }
-
-  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar};
+  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'create-group': MCreateGroupChat, 'chat': MChat};
   const fn=fns[S.modal];
   if(!fn) return null;
 
+  if(S.modal === 'chat') {
+     return fn(); // Chat modal does not use an overlay
+  }
   const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}}); // Other modals use an overlay
   ov.appendChild(fn()); // Append the modal content to the overlay
   return ov;
@@ -2192,21 +2163,18 @@ function MCropAvatar() {
   return m;
 }
 
-// ============ CHAT WINDOW COMPONENT ============
-function MChat() { // Renamed from ChatWindowComponent to MChat for ModalEl
-  const m = h('div', {
-    class: 'chat-modal modal-chat', // Paso 1: Clase modal-chat añadida
-    style: S.chatModalPosition.x !== null
-      ? { left: S.chatModalPosition.x + 'px', top: S.chatModalPosition.y + 'px', right: 'auto', bottom: 'auto' }
-      : {} // Default position (top right)
+// CHAT MODAL
+function MChat() { // This function is for the chat modal
+  const m = h('div', { 
+    class: 'modal chat-modal',
+    style: S.chatModalPosition.x !== null ? { left: S.chatModalPosition.x + 'px', top: S.chatModalPosition.y + 'px', right: 'auto', bottom: 'auto' } : {}
   });
 
-  const activeChat = S.activeChat || (S.chats && S.chats.length > 0 ? S.chats[0] : null);
-  // Blindaje con encadenamiento opcional para evitar el TypeError de 'profile'
-  const otherMember = activeChat?.chat_members?.find(m => m.user_id !== userSession?.user?.id);
-  const chatTitle = activeChat ? (activeChat.is_group ? (activeChat.name || 'Grupo') : (otherMember?.profiles?.name || 'Usuario')) : 'Mensajes';
+  const activeChat = S.activeChat || S.chats[0];
+  const chatTitle = activeChat ? (activeChat.is_group ? activeChat.name : (activeChat.chat_members.find(m => m.user_id !== userSession.user.id)?.profiles.name || 'Usuario')) : 'Mensajes';
 
-  const header = h('div', {
+  // Draggable header based on chatejemplo
+  const header = h('div', { 
     class: 'chat-window-header', 
     onmousedown: (e) => {
       if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return; // Don't drag if clicking buttons
@@ -2217,6 +2185,7 @@ function MChat() { // Renamed from ChatWindowComponent to MChat for ModalEl
       let startTop = m.offsetTop;
 
       const onMouseMove = (moveEvent) => {
+        moveEvent.preventDefault();
         const dx = moveEvent.clientX - startX;
         const dy = moveEvent.clientY - startY;
         let newLeft = startLeft + dx;
@@ -2226,8 +2195,8 @@ function MChat() { // Renamed from ChatWindowComponent to MChat for ModalEl
         newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - m.offsetWidth));
         newTop = Math.max(0, Math.min(newTop, window.innerHeight - m.offsetHeight));
 
-        m.style.right = 'auto'; // Ensure right/bottom are not overriding left/top
-        m.style.bottom = 'auto'; // Ensure right/bottom are not overriding left/top
+        m.style.right = 'auto';
+        m.style.bottom = 'auto';
         m.style.left = newLeft + 'px';
         m.style.top = newTop + 'px';
         S.chatModalPosition = { x: newLeft, y: newTop }; // Save position
@@ -2242,18 +2211,19 @@ function MChat() { // Renamed from ChatWindowComponent to MChat for ModalEl
       document.addEventListener('mouseup', onMouseUp);
     }
   });
-
-  const headerLeft = h('div', { class: 'chat-header-left' });
-  if (activeChat) headerLeft.appendChild(renderChatAvatars(activeChat));
-  headerLeft.appendChild(h('span', { class: 'chat-window-title' }, chatTitle));
-  header.appendChild(headerLeft);
-  
-  const closeBtn = h('div', { class: 'chat-close-btn', onclick: () => { S.modal = null; S.chatModalPosition = { x: null, y: null }; render(); } });
-  closeBtn.appendChild(h('i', { class: 'ti ti-x', style: { fontSize: '14px' } })); // Adjusted font size for consistency
-  header.appendChild(closeBtn);
-  m.appendChild(header);
+  header.appendChild(h('h2', {}, 'Mensajes'));
+  header.appendChild(h('button', { class: 'btn bp bsm', style:{fontSize:'9px', padding:'2px 6px'}, onclick: () => {
+    const gname = prompt("Nombre del nuevo grupo:");
+    if(gname) {
+      const friends = S.allUsers.filter(u => u.relStatus === 'accepted');
+      createGroup(gname, friends.map(f => f.id));
+    }
+  }}, '+ Grupo'));
+  header.appendChild(h('button', { class: 'btn bg bsm', onclick: () => { S.modal = null; S.chatModalPosition = { x: null, y: null }; render(); } }, '✕')); // Close button
 
   const sidebar = h('div', { class: 'chat-sidebar' });
+  sidebar.appendChild(header);
+  
   const list = h('div', { class: 'chat-list' });
   S.chats.forEach(c => {
     const item = h('div', { class: 'chat-item' + (S.activeChat?.id === c.id ? ' active' : ''), onclick: () => {
@@ -2265,13 +2235,15 @@ function MChat() { // Renamed from ChatWindowComponent to MChat for ModalEl
     }});
     item.appendChild(renderChatAvatars(c));
     const chatInfo = h('div', { class: 'chat-item-info' });
-    const name = c.is_group ? c.name : (c.chat_members.find(m => m.user_id !== userSession?.user?.id)?.profiles?.name || 'Usuario'); // Handle undefined profiles
-    chatInfo.appendChild(h('div', { class: 'chat-item-name' }, name));
+    const name = c.is_group ? c.name : (c.chat_members.find(m => m.user_id !== userSession.user.id)?.profiles.name || 'Usuario');
+    chatInfo.appendChild(h('div', { class: 'chat-item-name', style:{fontSize:'11px'} }, name));
     // Mostrar el último mensaje o un indicador
     if (c.last_message_at) chatInfo.appendChild(h('div', { class: 'chat-item-last-msg', style:{fontSize:'9px'} }, new Date(c.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})));
     else chatInfo.appendChild(h('div', { class: 'chat-item-last-msg', style:{fontSize:'9px'} }, 'Vacío'));
     item.appendChild(chatInfo);
-    if (c.has_unread) item.appendChild(h('span', { class: 'chat-item-unread-badge' }, '•')); // Simple dot for now
+    if (c.has_unread) {
+      item.appendChild(h('span', { class: 'chat-item-unread-badge' }, '•')); // Simple dot for now
+    }
     list.appendChild(item);
   });
   sidebar.appendChild(list);
