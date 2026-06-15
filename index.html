@@ -1030,6 +1030,11 @@ async function fetchNotifications() {
 
 async function sendFriendRequest(targetUserId) {
   if(isProcessingFriendship) return;
+
+  const targetUser = S.allUsers.find(u => u.id === targetUserId);
+  const name = targetUser ? targetUser.name : 'este usuario';
+  if(!confirm(`¿Quieres enviar una solicitud de amistad a ${name}?`)) return;
+
   isProcessingFriendship = true;
   const { error } = await sbClient.from('friendships')
     .insert({ user_id: userSession.user.id, friend_id: targetUserId, status: 'pending' });
@@ -1055,10 +1060,12 @@ async function respondFriendRequest(requestId, status) {
     } else {
       const res = await sbClient.from('friendships').delete().eq('id', requestId);
       error = res.error;
+      if(!error) toast('Solicitud rechazada');
     }
     if(error) throw error;
     await fetchNotifications();
     await fetchAllUsers();
+    if(S.page === 'users') await fetchAllUsers();
   } catch(e) { console.error(e); }
   finally { isProcessingFriendship = false; render(); }
 }
@@ -1067,6 +1074,10 @@ async function removeFriend(relId, isCancel = false) {
   if(isProcessingFriendship || !relId) return;
   if(!isCancel && !confirm('¿Seguro que quieres eliminar a este amigo?')) return;
   
+
+  const msg = isCancel ? '¿Seguro que quieres cancelar la solicitud enviada?' : '¿Seguro que quieres eliminar a este amigo?';
+  if(!confirm(msg)) return;
+
   isProcessingFriendship = true;
   const { error } = await sbClient.from('friendships').delete().eq('id', relId);
   
@@ -1180,49 +1191,58 @@ function UsersPage() {
   const swrap = h('div', { class: 'users-search-wrap' });
   const si = h('input', { placeholder: 'Buscar usuarios por nombre...' });
   si.value = S.userSearch || '';
-  si.oninput = (e) => { S.userSearch = e.target.value.toLowerCase(); render(); };
   swrap.appendChild(si);
   w.appendChild(swrap);
 
   const grid = h('div', { class: 'user-grid' });
-  const filtered = S.allUsers.filter(u => u.name.toLowerCase().includes(S.userSearch || ''));
 
-  filtered.forEach(u => {
-    const card = h('div', { class: 'user-card' });
+  const drawGrid = () => {
+    grid.innerHTML = '';
+    const filtered = S.allUsers.filter(u => u.name.toLowerCase().includes(S.userSearch || ''));
 
-    // Avatar con anillo de glow
-    const avWrap = h('div', { class: 'user-avatar-wrap' });
-    avWrap.appendChild(h('div', { class: 'user-avatar-ring' }));
-    avWrap.appendChild(h('div', { class: 'user-avatar-border' }));
-    const av = h('img', { class: 'user-avatar', src: u.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${u.name}` });
-    avWrap.appendChild(av);
-    card.appendChild(avWrap);
+    filtered.forEach(u => {
+      const card = h('div', { class: 'user-card' });
 
-    // Nombre sin @
-    card.appendChild(h('span', { class: 'user-name' }, u.name));
+      // Avatar con anillo de glow
+      const avWrap = h('div', { class: 'user-avatar-wrap' });
+      avWrap.appendChild(h('div', { class: 'user-avatar-ring' }));
+      avWrap.appendChild(h('div', { class: 'user-avatar-border' }));
+      const av = h('img', { class: 'user-avatar', src: u.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${u.name}` });
+      avWrap.appendChild(av);
+      card.appendChild(avWrap);
 
-    // Estadísticas Reales
-    card.appendChild(h('div', { class: 'user-stats' }, `${u.tl_count || 0} tierlists · ${u.friend_count || 0} amigos`));
+      // Nombre sin @
+      card.appendChild(h('span', { class: 'user-name' }, u.name));
 
-    // Botón de acción dinámico
-    if(userSession && u.id !== userSession.user.id) {
-      let btn;
-      if(u.relStatus === 'none') {
-        btn = h('button', { class: 'user-add-btn', onclick: (e) => { e.stopPropagation(); sendFriendRequest(u.id); } }, '+');
-      } else if(u.relStatus === 'pending_sent') {
-        btn = h('button', { class: 'user-add-btn pending', title: 'Cancelar solicitud', onclick: (e) => { e.stopPropagation(); removeFriend(u.relId, true); } }, '...');
-      } else if(u.relStatus === 'pending_received') {
-        btn = h('button', { class: 'user-add-btn pending', title: 'Ver solicitud recibida', onclick: (e) => { e.stopPropagation(); S.notifMenu = true; render(); } }, '!');
-      } else if(u.relStatus === 'accepted') {
-        btn = h('button', { class: 'user-add-btn remove', title: 'Eliminar amigo', onclick: (e) => { e.stopPropagation(); removeFriend(u.relId); } }, '✕');
-      } else {
-        btn = h('button', { class: 'user-add-btn pending', title: 'Tienes una solicitud de este usuario' }, '!');
+      // Estadísticas Reales
+      card.appendChild(h('div', { class: 'user-stats' }, `${u.tl_count || 0} tierlists · ${u.friend_count || 0} amigos`));
+
+      // Botón de acción dinámico
+      if(userSession && u.id !== userSession.user.id) {
+        let btn;
+        if(u.relStatus === 'none') {
+          btn = h('button', { class: 'user-add-btn', onclick: (e) => { e.stopPropagation(); sendFriendRequest(u.id); } }, '+');
+        } else if(u.relStatus === 'pending_sent') {
+          btn = h('button', { class: 'user-add-btn pending', title: 'Cancelar solicitud', onclick: (e) => { e.stopPropagation(); removeFriend(u.relId, true); } }, '...');
+        } else if(u.relStatus === 'pending_received') {
+          btn = h('button', { class: 'user-add-btn pending', title: 'Ver solicitud recibida', onclick: (e) => { e.stopPropagation(); S.notifMenu = true; render(); } }, '!');
+        } else if(u.relStatus === 'accepted') {
+          btn = h('button', { class: 'user-add-btn remove', title: 'Eliminar amigo', onclick: (e) => { e.stopPropagation(); removeFriend(u.relId); } }, '✕');
+        } else {
+          btn = h('button', { class: 'user-add-btn pending', title: 'Tienes una solicitud de este usuario' }, '!');
+        }
+        if(btn) card.appendChild(btn);
       }
-      if(btn) card.appendChild(btn);
-    }
+      grid.appendChild(card);
+    });
+  };
 
-    grid.appendChild(card);
-  });
+  si.oninput = (e) => { 
+    S.userSearch = e.target.value.toLowerCase(); 
+    drawGrid(); 
+  };
+
+  drawGrid();
 
   w.appendChild(grid);
   w.appendChild(h('div', { class: 'users-footer' }, '♡ Conecta, comparte y crea la mejor comunidad de anime.'));
