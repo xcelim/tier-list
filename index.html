@@ -458,6 +458,8 @@ let S={
   profiles:DB.l('profiles',null),
   activeProfile:DB.l('activeProfile',null),
   allUsers: [],
+  viewingUser: null, // Usuario que estamos visitando
+  viewingRank: null, // Ranking específico que estamos viendo
   userSearch: '',
   profileMenu:null, // null | profileId
   notifMenu: false,
@@ -934,7 +936,12 @@ function pdrop(e){
 function Nav(){
   const n=h('nav',{});
   n.appendChild(h('span',{class:'logo',onclick:()=>{
-    if(S.hasUnsaved&&!confirm('¿Salir sin guardar cambios?'))return;
+    if(S.page === 'viewer' || S.page === 'user-view') {
+       S.page = S.prevPage || 'users'; 
+       render(); 
+       return;
+    }
+    if(S.hasUnsaved && !confirm('¿Salir sin guardar cambios?'))return;
     S.workingTL=null;S.hasUnsaved=false;S.page='home';setRoute('home');render();
   }},'AnimeTier'));
   if(userSession){
@@ -1092,6 +1099,40 @@ async function removeFriend(relId, isCancel = false) {
   render();
 }
 
+async function viewUser(userId) {
+  const u = S.allUsers.find(x => x.id === userId);
+  if(!u) return;
+  
+  S.prevPage = S.page;
+  S.viewingUser = { ...u, rankings: [] };
+  S.page = 'user-view';
+  render();
+
+  toast("Cargando rankings de " + u.name + "...", "info");
+  // Traer los rankings del usuario junto con el título de la tierlist
+  const { data, error } = await sbClient
+    .from('user_rankings')
+    .select('*, tierlists(title, folder)')
+    .eq('user_id', userId);
+
+  if(!error && data) {
+    S.viewingUser.rankings = data;
+    render();
+  }
+}
+
+async function openViewer(rankData) {
+  toast("Cargando modo observador...", "info");
+  S.viewingRank = rankData;
+  // Cargamos los personajes necesarios para esa tierlist
+  const { data: chars } = await sbClient.from('characters').select('*').eq('tierlist_id', rankData.tierlist_id);
+  if (chars) {
+    chars.forEach(c => AC[c.id] = { id: c.id, name: c.name, anime: c.anime, file: c.image_url });
+  }
+  S.page = 'viewer';
+  render();
+}
+
 // ============ HOME ============
 function Home(){
   document.body.classList.add('bg-main');
@@ -1201,7 +1242,14 @@ function UsersPage() {
     const filtered = S.allUsers.filter(u => u.name.toLowerCase().includes(S.userSearch || ''));
 
     filtered.forEach(u => {
-      const card = h('div', { class: 'user-card' });
+      const card = h('div', { 
+        class: 'user-card',
+        onclick: () => {
+          // Permitir ver si son amigos o si soy yo mismo
+          if (u.relStatus === 'accepted' || u.id === userSession?.user.id) viewUser(u.id);
+          else toast("Solo puedes ver perfiles de amigos", "info");
+        }
+      });
 
       // Avatar con anillo de glow
       const avWrap = h('div', { class: 'user-avatar-wrap' });
@@ -1246,6 +1294,75 @@ function UsersPage() {
 
   w.appendChild(grid);
   w.appendChild(h('div', { class: 'users-footer' }, '♡ Conecta, comparte y crea la mejor comunidad de anime.'));
+  return w;
+}
+
+function UserViewPage() {
+  const u = S.viewingUser;
+  if(!u) return h('div', {}, 'Usuario no encontrado');
+  
+  const w = h('div', { class: 'users-page' });
+  const hdr = h('div', { class: 'users-page-header' });
+  hdr.appendChild(h('img', { 
+    src: u.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${u.name}`,
+    style: {width:'100px', height:'100px', borderRadius:'50%', border:'3px solid var(--accent)', marginBottom:'15px'}
+  }));
+  hdr.appendChild(h('h1', { class: 'users-page-title' }, u.name));
+  hdr.appendChild(h('p', { class: 'users-page-sub' }, `Viendo los rankings de tu amigo`));
+  w.appendChild(hdr);
+
+  const grid = h('div', { class: 'tlg' });
+  if(u.rankings.length === 0) {
+    grid.appendChild(h('div', {style:{gridColumn:'1/-1', textAlign:'center', padding:'40px', color:'var(--text3)'}}, 'Este usuario aún no ha guardado ningún ranking.'));
+  } else {
+    u.rankings.forEach(r => {
+      const tl = r.tierlists || { title: 'Tierlist desconocida' };
+      const card = h('div', { class: 'tlc', onclick: () => openViewer(r) });
+      card.appendChild(h('h3', {}, tl.title));
+      card.appendChild(h('div', { class: 'meta' }, h('span', {}, 'Ver ranking →')));
+      grid.appendChild(card);
+    });
+  }
+  w.appendChild(grid);
+  return w;
+}
+
+function Viewer() {
+  const r = S.viewingRank;
+  const tlMeta = r.tierlists || {};
+  const w = h('div', {});
+  
+  const tb = h('div', { class: 'etbar' });
+  tb.appendChild(h('div', { class: 'etitle hf' }, `Observando: ${tlMeta.title || 'Ranking'}`));
+  tb.appendChild(h('div', { style:{marginLeft:'auto', color:'var(--text3)', fontSize:'12px'} }, `Ranking de ${S.viewingUser?.name}`));
+  w.appendChild(tb);
+
+  const tw = h('div', { class: 'twrap' });
+  const tiers = r.tiers_data || [];
+  
+  tiers.forEach(tier => {
+    const row = h('div', { class: 'trow' });
+    const lbl = h('div', { class: 'tlbl', style: { background: tier.color || '#888' } });
+    lbl.appendChild(h('div', { class: 'tlbl-txt' }, tier.label || '?'));
+    row.appendChild(lbl);
+
+    const ce = h('div', { class: 'tchars' });
+    (tier.chars || []).forEach(cid => {
+      const c = getChar(cid, { folder: tlMeta.folder });
+      if(!c) return;
+      const el = h('div', { class: 'tc' });
+      const imgSrc = c.file?.startsWith('http') ? c.file : (BUCKET_BASE + (tlMeta.folder || 'waifus') + '/' + c.file);
+      el.appendChild(h('img', { 
+        src: imgSrc,
+        onerror: (e) => e.target.src = 'https://api.dicebear.com/7.x/initials/svg?seed=' + encodeURIComponent(c.name)
+      }));
+      el.appendChild(h('div', { class: 'cn' }, c.name));
+      ce.appendChild(el);
+    });
+    row.appendChild(ce);
+    tw.appendChild(row);
+  });
+  w.appendChild(tw);
   return w;
 }
 
@@ -2321,6 +2438,8 @@ function render(){
   if(S.page==='home')main.appendChild(Home());
   else if(S.page==='tierlists')main.appendChild(TierlistsPage());
   else if(S.page==='users')main.appendChild(UsersPage());
+  else if(S.page==='user-view')main.appendChild(UserViewPage());
+  else if(S.page==='viewer')main.appendChild(Viewer());
   else if(S.page==='profile')main.appendChild(ProfilePage());
   else if(S.page==='editor')main.appendChild(Editor());
   app.appendChild(main);
