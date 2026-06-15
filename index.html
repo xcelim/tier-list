@@ -280,10 +280,24 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .cropper-view-box, .cropper-face { border-radius: 50%; }
 .char-edit-preview{width:80px;height:100px;object-fit:cover;border-radius:6px;border:2px solid var(--border2)}
 /* Chat Styles */
-.chat-modal { width: 95%; max-width: 800px; height: 80vh; display: flex; overflow: hidden; padding: 0 !important; }
+.chat-modal { 
+  width: 95%; max-width: 800px; height: 80vh; display: flex; overflow: hidden; padding: 0 !important; 
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); /* Centrar */
+  animation: chat-modal-appear 0.3s ease-out;
+}
+@keyframes chat-modal-appear {
+  from { opacity: 0; transform: translate(-60%, -60%) scale(0.9); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
 .chat-sidebar { width: 280px; border-right: 1px solid var(--border); display: flex; flex-direction: column; background: var(--bg2); }
+.chat-sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.chat-sidebar-header h2 { margin-bottom: 0; }
 .chat-list { flex: 1; overflow-y: auto; }
 .chat-item { padding: 12px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.2s; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.chat-item-info { flex: 1; min-width: 0; }
+.chat-item-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-item-last-msg { font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-item-unread-badge { background: var(--red); color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; min-width: 20px; text-align: center; }
 .chat-item:hover { background: var(--bg3); }
 .chat-item.active { background: var(--accentbg); border-left: 3px solid var(--accent); }
 .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--bg); }
@@ -304,6 +318,10 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .plus-avatar { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: var(--accent2); }
 
 .tw{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:5px}
+.chat-button-badge {
+  position: absolute; top: -5px; right: -5px; background: var(--red); color: white;
+  font-size: 10px; padding: 2px 5px; border-radius: 10px; min-width: 20px; text-align: center;
+}
 .toast{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 14px;font-size:12px;animation:si .2s ease;box-shadow:0 6px 24px rgba(0,0,0,.4);max-width:320px}
 .toast.ok{border-left:3px solid var(--green)}.toast.err{border-left:3px solid var(--red)}.toast.info{border-left:3px solid var(--accent2)}
 @keyframes si{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
@@ -588,6 +606,8 @@ let S={
   profileDraft: null,
   profileUnsaved: false,
   chats: [],
+  totalUnread: 0, // Nuevo: para el badge global
+  chatModalPosition: { x: null, y: null }, // Nuevo: para la posición del modal arrastrable
   activeChat: null,
   messages: [],
   hasUnsaved:false,
@@ -810,13 +830,20 @@ async function openChat(chat) {
     const container = document.querySelector('.chat-messages');
     if(container) container.scrollTop = container.scrollHeight;
   }
+  
+  // Marcar como leído
+  await sbClient.from('chat_members')
+    .update({ last_read_at: new Date().toISOString() })
+    .eq('chat_id', chat.id)
+    .eq('user_id', userSession.user.id);
+  fetchChats(); // Refrescar para actualizar el badge de no leídos
 
   // Suscribirse a nuevos mensajes en tiempo real
   sbClient.channel(`chat:${chat.id}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chat.id}` }, 
     payload => {
       if (!S.messages.find(m => m.id === payload.new.id)) {
-        S.messages.push(payload.new);
+        S.messages.push({ ...payload.new, profiles: { name: currentUserProfile.name } }); // Asumimos que el perfil del sender es el nuestro
         render();
       }
     }).subscribe();
@@ -829,8 +856,12 @@ async function sendChatMessage(content) {
     sender_id: userSession.user.id,
     content: content.trim()
   };
-  const { error } = await sbClient.from('messages').insert(msg);
+  const { data: newMsg, error } = await sbClient.from('messages').insert(msg).select().single();
   if (error) toast("Error al enviar", "err");
+  else {
+    // Actualizar last_message_at en el chat
+    await sbClient.from('chats').update({ last_message_at: new Date().toISOString() }).eq('id', S.activeChat.id);
+  }
 }
 
 async function createGroup(name, friendIds) {
@@ -842,10 +873,12 @@ async function createGroup(name, friendIds) {
   if (chat) {
     const members = [...friendIds, userSession.user.id].map(uid => ({
       chat_id: chat.id,
-      user_id: uid
+      user_id: uid,
+      last_read_at: new Date().toISOString() // Marcar como leído al crear
     }));
     await sbClient.from('chat_members').insert(members);
     toast("Grupo creado ✓");
+    S.activeChat = chat; // Abrir el chat recién creado
     fetchChats();
     S.modal = 'chat';
   }
@@ -1236,9 +1269,15 @@ function Nav(){
     const btnContent = p.avatar_url 
       ? h('img', { src: p.avatar_url, style: { width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' } }) 
       : p.name.charAt(0).toUpperCase();
-    const btn = h('div', { class: 'profile-btn active', style: { background: p.color + '33', color: p.color }, onclick: (e) => { e.stopPropagation(); S.profileMenu = userSession.user.id; S.notifMenu = false; render(); } }, btnContent);
+    const btn = h('div', { class: 'profile-btn active', style: { background: p.color + '33', color: p.color }, onclick: (e) => { e.stopPropagation(); S.profileMenu = userSession.user.id; S.notifMenu = false; render(); } }, btnContent); // Mantener el perfil
     nr.appendChild(btn);
-      nr.appendChild(h('button', { class: 'btn bg bsm', style:{padding:'8px', marginLeft:'4px'}, onclick: () => { S.modal = 'chat'; fetchChats(); render(); } }, h('i', { class: 'ti ti-messages', style:{fontSize:'18px'} })));
+    const chatBtn = h('button', { class: 'btn bg bsm', style:{padding:'8px', marginLeft:'4px', position:'relative'}, onclick: () => { S.modal = 'chat'; fetchChats(); render(); } }, 
+      h('i', { class: 'ti ti-messages', style:{fontSize:'18px'} })
+    );
+    if (S.totalUnread > 0) {
+      chatBtn.appendChild(h('span', { class: 'chat-button-badge' }, S.totalUnread > 99 ? '+99' : S.totalUnread.toString()));
+    }
+    nr.appendChild(chatBtn);
   }
   n.appendChild(nr);
 
@@ -2052,7 +2091,7 @@ function updPool(cont,tl){
 function ModalEl(){
   if(!S.modal)return null;
   const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}});
-  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'chat': MChat};
+  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'chat': MChat}; // This line is correct
   const fn=fns[S.modal];if(fn)ov.appendChild(fn());
   return ov;
 }
@@ -2106,6 +2145,129 @@ function MCropAvatar() {
   setTimeout(() => {
     cropper = new Cropper(img, { aspectRatio: 1, viewMode: 1, dragMode: 'move', guides: false, center: true, highlight: false, cropBoxMovable: false, cropBoxResizable: false, toggleDragModeOnDblclick: false });
   }, 50);
+  return m;
+}
+
+// CHAT MODAL
+function MChat() { // This function is for the chat modal
+  const m = h('div', { 
+    class: 'modal chat-modal',
+    style: S.chatModalPosition.x !== null ? { left: S.chatModalPosition.x + 'px', top: S.chatModalPosition.y + 'px' } : {}
+  });
+
+  // Draggable header
+  const header = h('div', { 
+    class: 'chat-sidebar-header', 
+    style: { cursor: 'grab', display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    onmousedown: (e) => {
+      if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return; // Don't drag if clicking buttons
+      let startX = e.clientX;
+      let startY = e.clientY;
+      let startLeft = m.offsetLeft;
+      let startTop = m.offsetTop;
+
+      const onMouseMove = (moveEvent) => {
+        const dx = moveEvent.clientX - startX;
+        const dy = moveEvent.clientY - startY;
+        let newLeft = startLeft + dx;
+        let newTop = startTop + dy;
+
+        // Keep modal within viewport
+        newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - m.offsetWidth));
+        newTop = Math.max(0, Math.min(newTop, window.innerHeight - m.offsetHeight));
+
+        m.style.left = newLeft + 'px';
+        m.style.top = newTop + 'px';
+        S.chatModalPosition = { x: newLeft, y: newTop }; // Save position
+      };
+
+      const onMouseUp = () => {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    }
+  });
+  header.appendChild(h('h2', {}, 'Mis Mensajes'));
+  header.appendChild(h('button', { class: 'btn bp bsm', onclick: () => {
+    const gname = prompt("Nombre del nuevo grupo:");
+    if(gname) {
+      const friends = S.allUsers.filter(u => u.relStatus === 'accepted');
+      // En un caso real aquí abrirías un selector, por simplicidad creamos grupo con todos los amigos
+      createGroup(gname, friends.map(f => f.id));
+    }
+  }}, '+ Nuevo Grupo'));
+  header.appendChild(h('button', { class: 'btn bg bsm', onclick: () => { S.modal = null; render(); } }, '✕')); // Close button
+
+  const sidebar = h('div', { class: 'chat-sidebar' });
+  sidebar.appendChild(header);
+  
+  const list = h('div', { class: 'chat-list' });
+  S.chats.forEach(c => {
+    const item = h('div', { class: 'chat-item' + (S.activeChat?.id === c.id ? ' active' : ''), onclick: () => {
+      // Desuscribirse del canal anterior antes de abrir uno nuevo
+      if (S.activeChat && sbClient.channel(`chat:${S.activeChat.id}`)) {
+        sbClient.channel(`chat:${S.activeChat.id}`).unsubscribe();
+      }
+      openChat(c);
+    }});
+    item.appendChild(renderChatAvatars(c));
+    const chatInfo = h('div', { class: 'chat-item-info' });
+    const name = c.is_group ? c.name : (c.chat_members.find(m => m.user_id !== userSession.user.id)?.profiles.name || 'Chat Desconocido');
+    chatInfo.appendChild(h('div', { class: 'chat-item-name' }, name));
+    // Mostrar el último mensaje o un indicador
+    if (c.last_message_at) {
+      chatInfo.appendChild(h('div', { class: 'chat-item-last-msg' }, 'Últ. mensaje: ' + new Date(c.last_message_at).toLocaleTimeString()));
+    } else {
+      chatInfo.appendChild(h('div', { class: 'chat-item-last-msg' }, 'Sin mensajes'));
+    }
+    item.appendChild(chatInfo);
+    if (c.has_unread) {
+      item.appendChild(h('span', { class: 'chat-item-unread-badge' }, '•')); // Simple dot for now
+    }
+    list.appendChild(item);
+  });
+  sidebar.appendChild(list);
+  m.appendChild(sidebar);
+
+  // Main Chat
+  const main = h('div', { class: 'chat-main' });
+  if (S.activeChat) { // Si hay un chat activo
+    const chatName = S.activeChat.is_group ? S.activeChat.name : (S.activeChat.chat_members.find(m => m.user_id !== userSession.user.id)?.profiles.name || 'Conversación');
+    main.appendChild(h('div', { class: 'chat-header' }, h('strong', {}, chatName)));
+    const msgs = h('div', { class: 'chat-messages' });
+    S.messages.forEach(msg => {
+      const isMe = msg.sender_id === userSession.user.id;
+      const el = h('div', { class: 'msg ' + (isMe ? 'sent' : 'received') });
+      if(S.activeChat.is_group && !isMe) {
+        const senderProfile = S.activeChat.chat_members.find(cm => cm.user_id === msg.sender_id)?.profiles;
+        el.appendChild(h('div', {style:{fontSize:'10px', fontWeight:'bold', marginBottom:'4px'}}, senderProfile?.name || 'Desconocido'));
+      }
+      el.appendChild(h('span', {}, msg.content));
+      el.appendChild(h('small', { class: 'msg-info' }, new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})));
+      msgs.appendChild(el);
+    });
+    main.appendChild(msgs);
+    const inpArea = h('div', { class: 'chat-input-area' });
+    const ci = h('input', { class: 'chat-input', placeholder: 'Escribe un mensaje...' });
+    ci.onkeydown = async e => { 
+      if(e.key === 'Enter') { 
+        await sendChatMessage(ci.value); 
+        ci.value = ''; 
+        // Después de enviar, refrescar el chat para que el nuevo mensaje aparezca y se marque como leído
+        // y para que el last_message_at se actualice en la lista de chats
+        openChat(S.activeChat); 
+      } 
+    };
+    inpArea.appendChild(ci);
+    inpArea.appendChild(h('button', { class: 'btn bp', onclick: async () => { await sendChatMessage(ci.value); ci.value = ''; openChat(S.activeChat); } }, 'Enviar'));
+    main.appendChild(inpArea);
+  } else {
+    main.appendChild(h('div', { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)' } }, 'Selecciona un chat para empezar'));
+  }
+  m.appendChild(main);
   return m;
 }
 

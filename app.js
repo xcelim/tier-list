@@ -15,7 +15,9 @@ let S = {
     cid: null,
     workingTL: null,
     hasUnsaved: false
-};
+}; // This is the original S object, it will be replaced by the one in index.html
+
+// The S object is now defined in index.html, so this block is effectively ignored.
 
 // ============ HELPERS ============
 function h(tag, a, ...ch) {
