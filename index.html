@@ -8,12 +8,13 @@
 <link rel="icon" href="./favicon.ico" type="image/x-icon">
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0a0a0f">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0/default.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -1409,7 +1410,7 @@ async function viewUser(userId) {
   if(!u) return;
   
   S.prevPage = S.page;
-  S.viewingUser = { ...u, rankings: [], loading: true }; // Add loading state
+  S.viewingUser = { ...u, rankings: [], loading: true };
   S.page = 'user-view';
   render();
 
@@ -1678,7 +1679,8 @@ function ProfilePage() {
   
   // Inicializar borrador si no existe
   if (!S.profileDraft) {
-    S.profileDraft = JSON.parse(JSON.stringify(currentUserProfile));
+    // Paso 2: Blindaje de propiedad de perfil (undefined check)
+    S.profileDraft = currentUserProfile ? JSON.parse(JSON.stringify(currentUserProfile)) : { name: 'Usuario', color: '#7c5cbf' };
     S.profileUnsaved = false;
   }
 
@@ -2170,15 +2172,16 @@ function MCropAvatar() {
 // ============ CHAT WINDOW COMPONENT ============
 function MChat() { // Renamed from ChatWindowComponent to MChat for ModalEl
   const m = h('div', {
-    class: 'chat-modal',
+    class: 'chat-modal modal-chat', // Paso 1: Clase modal-chat añadida
     style: S.chatModalPosition.x !== null
       ? { left: S.chatModalPosition.x + 'px', top: S.chatModalPosition.y + 'px', right: 'auto', bottom: 'auto' }
       : {} // Default position (top right)
   });
 
   const activeChat = S.activeChat || (S.chats && S.chats.length > 0 ? S.chats[0] : null);
+  // Paso 2: Blindaje con encadenamiento opcional para perfiles
   const otherMember = activeChat?.chat_members?.find(m => m.user_id !== userSession?.user?.id);
-  const chatTitle = activeChat ? (activeChat.is_group ? (activeChat.name || 'Grupo') : (otherMember?.profiles?.name || 'Usuario')) : 'Mensajes'; // Adjusted default name
+  const chatTitle = activeChat ? (activeChat.is_group ? (activeChat.name || 'Grupo') : (otherMember?.profiles?.name || 'Usuario')) : 'Mensajes';
 
   const header = h('div', {
     class: 'chat-window-header', 
@@ -2307,7 +2310,7 @@ function abrirModalCrearGrupoRef() {
 
     const list = h('div', { class: 'friend-selection-list' });
     friends.forEach(f => {
-        const item = h('label', { class: 'friend-select-item' });
+        const item = h('label', { class: 'friend-select-item' }); // Paso 2: Safe profile access
         item.appendChild(h('input', { type: 'checkbox', value: f.id, dataset: { avatar: f.avatar_url } }));
         item.appendChild(h('span', {}, f.name));
         list.appendChild(item);
