@@ -63,6 +63,17 @@ nav{background:linear-gradient(90deg,rgba(8,12,35,.92) 0%,rgba(12,18,50,.92) 50%
 .btn-save{background:linear-gradient(135deg,var(--green),#2ecc71);color:#fff;border:none;font-weight:600}
 .btn-save:hover{filter:brightness(1.1)}
 
+/* NOTIFICATIONS */
+.nav-notif{position:relative;cursor:pointer;padding:4px;display:flex;align-items:center;margin-right:10px}
+.notif-badge{position:absolute;top:-2px;right:-2px;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px;min-width:16px;text-align:center;border:1.5px solid var(--bg)}
+.notif-menu{position:absolute;top:58px;right:60px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;width:300px;z-index:400;box-shadow:0 12px 40px rgba(0,0,0,.6);animation:slideDown .18s ease}
+.notif-title{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;margin-bottom:10px;color:var(--text2);display:flex;justify-content:space-between}
+.notif-empty{padding:20px;text-align:center;color:var(--text3);font-size:12px}
+.notif-item{padding:10px;border-radius:8px;background:rgba(255,255,255,.03);margin-bottom:8px;font-size:12px;border:1px solid var(--border)}
+.notif-msg{margin-bottom:8px;line-height:1.4}
+.notif-actions{display:flex;gap:6px;justify-content:flex-end}
+.btn-notif{padding:4px 10px;border-radius:5px;font-size:11px;font-weight:600}
+
 /* MAIN */
 main{padding:14px;max-width:1320px;margin:0 auto}
 
@@ -300,6 +311,8 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 .user-name{position:relative !important;z-index:1 !important;font-family:'Cinzel',serif !important;font-size:14px !important;font-weight:600 !important;color:#e8eeff !important;margin-bottom:4px !important;text-align:center !important;display:block !important}
 .user-stats{position:relative !important;z-index:1 !important;font-size:10.5px !important;color:var(--text2) !important;text-align:center !important;margin-bottom:14px !important;line-height:1.6 !important}
 .user-add-btn{position:relative;z-index:1;width:38px;height:38px;border-radius:50%;background:#3ec47a;border:none;color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s;box-shadow:0 0 12px rgba(62,196,122,.35);line-height:1}
+.user-add-btn.pending{background:var(--bg4);color:var(--text3);cursor:default;box-shadow:none}
+.user-add-btn.remove{background:var(--red);font-size:16px}
 .user-add-btn:hover{transform:scale(1.12);box-shadow:0 0 22px rgba(62,196,122,.55)}
 .users-footer{text-align:center;margin-top:40px;color:var(--text3);font-size:12px;display:flex;align-items:center;gap:8px;justify-content:center}
 .users-footer::before,.users-footer::after{content:'';flex:1;max-width:80px;height:1px;background:linear-gradient(90deg,transparent,rgba(120,150,255,.3))}
@@ -447,6 +460,8 @@ let S={
   allUsers: [],
   userSearch: '',
   profileMenu:null, // null | profileId
+  notifMenu: false,
+  pendingRequests: [],
   modal:null,md:{},
   q:'',poolPage:0,
   etitle:false,
@@ -969,14 +984,71 @@ function Nav(){
       }else{
         pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.modal='edit-profile';S.md={profileId:p.id};S.profileMenu=null;render();}},'\u270F Editar perfil'));
         pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.profileMenu=null;handleLogout();}},'🚪 Cerrar sesión'));
+    // ... existente logic de pm ...
+  }
+  
+  if(userSession) {
+    const notifBtn = h('div', { class: 'nav-notif', onclick: (e) => { e.stopPropagation(); S.notifMenu = !S.notifMenu; render(); } }, 
+      h('span', {style:{fontSize:'18px'}}, '🔔'),
+      S.pendingRequests.length > 0 ? h('div', { class: 'notif-badge' }, S.pendingRequests.length + '') : null
+    );
+    nr.insertBefore(notifBtn, nr.firstChild);
+
+    if(S.notifMenu) {
+      const nm = h('div', { class: 'notif-menu' }, h('div', { class: 'notif-title' }, 'Notificaciones', h('span', {style:{cursor:'pointer'}, onclick:()=>S.notifMenu=false}, '✕')));
+      if(S.pendingRequests.length === 0) {
+        nm.appendChild(h('div', { class: 'notif-empty' }, 'No tienes solicitudes pendientes.'));
+      } else {
+        S.pendingRequests.forEach(req => {
+          const item = h('div', { class: 'notif-item' });
+          item.appendChild(h('div', { class: 'notif-msg' }, h('strong', {}, req.profiles.name), ' ha solicitado ser tu amigo.'));
+          const acts = h('div', { class: 'notif-actions' });
+          acts.appendChild(h('button', { class: 'btn bp bsm btn-notif', onclick: () => respondFriendRequest(req.id, 'accepted') }, '✓ Aceptar'));
+          acts.appendChild(h('button', { class: 'btn bd bsm btn-notif', onclick: () => respondFriendRequest(req.id, 'rejected') }, '✕'));
+          item.appendChild(acts);
+          nm.appendChild(item);
+        });
       }
       pm.appendChild(h('div',{class:'pm-divider'}));
       pm.appendChild(h('div',{class:'pm-item danger',onclick:()=>{S.profileMenu=null;handleDeleteAccount();}},'✕ Eliminar cuenta'));
       document.addEventListener('click',()=>{S.profileMenu=null;render();},{once:true});
       n.appendChild(pm);
+      document.addEventListener('click',()=>{S.notifMenu=false;render();},{once:true});
+      n.appendChild(nm);
     }
   }
+
   return n;
+}
+
+async function fetchNotifications() {
+  if (!userSession) return;
+  const { data } = await sbClient.from('friendships').select('id, user_id, profiles!friendships_user_id_fkey(name)').eq('friend_id', userSession.user.id).eq('status', 'pending');
+  S.pendingRequests = data || [];
+  render();
+}
+
+async function sendFriendRequest(targetUserId) {
+  if(!confirm('¿Quieres enviar una solicitud de amistad?')) return;
+  const { error } = await sbClient.from('friendships').insert({ user_id: userSession.user.id, friend_id: targetUserId, status: 'pending' });
+  if(!error) { toast('Solicitud enviada ✓'); fetchAllUsers(); }
+}
+
+async function respondFriendRequest(requestId, status) {
+  if(status === 'accepted') {
+    await sbClient.from('friendships').update({ status: 'accepted' }).eq('id', requestId);
+    toast('¡Ahora sois amigos!');
+  } else {
+    await sbClient.from('friendships').delete().eq('id', requestId);
+  }
+  fetchNotifications();
+  fetchAllUsers();
+}
+
+async function removeFriend(relId) {
+  if(!confirm('¿Seguro que quieres eliminar a este amigo?')) return;
+  const { error } = await sbClient.from('friendships').delete().eq('id', relId);
+  if(!error) { toast('Amigo eliminado'); fetchAllUsers(); }
 }
 
 // ============ HOME ============
@@ -1103,10 +1175,26 @@ function UsersPage() {
     const tls = u.tl_count ?? Math.floor(Math.random()*200+50);
     const friends = u.friend_count ?? Math.floor(Math.random()*300+50);
     card.appendChild(h('div', { class: 'user-stats' }, `${tls} tierlists · ${friends} amigos`));
+    // Stats Reales
+    card.appendChild(h('div', { class: 'user-stats' }, `${u.tl_count} tierlists · ${u.friend_count} amigos`));
 
     // Solo botón añadir
     const addBtn = h('button', { class: 'user-add-btn', onclick: (e) => { e.stopPropagation(); toast('Solicitud enviada a ' + u.name); } }, '+');
     card.appendChild(addBtn);
+    // Botón de acción dinámico
+    if(userSession && u.id !== userSession.user.id) {
+      let btn;
+      if(u.relStatus === 'none') {
+        btn = h('button', { class: 'user-add-btn', onclick: (e) => { e.stopPropagation(); sendFriendRequest(u.id); } }, '+');
+      } else if(u.relStatus === 'pending_sent') {
+        btn = h('button', { class: 'user-add-btn pending', title: 'Solicitud enviada' }, '...');
+      } else if(u.relStatus === 'accepted') {
+        btn = h('button', { class: 'user-add-btn remove', title: 'Eliminar amigo', onclick: (e) => { e.stopPropagation(); removeFriend(u.relId); } }, '✕');
+      } else {
+        btn = h('button', { class: 'user-add-btn pending', title: 'Tienes una solicitud de este usuario' }, '!');
+      }
+      if(btn) card.appendChild(btn);
+    }
 
     grid.appendChild(card);
   });
@@ -2143,6 +2231,34 @@ async function fetchAllUsers() {
   const { data, error } = await sbClient.from('profiles').select('*').order('name');
   if (!error) S.allUsers = data;
   render();
+  if (!sbClient) return; 
+  // 1. Obtener perfiles
+  const { data: profiles } = await sbClient.from('profiles').select('*').order('name');
+  // 2. Obtener conteo de rankings personalizados (donde haya tiers_data con chars)
+  const { data: rankings } = await sbClient.from('user_rankings').select('user_id');
+  // 3. Obtener amistades aceptadas para los conteos
+  const { data: friendships } = await sbClient.from('friendships').select('*');
+  
+  if (profiles) {
+    S.allUsers = profiles.map(u => {
+      const tlCount = (rankings || []).filter(r => r.user_id === u.id).length;
+      const userFriends = (friendships || []).filter(f => f.status === 'accepted' && (f.user_id === u.id || f.friend_id === u.id));
+      
+      // Determinar relación con el usuario logueado
+      let relStatus = 'none', relId = null;
+      if(userSession) {
+        const rel = (friendships || []).find(f => (f.user_id === userSession.user.id && f.friend_id === u.id) || (f.friend_id === userSession.user.id && f.user_id === u.id));
+        if(rel) {
+          relId = rel.id;
+          if(rel.status === 'accepted') relStatus = 'accepted';
+          else if(rel.user_id === userSession.user.id) relStatus = 'pending_sent';
+          else relStatus = 'pending_received';
+        }
+      }
+      return { ...u, tl_count: tlCount, friend_count: userFriends.length, relStatus, relId };
+    });
+    render();
+  }
 }
 
 async function updateProfileField(field, value) {
@@ -2237,6 +2353,7 @@ async function handleAuthSession(session) {
     saveProfiles();
     fetchGlobalTemplates();
     // Si hay una ruta pendiente (URL con hash al cargar), abrir el editor correspondiente
+    fetchNotifications(); // Cargar notificaciones al iniciar sesión
     if(S._pendingTlId){
       const pendingTl=S.profiles.find(p=>p.id===S.activeProfile)?.tls.find(t=>t.id===S._pendingTlId);
       if(pendingTl){S.cid=S._pendingTlId;S.workingTL=JSON.parse(JSON.stringify(pendingTl));S.hasUnsaved=false;S.page='editor';}
