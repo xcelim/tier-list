@@ -2433,6 +2433,9 @@ async function updateProfileField(field, value) {
 function render(){
   const app=document.getElementById('app');app.innerHTML='';
   document.body.classList.remove('bg-main'); // reset by default
+  
+  // Forzar el fondo siempre en todas las pantallas
+  document.body.classList.add('bg-main');
 
   // Gestionar el fondo: aplicar 'bg-main' (homebkg) a todo excepto Tierlists, Editor y Viewer
   if(['tierlists', 'editor', 'viewer'].includes(S.page)) document.body.classList.remove('bg-main');
