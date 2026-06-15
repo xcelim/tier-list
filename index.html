@@ -1238,6 +1238,7 @@ function Nav(){
       : p.name.charAt(0).toUpperCase();
     const btn = h('div', { class: 'profile-btn active', style: { background: p.color + '33', color: p.color }, onclick: (e) => { e.stopPropagation(); S.profileMenu = userSession.user.id; S.notifMenu = false; render(); } }, btnContent);
     nr.appendChild(btn);
+      nr.appendChild(h('button', { class: 'btn bg bsm', style:{padding:'8px', marginLeft:'4px'}, onclick: () => { S.modal = 'chat'; fetchChats(); render(); } }, h('i', { class: 'ti ti-messages', style:{fontSize:'18px'} })));
   }
   n.appendChild(nr);
 
@@ -2051,7 +2052,7 @@ function updPool(cont,tl){
 function ModalEl(){
   if(!S.modal)return null;
   const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}});
-  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar};
+  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'chat': MChat};
   const fn=fns[S.modal];if(fn)ov.appendChild(fn());
   return ov;
 }
