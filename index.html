@@ -321,7 +321,7 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body>
+<body class="bg-main">
 <div id="app"></div>
 <div class="tw" id="tw"></div>
 <script>
@@ -1135,7 +1135,6 @@ async function openViewer(rankData) {
 
 // ============ HOME ============
 function Home(){
-  document.body.classList.add('bg-main');
   const w=h('div',{});
 
   // Header
@@ -1188,7 +1187,6 @@ function Home(){
 }
 
 function TierlistsPage() {
-  document.body.classList.remove('bg-main');
   const w=h('div',{});
   // Sincronización automática al entrar a la pantalla principal
   if (!S._ref) { S._ref = true; fetchGlobalTemplates().finally(() => setTimeout(() => S._ref = false, 5000)); }
@@ -1214,7 +1212,6 @@ function TierlistsPage() {
 }
 
 function UsersPage() {
-  document.body.classList.add('bg-main');
   if (S.allUsers.length === 0) fetchAllUsers();
 
   const w = h('div', { class: 'users-page' });
@@ -1367,7 +1364,6 @@ function Viewer() {
 }
 
 function ProfilePage() {
-  document.body.classList.remove('bg-main');
   const p = currentUserProfile || { name: '...', color: '#888' };
   const w = h('div', { class: 'profile-page' });
   
@@ -2432,16 +2428,9 @@ async function updateProfileField(field, value) {
 // ============ RENDER ============
 function render(){
   const app=document.getElementById('app');app.innerHTML='';
-  document.body.classList.remove('bg-main'); // reset by default
-  
+
   // Forzar el fondo siempre en todas las pantallas
   document.body.classList.add('bg-main');
-
-  // Gestionar el fondo: aplicar 'bg-main' (homebkg) a todo excepto Tierlists, Editor y Viewer
-  if(['tierlists', 'editor', 'viewer'].includes(S.page)) document.body.classList.remove('bg-main');
-  // Gestionar el fondo: aplicar 'bg-main' (homebkg) a todo excepto Editor y Viewer
-  if(['editor', 'viewer'].includes(S.page)) document.body.classList.remove('bg-main');
-  else document.body.classList.add('bg-main');
 
   app.appendChild(Nav());
   const main=document.createElement('main');
