@@ -840,12 +840,27 @@ async function saveProfileChanges() {
 
 async function fetchChats() {
   if (!userSession) return;
+  // Traemos los chats donde el usuario es miembro, incluyendo la info del chat y de los otros miembros
   const { data, error } = await sbClient.from('chat_members')
-    .select('chat_id, chats(*, chat_members(user_id, profiles(name, avatar_url)))')
+    .select('last_read_at, chats(*, chat_members(user_id, profiles(name, avatar_url)))')
     .eq('user_id', userSession.user.id);
   
   if (!error) {
-    S.chats = data.map(d => d.chats);
+    let globalUnread = 0;
+    S.chats = data.map(d => {
+      const chat = d.chats;
+      // Un chat no está leído si el last_message_at del chat es posterior al last_read_at del miembro
+      const hasUnread = chat.last_message_at && (!d.last_read_at || new Date(chat.last_message_at) > new Date(d.last_read_at));
+      
+      if (hasUnread) globalUnread++;
+      
+      return {
+        ...chat,
+        has_unread: hasUnread,
+        unread_count: hasUnread ? 1 : 0 // Supabase no da el conteo exacto fácil sin RPC, marcamos como 1 para mostrar el punto
+      };
+    });
+    S.totalUnread = globalUnread;
     render();
   }
 }
@@ -864,12 +879,16 @@ async function openChat(chat) {
     S.messages = data;
     render();
     const container = document.querySelector('.chat-messages');
-    if(container) container.scrollTop = container.scrollHeight;
+    if(container) setTimeout(() => container.scrollTop = container.scrollHeight, 50);
   }
   
-  // Marcar como leído
+  // Marcar como leído en la base de datos
+  const now = new Date().toISOString();
+  const idx = S.chats.findIndex(c => c.id === chat.id);
+  if (idx !== -1) S.chats[idx].has_unread = false;
+
   await sbClient.from('chat_members')
-    .update({ last_read_at: new Date().toISOString() })
+    .update({ last_read_at: now })
     .eq('chat_id', chat.id)
     .eq('user_id', userSession.user.id);
   fetchChats(); // Refrescar para actualizar el badge de no leídos
@@ -910,13 +929,16 @@ async function createGroup(name, friendIds) {
     const members = [...friendIds, userSession.user.id].map(uid => ({
       chat_id: chat.id,
       user_id: uid,
-      last_read_at: new Date().toISOString() // Marcar como leído al crear
+      last_read_at: new Date().toISOString()
     }));
     await sbClient.from('chat_members').insert(members);
     toast("Grupo creado ✓");
-    S.activeChat = chat; // Abrir el chat recién creado
-    fetchChats();
-    S.modal = 'chat';
+    
+    // Refrescar lista y abrir el nuevo chat
+    await fetchChats();
+    const newChat = S.chats.find(c => c.id === chat.id);
+    if (newChat) openChat(newChat);
+    else S.activeChat = chat;
   }
 }
 
@@ -2233,6 +2255,9 @@ function renderChatAvatarItem(c) {
 }
 
 function MChat() {
+  // IMPORTANTE: Si no tenemos los usuarios cargados, los traemos para que el modal de grupo funcione
+  if (S.allUsers.length === 0) fetchAllUsers();
+
   if (!S.chatModalPosition) S.chatModalPosition = { x: null, y: null };
   const hasPos = S.chatModalPosition.x !== null && S.chatModalPosition.y !== null;
   const m = h('div', {
@@ -2305,7 +2330,7 @@ function MChat() {
     info.appendChild(h('div', { class: 'chat-item-name' }, name));
     if (c.last_message_at) info.appendChild(h('div', { class: 'chat-item-last-msg' }, new Date(c.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})));
     item.appendChild(info);
-    if (c.has_unread) item.appendChild(h('span', { class: 'chat-item-unread-badge' }, c.unread_count > 99 ? '+99' : (c.unread_count || '●')));
+    if (c.has_unread) item.appendChild(h('span', { class: 'chat-item-unread-badge' }, '●'));
     list.appendChild(item);
   });
   sidebar.appendChild(list);
@@ -2330,12 +2355,12 @@ function MChat() {
       msgs.appendChild(el);
     });
     if (!S.messages?.length) msgs.appendChild(h('div', { style: { color:'rgba(255,255,255,0.25)', fontSize:'10px', textAlign:'center', marginTop:'20px' } }, 'Inicio de la conversación'));
-    setTimeout(() => { msgs.scrollTop = msgs.scrollHeight; }, 0);
+    setTimeout(() => { msgs.scrollTop = msgs.scrollHeight; }, 10);
     main.appendChild(msgs);
 
     const inpArea = h('div', { class: 'chat-input-area' });
     const ci = h('input', { class: 'chat-input', placeholder: 'Mensaje...' });
-    const doSend = async () => { const v = ci.value.trim(); if (!v) return; ci.value = ''; await sendChatMessage(v); openChat(S.activeChat); };
+    const doSend = async () => { const v = ci.value.trim(); if (!v) return; ci.value = ''; await sendChatMessage(v); };
     ci.onkeydown = e => { if (e.key === 'Enter') doSend(); };
     inpArea.appendChild(ci);
     inpArea.appendChild(h('button', { class: 'chat-send-btn', onclick: doSend }, 'Ir'));
@@ -2350,7 +2375,7 @@ function MChat() {
 }
 
 function abrirModalCrearGrupoRef() {
-  // Solo amigos aceptados
+  // Aquí filtramos por relStatus === 'accepted', por eso es vital que fetchAllUsers() haya corrido
   const friends = (S.allUsers || []).filter(u => u.relStatus === 'accepted');
   const overlay = h('div', { class: 'group-creation-overlay', onclick: (e) => { if (e.target === overlay) overlay.remove(); } });
   const box = h('div', { class: 'group-creation-box' });
@@ -3193,6 +3218,7 @@ async function handleAuthSession(session) {
     saveProfiles();
     fetchGlobalTemplates();
     // Si hay una ruta pendiente (URL con hash al cargar), abrir el editor correspondiente
+    fetchChats(); // Cargar chats al iniciar sesión
     fetchNotifications(); // Cargar notificaciones al iniciar sesión
     if(S._pendingTlId){
       const pendingTl=S.profiles.find(p=>p.id===S.activeProfile)?.tls.find(t=>t.id===S._pendingTlId);
