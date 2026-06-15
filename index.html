@@ -1002,35 +1002,50 @@ function Nav(){
   return n;
 }
 
+let isProcessingFriendship = false;
+
 async function fetchNotifications() {
   if (!userSession) return;
-  const { data } = await sbClient.from('friendships').select('id, user_id, profiles!friendships_user_id_fkey(name)').eq('friend_id', userSession.user.id).eq('status', 'pending');
+  // Usamos un join explícito para obtener el nombre del que envía la solicitud
+  const { data } = await sbClient.from('friendships').select('id, user_id, profiles:user_id (name)').eq('friend_id', userSession.user.id).eq('status', 'pending');
   S.pendingRequests = data || [];
   render();
 }
 
 async function sendFriendRequest(targetUserId) {
-  if(!confirm('¿Quieres enviar una solicitud de amistad?')) return;
+  if(isProcessingFriendship) return;
+  isProcessingFriendship = true;
   const { error } = await sbClient.from('friendships').insert({ user_id: userSession.user.id, friend_id: targetUserId, status: 'pending' });
-  if(!error) { toast('Solicitud enviada ✓'); fetchAllUsers(); }
+  if(!error) { toast('Solicitud enviada ✓'); await fetchAllUsers(); }
   else { toast('Ya has enviado una solicitud o ya sois amigos', 'err'); }
+  isProcessingFriendship = false;
 }
 
 async function respondFriendRequest(requestId, status) {
+  if(isProcessingFriendship) return;
+  isProcessingFriendship = true;
   if(status === 'accepted') {
     await sbClient.from('friendships').update({ status: 'accepted' }).eq('id', requestId);
     toast('¡Ahora sois amigos!');
   } else {
     await sbClient.from('friendships').delete().eq('id', requestId);
   }
-  fetchNotifications();
-  fetchAllUsers();
+  await fetchNotifications();
+  await fetchAllUsers();
+  isProcessingFriendship = false;
 }
 
-async function removeFriend(relId) {
-  if(!confirm('¿Seguro que quieres eliminar a este amigo?')) return;
+async function removeFriend(relId, isCancel = false) {
+  if(isProcessingFriendship) return;
+  if(!isCancel && !confirm('¿Seguro que quieres eliminar a este amigo?')) return;
+  isProcessingFriendship = true;
   const { error } = await sbClient.from('friendships').delete().eq('id', relId);
-  if(!error) { toast('Amigo eliminado'); fetchAllUsers(); }
+  if(!error) { 
+    toast(isCancel ? 'Solicitud cancelada' : 'Amigo eliminado'); 
+    await fetchAllUsers(); 
+    await fetchNotifications();
+  }
+  isProcessingFriendship = false;
 }
 
 // ============ HOME ============
@@ -1162,9 +1177,9 @@ function UsersPage() {
       if(u.relStatus === 'none') {
         btn = h('button', { class: 'user-add-btn', onclick: (e) => { e.stopPropagation(); sendFriendRequest(u.id); } }, '+');
       } else if(u.relStatus === 'pending_sent') {
-        btn = h('button', { class: 'user-add-btn bd', title: 'Cancelar solicitud', onclick: (e) => { e.stopPropagation(); removeFriend(u.relId); } }, 'Cancelar');
+        btn = h('button', { class: 'user-add-btn pending', title: 'Cancelar solicitud', onclick: (e) => { e.stopPropagation(); removeFriend(u.relId, true); } }, '...');
       } else if(u.relStatus === 'pending_received') {
-        btn = h('button', { class: 'user-add-btn pending', title: 'Tienes una solicitud de este usuario' }, '!');
+        btn = h('button', { class: 'user-add-btn pending', title: 'Ver solicitud recibida', onclick: (e) => { e.stopPropagation(); S.notifMenu = true; render(); } }, '!');
       } else if(u.relStatus === 'accepted') {
         btn = h('button', { class: 'user-add-btn remove', title: 'Eliminar amigo', onclick: (e) => { e.stopPropagation(); removeFriend(u.relId); } }, '✕');
       } else {
