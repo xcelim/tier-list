@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0/default.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0/index.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -2108,10 +2108,10 @@ function ModalEl(){
   if(!fn) return null;
 
   if(S.modal === 'chat') {
-     return fn();
+     return fn(); // Chat modal does not use an overlay, it's a persistent component
   }
-  const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}});
-  ov.appendChild(fn());
+  const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}}); // Other modals use an overlay
+  ov.appendChild(fn()); // Append the modal content to the overlay
   return ov;
 }
 
@@ -2167,13 +2167,13 @@ function MCropAvatar() {
   return m;
 }
 
-// ============ CHAT WINDOW COMPONENT (persistent, toggled visibility) ============
-function MChat() {
-  const m = h('div', { 
-    class: 'chat-modal', 
-    style: S.chatModalPosition.x !== null 
-      ? { left: S.chatModalPosition.x + 'px', top: S.chatModalPosition.y + 'px', right: 'auto', bottom: 'auto', display: 'flex' } 
-      : { display: 'flex' }
+// ============ CHAT WINDOW COMPONENT ============
+function MChat() { // Renamed from ChatWindowComponent to MChat for ModalEl
+  const m = h('div', {
+    class: 'chat-modal',
+    style: S.chatModalPosition.x !== null
+      ? { left: S.chatModalPosition.x + 'px', top: S.chatModalPosition.y + 'px', right: 'auto', bottom: 'auto' }
+      : {} // Default position (top right)
   });
 
   const activeChat = S.activeChat || (S.chats && S.chats.length > 0 ? S.chats[0] : null);
@@ -2223,7 +2223,7 @@ function MChat() {
   header.appendChild(headerLeft);
   
   const closeBtn = h('div', { class: 'chat-close-btn', onclick: () => { S.modal = null; S.chatModalPosition = { x: null, y: null }; render(); } });
-  closeBtn.appendChild(h('i', { class: 'ti ti-x', style: { fontSize: '15px' } }));
+  closeBtn.appendChild(h('i', { class: 'ti ti-x', style: { fontSize: '14px' } })); // Adjusted font size for consistency
   header.appendChild(closeBtn);
   m.appendChild(header);
 
@@ -2239,13 +2239,13 @@ function MChat() {
     }});
     item.appendChild(renderChatAvatars(c));
     const chatInfo = h('div', { class: 'chat-item-info' });
-    const name = c.is_group ? c.name : (c.chat_members.find(m => m.user_id !== userSession?.user?.id)?.profiles?.name || 'Usuario');
+    const name = c.is_group ? c.name : (c.chat_members.find(m => m.user_id !== userSession?.user?.id)?.profiles?.name || 'Usuario'); // Handle undefined profiles
     chatInfo.appendChild(h('div', { class: 'chat-item-name' }, name));
     // Mostrar el último mensaje o un indicador
     if (c.last_message_at) chatInfo.appendChild(h('div', { class: 'chat-item-last-msg', style:{fontSize:'9px'} }, new Date(c.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})));
     else chatInfo.appendChild(h('div', { class: 'chat-item-last-msg', style:{fontSize:'9px'} }, 'Vacío'));
     item.appendChild(chatInfo);
-    if (c.has_unread) item.appendChild(h('span', { class: 'chat-item-unread-badge' }, '•'));
+    if (c.has_unread) item.appendChild(h('span', { class: 'chat-item-unread-badge' }, '•')); // Simple dot for now
     list.appendChild(item);
   });
   sidebar.appendChild(list);
