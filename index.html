@@ -1153,17 +1153,9 @@ function UsersPage() {
     // Nombre sin @
     card.appendChild(h('span', { class: 'user-name' }, u.name));
 
-    // Stats
-    const tls = u.tl_count ?? Math.floor(Math.random()*200+50);
-    const friends = u.friend_count ?? Math.floor(Math.random()*300+50);
-    card.appendChild(h('div', { class: 'user-stats' }, `${tls} tierlists · ${friends} amigos`));
-    // Stats Reales
-    card.appendChild(h('div', { class: 'user-stats' }, `${u.tl_count} tierlists · ${u.friend_count} amigos`));
+    // Estadísticas
     card.appendChild(h('div', { class: 'user-stats' }, `${u.tl_count || 0} tierlists · ${u.friend_count || 0} amigos`));
 
-    // Solo botón añadir
-    const addBtn = h('button', { class: 'user-add-btn', onclick: (e) => { e.stopPropagation(); toast('Solicitud enviada a ' + u.name); } }, '+');
-    card.appendChild(addBtn);
     // Botón de acción dinámico
     if(userSession && u.id !== userSession.user.id) {
       let btn;
