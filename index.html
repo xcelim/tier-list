@@ -77,6 +77,24 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--a
 .friends-title .heart-icon { display: inline-block; width: 12px; height: 12px; background: #60a5fa; clip-path: polygon(50% 18%, 82% 0, 100% 28%, 100% 58%, 50% 100%, 0 58%, 0 28%, 18% 0); margin-left: 3px; vertical-align: middle; margin-bottom: 8px; }
 .friends-subtitle { text-align: center; font-size: 13.5px; color: #7a90bb; margin-bottom: 1.4rem; }
 .friends-grid { display: flex !important; flex-wrap: wrap !important; justify-content: center !important; gap: 12px !important; margin-top: 10px; }
+.color-dot.c1 { background: #5b7fe8; }
+.color-dot.c2 { background: #9b59f5; }
+.color-dot.c3 { background: #60a5fa; }
+.color-dot.c4 { background: #22d3ee; }
+.color-dot.c5 { background: #34d399; }
+.color-dot.c6 { background: #fbbf24; }
+.color-dot.c7 { background: #f87171; }
+.friend-card { width: 110px; background: rgba(12, 20, 52, 0.88); border: 1px solid rgba(80, 130, 230, 0.25); border-radius: 14px; padding: 0.85rem 0.5rem; text-align: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: border-color 0.2s, transform 0.15s; cursor: pointer; }
+.friend-card:hover { border-color: rgba(96,165,250,0.5); transform: translateY(-2px); }
+.friend-avatar { width: 58px; height: 58px; border-radius: 50%; margin: 0 auto 9px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(80,130,220,0.4); }
+.friend-name { font-size: 11.5px; font-weight: 600; color: #c0d4ff; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.friend-stats { font-size: 10px; color: #5a78a8; margin-bottom: 9px; line-height: 1.5; }
+.friend-btns { display: flex; justify-content: center; gap: 6px; }
+.fb-add, .fb-remove { width: 26px; height: 26px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.15s, opacity 0.2s; }
+.fb-add:hover, .fb-remove:hover { transform: scale(1.15); }
+.fb-add { background: #3b6fd4; }
+.fb-remove { background: #ef4444; }
+.fb-add i, .fb-remove i { font-size: 14px; color: #fff; }
 
 /* NAV */
 nav{background:linear-gradient(90deg,rgba(8,12,35,.92) 0%,rgba(12,18,50,.92) 50%,rgba(8,14,40,.92) 100%);border-bottom:1px solid rgba(80,140,255,.15);padding:0 16px;display:flex;align-items:center;gap:10px;height:52px;position:sticky;top:0;z-index:300;backdrop-filter:blur(14px);box-shadow:0 1px 24px rgba(40,80,200,.10)}
@@ -1414,47 +1432,146 @@ function Viewer() {
 }
 
 function ProfilePage() {
-  const p = currentUserProfile || { name: '...', color: '#888' };
-  const w = h('div', { class: 'profile-page' });
-  
-  const header = h('div', { class: 'pp-header' });
-  const avWrap = h('div', { class: 'pp-avatar-wrap' });
-  const av = h('img', { class: 'pp-avatar', src: p.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${p.name}` });
-  const editBtn = h('label', { class: 'pp-avatar-edit', title: 'Cambiar foto' }, 
-    h('span', {}, '📷'),
-    h('input', { type: 'file', hidden: true, accept: 'image/*', onchange: async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      toast("Subiendo foto...", "info");
-      const path = `avatars/${userSession.user.id}_${Date.now()}.png`;
-      const { error } = await sbClient.storage.from('tierlists').upload(path, file);
-      if (!error) {
-        const { data: { publicUrl } } = sbClient.storage.from('tierlists').getPublicUrl(path);
-        updateProfileField('avatar_url', publicUrl);
-      }
-    }})
-  );
-  avWrap.appendChild(av); avWrap.appendChild(editBtn);
-  header.appendChild(avWrap);
+  const p = currentUserProfile || { name: '...', color: '#5b7fe8', avatar_url: null };
+  if (S.allUsers.length === 0) fetchAllUsers();
 
-  const info = h('div', { class: 'pp-info' });
-  const nameInp = h('input', { value: p.name, style: {fontSize:'24px', textAlign:'center', background:'none', border:'none', borderBottom:'1px dashed var(--border2)', width:'auto'} });
-  nameInp.onchange = (e) => updateProfileField('name', e.target.value);
-  info.appendChild(nameInp);
-  
-  const colorRow = h('div', { style: {marginTop:'15px', display:'flex', justifyContent:'center', gap:'10px', alignItems:'center'} });
-  colorRow.appendChild(h('label', {style:{fontSize:'11px'}}, 'Color de perfil:'));
-  const ci = h('input', { type: 'color', value: p.color });
-  ci.onchange = (e) => updateProfileField('color', e.target.value);
-  colorRow.appendChild(ci);
-  info.appendChild(colorRow);
-  
-  header.appendChild(info);
-  w.appendChild(header);
+  const w = h('div', {});
 
-  w.appendChild(h('div', { class: 'pp-section-title' }, 'Mis Amigos'));
-  w.appendChild(h('div', { style: {padding:'40px', textAlign:'center', color:'var(--text3)'} }, 'Aún no tienes amigos añadidos. ¡Busca gente en Usuarios!'));
+  // Fondo decorativo (estrellas + círculos)
+  const stars = h('div', { id: 'stars' });
+  for (let i = 0; i < 55; i++) {
+    const size = Math.random() * 2.5 + 0.8;
+    stars.appendChild(h('div', { class: 'star', style: {
+      width: size+'px', height: size+'px',
+      top: (Math.random()*100)+'%', left: (Math.random()*100)+'%',
+      animationDelay: (Math.random()*5).toFixed(2)+'s',
+      animationDuration: (2+Math.random()*3).toFixed(2)+'s'
+    }}));
+  }
+  w.appendChild(stars);
+  w.appendChild(h('div', { class: 'deco-circle', style:{width:'300px',height:'300px',top:'-80px',right:'-60px'} }));
+  w.appendChild(h('div', { class: 'deco-circle', style:{width:'200px',height:'200px',bottom:'200px',left:'-80px'} }));
+  w.appendChild(h('div', { class: 'deco-circle', style:{width:'150px',height:'150px',top:'40%',right:'-30px'} }));
 
+  const content = h('div', { class: 'profile-content' });
+
+  // Header
+  content.appendChild(h('h1', { class: 'page-title' }, 'Perfil', h('span', { class: 'heart-icon' })));
+  content.appendChild(h('p', { class: 'page-subtitle' },
+    h('span', { class: 'diamond-sm' }),
+    'Personaliza tu perfil y gestiona tu cuenta.',
+    h('span', { class: 'diamond-sm' })
+  ));
+
+  // Profile card
+  const card = h('div', { class: 'profile-card' });
+  const top = h('div', { class: 'profile-top' });
+
+  // Avatar
+  const avWrap = h('div', { class: 'avatar-wrap' });
+  const ring = h('div', { class: 'avatar-ring' });
+  const inner = h('div', { class: 'avatar-inner' });
+  inner.appendChild(h('img', {
+    src: p.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${p.name}`,
+    style: { width:'100%', height:'100%', objectFit:'cover' }
+  }));
+  ring.appendChild(inner);
+  avWrap.appendChild(ring);
+  const cameraInput = h('input', { type:'file', hidden:true, accept:'image/*', onchange: async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    toast("Subiendo foto...", "info");
+    const path = `avatars/${userSession.user.id}_${Date.now()}.png`;
+    const { error } = await sbClient.storage.from('tierlists').upload(path, file);
+    if (!error) {
+      const { data: { publicUrl } } = sbClient.storage.from('tierlists').getPublicUrl(path);
+      updateProfileField('avatar_url', publicUrl);
+    }
+  }});
+  avWrap.appendChild(h('label', { class: 'camera-btn', title: 'Cambiar foto' }, h('i', { class: 'ti ti-camera' }), cameraInput));
+  top.appendChild(avWrap);
+
+  // Campos
+  const right = h('div', { class: 'profile-right' });
+  right.appendChild(h('div', { class: 'field-label' }, 'Nombre de usuario'));
+  const nameInput = h('input', { class: 'field-input', type: 'text', value: p.name });
+  right.appendChild(nameInput);
+  right.appendChild(h('button', { class: 'save-btn', onclick: () => {
+    const val = nameInput.value.trim();
+    if (val && val !== p.name) updateProfileField('name', val);
+  }}, h('i', { class: 'ti ti-device-floppy' }), ' Guardar cambios'));
+  top.appendChild(right);
+  card.appendChild(top);
+
+  // Selector de color
+  const colors = [
+    { cls: 'c1', val: '#5b7fe8', label: 'Azul eléctrico' },
+    { cls: 'c2', val: '#9b59f5', label: 'Púrpura' },
+    { cls: 'c3', val: '#60a5fa', label: 'Azul claro' },
+    { cls: 'c4', val: '#22d3ee', label: 'Cian' },
+    { cls: 'c5', val: '#34d399', label: 'Verde' },
+    { cls: 'c6', val: '#fbbf24', label: 'Ámbar' },
+    { cls: 'c7', val: '#f87171', label: 'Coral' }
+  ];
+  const colorsSection = h('div', { class: 'colors-section' });
+  colorsSection.appendChild(h('div', { class: 'colors-label' }, 'Selecciona tu color favorito'));
+  const colorsRow = h('div', { class: 'colors-row' });
+  colors.forEach(c => {
+    const active = (p.color || '').toLowerCase() === c.val.toLowerCase();
+    const dot = h('button', { class: 'color-dot ' + c.cls + (active ? ' active' : ''), 'aria-label': c.label, onclick: (e) => {
+      colorsRow.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      updateProfileField('color', c.val);
+    }}, h('i', { class: 'ti ti-check' }));
+    colorsRow.appendChild(dot);
+  });
+  colorsSection.appendChild(colorsRow);
+  card.appendChild(colorsSection);
+  content.appendChild(card);
+
+  // Acciones
+  const actionRow = h('div', { class: 'action-row' });
+  actionRow.appendChild(h('button', { class: 'logout-btn', onclick: handleLogout }, h('i', { class: 'ti ti-logout' }), ' Cerrar sesión'));
+  actionRow.appendChild(h('button', { class: 'delete-btn', onclick: handleDeleteAccount }, h('i', { class: 'ti ti-trash' }), ' Eliminar cuenta'));
+  content.appendChild(actionRow);
+
+  // Divisor
+  content.appendChild(h('div', { class: 'divider-row' },
+    h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
+  ));
+
+  // Amigos
+  content.appendChild(h('div', { class: 'section-deco' },
+    h('div', { class: 'deco-line' }), h('div', { class: 'deco-diamond' }), h('div', { class: 'deco-line' })
+  ));
+  content.appendChild(h('h2', { class: 'friends-title' }, 'Amigos', h('span', { class: 'heart-icon' })));
+  content.appendChild(h('p', { class: 'friends-subtitle' }, 'Aquí puedes ver a tus amigos y compartir tierlists juntos.'));
+
+  const friends = (S.allUsers || []).filter(u => u.relStatus === 'accepted');
+  if (friends.length === 0) {
+    content.appendChild(h('div', { style: { textAlign:'center', color:'#5a78a8', fontSize:'13px', padding:'10px 0 20px' } }, 'Aún no tienes amigos añadidos. ¡Busca gente en Usuarios!'));
+  } else {
+    const grid = h('div', { class: 'friends-grid' });
+    friends.forEach(f => {
+      const fc = h('div', { class: 'friend-card', onclick: () => viewUser(f.id) });
+      const av = h('div', { class: 'friend-avatar' });
+      av.appendChild(h('img', {
+        src: f.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${f.name}`,
+        style: { width:'100%', height:'100%', objectFit:'cover' }
+      }));
+      fc.appendChild(av);
+      fc.appendChild(h('div', { class: 'friend-name' }, '@' + f.name));
+      fc.appendChild(h('div', { class: 'friend-stats' }, `${f.tl_count || 0} tierlists`, h('br'), `${f.friend_count || 0} amigos`));
+      const btns = h('div', { class: 'friend-btns' });
+      btns.appendChild(h('button', { class: 'fb-add', title: 'Ver perfil', onclick: (e) => { e.stopPropagation(); viewUser(f.id); } }, h('i', { class: 'ti ti-eye' })));
+      btns.appendChild(h('button', { class: 'fb-remove', title: 'Eliminar amigo', onclick: (e) => { e.stopPropagation(); removeFriend(f.relId); } }, h('i', { class: 'ti ti-minus' })));
+      fc.appendChild(btns);
+      grid.appendChild(fc);
+    });
+    content.appendChild(grid);
+  }
+
+  w.appendChild(content);
   return w;
 }
 
