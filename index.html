@@ -8,7 +8,7 @@
 <link rel="icon" href="./favicon.ico" type="image/x-icon">
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0a0a0f">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
@@ -608,7 +608,7 @@ let S={
   profileDraft: null,
   profileUnsaved: false,
   chats: [],
-  chatWindowVisible: false, // New: to control chat window visibility
+  // chatWindowVisible: false, // No longer needed as chat is a modal
   totalUnread: 0, // Nuevo: para el badge global
   chatModalPosition: { x: null, y: null }, // Nuevo: para la posición del modal arrastrable
   activeChat: null,
@@ -2099,15 +2099,15 @@ function updPool(cont,tl){
 // ============ MODALS ============
 function ModalEl(){
   if(!S.modal)return null;
-  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'create-group': MCreateGroupChat, 'chat': MChat};
+  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'create-group': MCreateGroupChat, 'chat': MChat}; // Aseguramos que MChat y MCreateGroupChat estén en el mapa
   const fn=fns[S.modal];
   if(!fn) return null;
 
   if(S.modal === 'chat') {
-     return fn(); // Chat modal does not use an overlay
+     return fn(); // El chat no usa overlay, se renderiza directamente
   }
-  const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}}); // Other modals use an overlay
-  ov.appendChild(fn()); // Append the modal content to the overlay
+  const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}}); // Otros modales sí usan overlay
+  ov.appendChild(fn()); // Añadir el contenido del modal al overlay
   return ov;
 }
 
@@ -2185,7 +2185,6 @@ function MChat() { // This function is for the chat modal
       let startTop = m.offsetTop;
 
       const onMouseMove = (moveEvent) => {
-        moveEvent.preventDefault();
         const dx = moveEvent.clientX - startX;
         const dy = moveEvent.clientY - startY;
         let newLeft = startLeft + dx;
@@ -2235,15 +2234,13 @@ function MChat() { // This function is for the chat modal
     }});
     item.appendChild(renderChatAvatars(c));
     const chatInfo = h('div', { class: 'chat-item-info' });
-    const name = c.is_group ? c.name : (c.chat_members.find(m => m.user_id !== userSession.user.id)?.profiles.name || 'Usuario');
-    chatInfo.appendChild(h('div', { class: 'chat-item-name', style:{fontSize:'11px'} }, name));
+    const name = c.is_group ? c.name : (c.chat_members.find(m => m.user_id !== userSession?.user?.id)?.profiles?.name || 'Usuario');
+    chatInfo.appendChild(h('div', { class: 'chat-item-name' }, name));
     // Mostrar el último mensaje o un indicador
     if (c.last_message_at) chatInfo.appendChild(h('div', { class: 'chat-item-last-msg', style:{fontSize:'9px'} }, new Date(c.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})));
     else chatInfo.appendChild(h('div', { class: 'chat-item-last-msg', style:{fontSize:'9px'} }, 'Vacío'));
     item.appendChild(chatInfo);
-    if (c.has_unread) {
-      item.appendChild(h('span', { class: 'chat-item-unread-badge' }, '•')); // Simple dot for now
-    }
+    if (c.has_unread) item.appendChild(h('span', { class: 'chat-item-unread-badge' }, '•'));
     list.appendChild(item);
   });
   sidebar.appendChild(list);
