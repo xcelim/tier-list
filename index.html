@@ -891,26 +891,27 @@ function renderChatAvatars(chat) {
   
   if (!chat.is_group) {
     const other = members[0]?.profiles || { name: 'Usuario', avatar_url: null };
-    return h('img', { 
-      src: other.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${other.name}`,
-      style: { width: '40px', height: '40px', borderRadius: '50%' }
+    return h('img', {
+        src: other.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${other.name}`,
+        class: 'chat-avatar-single'
     });
   }
   
-  // Lógica de grupo: amontonadas
-  const wrap = h('div', { class: 'group-avatars' });
-  const toShow = members.slice(0, 3);
-  toShow.forEach((m, i) => {
-    if (i === 2 && members.length > 3) {
-      wrap.appendChild(h('div', { class: 'plus-avatar' }, '+'));
-    } else {
-      const img = h('img', { 
-        src: m.profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${m.profiles.name}`,
-        style: { zIndex: 10 - i }
+  const wrap = h('div', { class: 'group-avatars-container' });
+  if (members.length <= 2) {
+      members.forEach((m, idx) => {
+          const img = h('img', {
+              src: m.profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${m.profiles.name}`,
+              class: 'group-avatar-stacked',
+              style: { left: (idx * 10) + 'px', zIndex: 3 - idx }
+          });
+          wrap.appendChild(img);
       });
-      wrap.appendChild(img);
-    }
-  });
+  } else {
+      wrap.appendChild(h('img', { src: members[0].profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${members[0].profiles.name}`, class: 'group-avatar-stacked', style: { left: '0px', zIndex: 3 } }));
+      wrap.appendChild(h('img', { src: members[1].profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${members[1].profiles.name}`, class: 'group-avatar-stacked', style: { left: '10px', zIndex: 2 } }));
+      wrap.appendChild(h('div', { class: 'group-avatar-extra' }, '+' + (members.length - 2)));
+  }
   return wrap;
 }
 
@@ -1263,6 +1264,18 @@ function Nav(){
       S.pendingRequests.length > 0 ? h('div', { class: 'notif-badge' }, S.pendingRequests.length + '') : null
     );
     nr.appendChild(notifBtn);
+    
+    const chatBtn = h('button', { class: 'btn bg bsm', style:{padding:'8px', marginLeft:'4px', position:'relative'}, onclick: () => { 
+        if(S.modal === 'chat') S.modal = null;
+        else { S.chatModalPosition = { x: null, y: null }; S.modal = 'chat'; fetchChats(); }
+        render(); 
+    } }, 
+      h('i', { class: 'ti ti-messages', style:{fontSize:'18px'} })
+    );
+    if (S.totalUnread > 0) {
+      chatBtn.appendChild(h('span', { class: 'chat-button-badge' }, S.totalUnread > 99 ? '+99' : S.totalUnread.toString()));
+    }
+    nr.appendChild(chatBtn);
   }
   if (!userSession) {
     nr.appendChild(h('div', { class: 'profile-btn', style: { background: 'var(--bg3)', color: 'var(--text2)' }, onclick: handleGoogleLogin, title: 'Iniciar Sesión con Google' }, '👤'));
@@ -1271,13 +1284,6 @@ function Nav(){
     const btnContent = p.avatar_url 
       ? h('img', { src: p.avatar_url, style: { width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' } }) 
       : p.name.charAt(0).toUpperCase();
-    const chatBtn = h('button', { class: 'btn bg bsm', style:{padding:'8px', marginLeft:'4px', position:'relative'}, onclick: () => { S.chatModalPosition = { x: null, y: null }; S.modal = 'chat'; fetchChats(); render(); } }, 
-      h('i', { class: 'ti ti-messages', style:{fontSize:'18px'} })
-    );
-    if (S.totalUnread > 0) {
-      chatBtn.appendChild(h('span', { class: 'chat-button-badge' }, S.totalUnread > 99 ? '+99' : S.totalUnread.toString()));
-    }
-    nr.appendChild(chatBtn);
     const btn = h('div', { class: 'profile-btn active', style: { background: p.color + '33', color: p.color }, onclick: (e) => { e.stopPropagation(); S.profileMenu = userSession.user.id; S.notifMenu = false; render(); } }, btnContent); // Mantener el perfil
     nr.appendChild(btn);
   }
@@ -2092,9 +2098,14 @@ function updPool(cont,tl){
 // ============ MODALS ============
 function ModalEl(){
   if(!S.modal)return null;
-  const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}});
   const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'chat': MChat}; // This line is correct
   const fn=fns[S.modal];if(fn)ov.appendChild(fn());
+  if(S.modal === 'chat') {
+     // No overlay for chat to allow interaction with background
+     return fn ? fn() : null;
+  }
+  const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}});
+  if(fn)ov.appendChild(fn());
   return ov;
 }
 
@@ -2154,21 +2165,25 @@ function MCropAvatar() {
 function MChat() { // This function is for the chat modal
   const m = h('div', { 
     class: 'modal chat-modal',
-    style: S.chatModalPosition.x !== null ? { left: S.chatModalPosition.x + 'px', top: S.chatModalPosition.y + 'px', right: 'auto' } : {}
+    style: S.chatModalPosition.x !== null ? { left: S.chatModalPosition.x + 'px', top: S.chatModalPosition.y + 'px', right: 'auto', bottom: 'auto' } : {}
   });
 
-  // Draggable header
+  const activeChat = S.activeChat || S.chats[0];
+  const chatTitle = activeChat ? (activeChat.is_group ? activeChat.name : (activeChat.chat_members.find(m => m.user_id !== userSession.user.id)?.profiles.name || 'Usuario')) : 'Mensajes';
+
+  // Draggable header based on chatejemplo
   const header = h('div', { 
-    class: 'chat-sidebar-header', 
-    style: { cursor: 'grab', display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    class: 'chat-window-header', 
     onmousedown: (e) => {
       if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return; // Don't drag if clicking buttons
+      e.preventDefault();
       let startX = e.clientX;
       let startY = e.clientY;
       let startLeft = m.offsetLeft;
       let startTop = m.offsetTop;
 
       const onMouseMove = (moveEvent) => {
+        moveEvent.preventDefault();
         const dx = moveEvent.clientX - startX;
         const dy = moveEvent.clientY - startY;
         let newLeft = startLeft + dx;
@@ -2179,6 +2194,7 @@ function MChat() { // This function is for the chat modal
         newTop = Math.max(0, Math.min(newTop, window.innerHeight - m.offsetHeight));
 
         m.style.right = 'auto';
+        m.style.bottom = 'auto';
         m.style.left = newLeft + 'px';
         m.style.top = newTop + 'px';
         S.chatModalPosition = { x: newLeft, y: newTop }; // Save position
@@ -2258,13 +2274,54 @@ function MChat() { // This function is for the chat modal
       } 
     };
     inpArea.appendChild(ci);
-    inpArea.appendChild(h('button', { class: 'btn bp', onclick: async () => { await sendChatMessage(ci.value); ci.value = ''; openChat(S.activeChat); } }, 'Enviar'));
+    inpArea.appendChild(h('button', { class: 'chat-send-btn', onclick: async () => { await sendChatMessage(ci.value); ci.value = ''; openChat(S.activeChat); } }, 'Ir'));
     main.appendChild(inpArea);
+  } else if (S.activeChat && S.activeChat.is_temp) {
+      msgs.appendChild(h('div', { style: 'color:rgba(255,255,255,0.25); font-size:10px; text-align:center; margin-top:30px;' }, 'Envía un mensaje para iniciar el chat'));
+      main.appendChild(msgs);
+      const inpArea = h('div', { class: 'chat-input-area' });
+      const ci = h('input', { class: 'chat-input', placeholder: 'Escribe un mensaje...' });
+      ci.onkeydown = async e => { if(e.key === 'Enter') { await openChat(S.activeChat); await sendChatMessage(ci.value); ci.value = ''; } };
+      inpArea.appendChild(ci);
+      inpArea.appendChild(h('button', { class: 'chat-send-btn', onclick: async () => { await openChat(S.activeChat); await sendChatMessage(ci.value); ci.value = ''; } }, 'Ir'));
+      main.appendChild(inpArea);
   } else {
-    main.appendChild(h('div', { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)' } }, 'Selecciona un chat para empezar'));
+      main.appendChild(h('div', { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.25)', fontSize:'10px' } }, 'Selecciona un chat para empezar'));
   }
-  m.appendChild(main);
+  containerBody.appendChild(main);
+  m.appendChild(containerBody);
   return m;
+}
+
+function abrirModalCrearGrupoRef() {
+    const friends = S.allUsers.filter(u => u.relStatus === 'accepted');
+    const overlay = h('div', { class: 'group-creation-overlay', id: 'group-modal-overlay' });
+    const box = h('div', { class: 'group-creation-box' });
+    box.appendChild(h('h4', { style: 'color:white; font-size:12px; margin-bottom:8px;' }, '¿A quién quieres añadir?'));
+    const nameInp = h('input', { type: 'text', id: 'modal-group-name', placeholder: 'Nombre del grupo...', class: 'chat-input', style: 'width:100%; margin-bottom:8px;' });
+    box.appendChild(nameInp);
+
+    const list = h('div', { class: 'friend-selection-list' });
+    friends.forEach(f => {
+        const item = h('label', { class: 'friend-select-item' });
+        item.appendChild(h('input', { type: 'checkbox', value: f.id, dataset: { avatar: f.avatar_url } }));
+        item.appendChild(h('span', {}, f.name));
+        list.appendChild(item);
+    });
+    box.appendChild(list);
+
+    const actions = h('div', { class: 'group-box-actions' });
+    actions.appendChild(h('button', { class: 'btn-cancel', onclick: () => overlay.remove() }, 'Cancelar'));
+    actions.appendChild(h('button', { class: 'btn-confirm', onclick: async () => {
+        const gname = nameInp.value.trim() || 'Nuevo Grupo';
+        const selected = Array.from(list.querySelectorAll('input:checked')).map(cb => cb.value);
+        if (selected.length === 0) { alert("¡Debes seleccionar amigos!"); return; }
+        await createGroup(gname, selected);
+        overlay.remove();
+    } }, 'Crear'));
+    box.appendChild(actions);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
 }
 
 // EDIT PROFILE
