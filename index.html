@@ -8,7 +8,7 @@
 <link rel="icon" href="./favicon.ico" type="image/x-icon">
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0a0a0f">
-<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
@@ -281,15 +281,20 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .char-edit-preview{width:80px;height:100px;object-fit:cover;border-radius:6px;border:2px solid var(--border2)}
 /* Chat Styles */
 .chat-modal { 
-  width: 360px; height: 240px; display: flex; overflow: hidden; padding: 0 !important; 
+  width: 360px; height: 480px; display: flex; overflow: hidden; padding: 0 !important; 
   position: fixed; top: 60px; right: 16px; z-index: 2000;
-  animation: chat-modal-appear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: chat-modal-appear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   background: #0c1434; border: 1.5px solid rgba(80, 130, 230, 0.4);
-  box-shadow: 0 12px 48px rgba(0,0,0,0.6); border-radius: 12px;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(120,160,255,0.08);
+  border-radius: 12px;
+  transform-origin: top right;
 }
 @keyframes chat-modal-appear {
-  from { opacity: 0; transform: scale(0); transform-origin: top right; }
-  to { opacity: 1; transform: scale(1); transform-origin: top right; }
+  0%   { opacity: 0; transform: translate(60px, -60px) scale(0.3) rotate(-8deg); }
+  55%  { opacity: 1; transform: translate(-8px, 8px) scale(1.04) rotate(1.5deg); }
+  75%  { transform: translate(4px, -4px) scale(0.97) rotate(-0.5deg); }
+  90%  { transform: translate(-2px, 2px) scale(1.01) rotate(0.3deg); }
+  100% { opacity: 1; transform: translate(0, 0) scale(1) rotate(0deg); }
 }
 .chat-sidebar { width: 110px; border-right: 1px solid rgba(80, 130, 230, 0.2); display: flex; flex-direction: column; background: #0a1128; }
 .chat-sidebar-header { padding: 8px 10px; border-bottom: 1px solid rgba(80, 130, 230, 0.2); display: flex; flex-direction: column; gap: 4px; }
@@ -321,7 +326,7 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 
 .tw{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:5px}
 .chat-button-badge {
-  position: absolute; top: -5px; right: -5px; background: var(--red); color: white;
+  position: absolute; top: -5px; right: -5px; background: var(--red); color: white; border: 2px solid #0c1434; /* Adjusted border */
   font-size: 10px; padding: 2px 5px; border-radius: 10px; min-width: 20px; text-align: center;
 }
 .toast{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 14px;font-size:12px;animation:si .2s ease;box-shadow:0 6px 24px rgba(0,0,0,.4);max-width:320px}
@@ -608,7 +613,6 @@ let S={
   profileDraft: null,
   profileUnsaved: false,
   chats: [],
-  // chatWindowVisible: false, // No longer needed as chat is a modal
   totalUnread: 0, // Nuevo: para el badge global
   chatModalPosition: { x: null, y: null }, // Nuevo: para la posición del modal arrastrable
   activeChat: null,
@@ -890,7 +894,7 @@ async function createGroup(name, friendIds) {
 function renderChatAvatars(chat) {
   const members = chat.chat_members.filter(m => m.user_id !== userSession?.user.id);
   
-  if (!chat.is_group) {
+  if (!chat.is_group || members.length === 0) { // Handle single friend chat or empty group
     const other = members[0]?.profiles || { name: 'Usuario', avatar_url: null };
     return h('img', {
         src: other.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${other.name}`,
@@ -900,18 +904,18 @@ function renderChatAvatars(chat) {
   
   const wrap = h('div', { class: 'group-avatars-container' });
   if (members.length <= 2) {
-      members.forEach((m, idx) => {
+      members.slice(0,2).forEach((m, idx) => { // Limit to 2 for stacked
           const img = h('img', {
               src: m.profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${m.profiles.name}`,
               class: 'group-avatar-stacked',
-              style: { left: (idx * 10) + 'px', zIndex: 3 - idx }
+              style: { left: (idx * 8) + 'px', zIndex: 3 - idx } // Adjusted left offset
           });
           wrap.appendChild(img);
       });
   } else {
-      wrap.appendChild(h('img', { src: members[0].profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${members[0].profiles.name}`, class: 'group-avatar-stacked', style: { left: '0px', zIndex: 3 } }));
-      wrap.appendChild(h('img', { src: members[1].profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${members[1].profiles.name}`, class: 'group-avatar-stacked', style: { left: '10px', zIndex: 2 } }));
-      wrap.appendChild(h('div', { class: 'group-avatar-extra' }, '+' + (members.length - 2)));
+      wrap.appendChild(h('img', { src: members[0].profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${members[0].profiles.name}`, class: 'group-avatar-stacked', style: { left: '0px', zIndex: 3 } })); // First avatar
+      wrap.appendChild(h('img', { src: members[1].profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${members[1].profiles.name}`, class: 'group-avatar-stacked', style: { left: '8px', zIndex: 2 } })); // Second avatar, adjusted left
+      wrap.appendChild(h('div', { class: 'group-avatar-extra' }, '+' + (members.length - 2))); // Extra count
   }
   return wrap;
 }
@@ -1266,27 +1270,30 @@ function Nav(){
     );
     nr.appendChild(notifBtn);
     
-    const chatBtn = h('button', { class: 'btn bg bsm', style:{padding:'8px', marginLeft:'4px', position:'relative'}, onclick: () => { 
-        if(S.modal === 'chat') S.modal = null;
-        else { S.chatModalPosition = { x: null, y: null }; S.modal = 'chat'; fetchChats(); }
-        render(); 
+    const chatBtn = h('button', { class: 'btn bg bsm', style:{padding:'8px', marginLeft:'4px', position:'relative'}, onclick: (e) => {
+        e.stopPropagation();
+        if(S.modal === 'chat') { S.modal = null; render(); }
+        else {
+          if(!S.chatModalPosition) S.chatModalPosition = { x: null, y: null };
+          else { S.chatModalPosition.x = null; S.chatModalPosition.y = null; }
+          S.modal = 'chat';
+          render();
+          fetchChats();
+        }
     } }, 
       h('i', { class: 'ti ti-messages', style:{fontSize:'18px'} })
     );
-    if (S.totalUnread > 0) {
-      chatBtn.appendChild(h('span', { class: 'chat-button-badge' }, S.totalUnread > 99 ? '+99' : S.totalUnread.toString()));
-    }
+    if (S.totalUnread > 0) chatBtn.appendChild(h('span', { class: 'chat-button-badge' }, S.totalUnread > 99 ? '+99' : S.totalUnread.toString()));
     nr.appendChild(chatBtn);
-  }
-  if (!userSession) {
-    nr.appendChild(h('div', { class: 'profile-btn', style: { background: 'var(--bg3)', color: 'var(--text2)' }, onclick: handleGoogleLogin, title: 'Iniciar Sesión con Google' }, '👤'));
-  } else {
+
     const p = currentUserProfile || { name: '...', color: '#888' };
     const btnContent = p.avatar_url 
       ? h('img', { src: p.avatar_url, style: { width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' } }) 
       : p.name.charAt(0).toUpperCase();
     const btn = h('div', { class: 'profile-btn active', style: { background: p.color + '33', color: p.color }, onclick: (e) => { e.stopPropagation(); S.profileMenu = userSession.user.id; S.notifMenu = false; render(); } }, btnContent); // Mantener el perfil
     nr.appendChild(btn);
+  } else {
+    nr.appendChild(h('div', { class: 'profile-btn', style: { background: 'var(--bg3)', color: 'var(--text2)' }, onclick: handleGoogleLogin, title: 'Iniciar Sesión con Google' }, '👤'));
   }
   n.appendChild(nr);
 
@@ -2099,15 +2106,15 @@ function updPool(cont,tl){
 // ============ MODALS ============
 function ModalEl(){
   if(!S.modal)return null;
-  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'create-group': MCreateGroupChat, 'chat': MChat}; // Aseguramos que MChat y MCreateGroupChat estén en el mapa
+  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'chat': MChat};
   const fn=fns[S.modal];
   if(!fn) return null;
 
   if(S.modal === 'chat') {
-     return fn(); // El chat no usa overlay, se renderiza directamente
+     return fn();
   }
-  const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}}); // Otros modales sí usan overlay
-  ov.appendChild(fn()); // Añadir el contenido del modal al overlay
+  const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}});
+  ov.appendChild(fn());
   return ov;
 }
 
@@ -2165,15 +2172,16 @@ function MCropAvatar() {
 
 // CHAT MODAL
 function MChat() { // This function is for the chat modal
+  if (!S.chatModalPosition) S.chatModalPosition = { x: null, y: null };
   const m = h('div', { 
-    class: 'modal chat-modal',
-    style: S.chatModalPosition.x !== null ? { left: S.chatModalPosition.x + 'px', top: S.chatModalPosition.y + 'px', right: 'auto', bottom: 'auto' } : {}
+    class: 'chat-modal', // Removed 'modal' class to avoid default modal styles
+    style: (S.chatModalPosition.x !== null && S.chatModalPosition.y !== null) ? { left: S.chatModalPosition.x + 'px', top: S.chatModalPosition.y + 'px', right: 'auto', bottom: 'auto' } : {}
   });
 
-  const activeChat = S.activeChat || S.chats[0];
-  const chatTitle = activeChat ? (activeChat.is_group ? activeChat.name : (activeChat.chat_members.find(m => m.user_id !== userSession.user.id)?.profiles.name || 'Usuario')) : 'Mensajes';
+  const activeChat = S.activeChat || (S.chats && S.chats.length > 0 ? S.chats[0] : null);
+  const otherMember = activeChat?.chat_members?.find(m => m.user_id !== userSession?.user?.id);
+  const chatTitle = activeChat ? (activeChat.is_group ? (activeChat.name || 'Grupo') : (otherMember?.profiles?.name || 'Usuario')) : 'Mensajes'; // Adjusted default name
 
-  // Draggable header based on chatejemplo
   const header = h('div', { 
     class: 'chat-window-header', 
     onmousedown: (e) => {
@@ -2185,6 +2193,7 @@ function MChat() { // This function is for the chat modal
       let startTop = m.offsetTop;
 
       const onMouseMove = (moveEvent) => {
+        moveEvent.preventDefault();
         const dx = moveEvent.clientX - startX;
         const dy = moveEvent.clientY - startY;
         let newLeft = startLeft + dx;
@@ -2234,13 +2243,13 @@ function MChat() { // This function is for the chat modal
     }});
     item.appendChild(renderChatAvatars(c));
     const chatInfo = h('div', { class: 'chat-item-info' });
-    const name = c.is_group ? c.name : (c.chat_members.find(m => m.user_id !== userSession?.user?.id)?.profiles?.name || 'Usuario');
-    chatInfo.appendChild(h('div', { class: 'chat-item-name' }, name));
+    const name = c.is_group ? c.name : (c.chat_members.find(m => m.user_id !== userSession?.user?.id)?.profiles?.name || 'Usuario'); // Adjusted default name
+    chatInfo.appendChild(h('div', { class: 'chat-item-name' }, name)); // Removed inline style
     // Mostrar el último mensaje o un indicador
-    if (c.last_message_at) chatInfo.appendChild(h('div', { class: 'chat-item-last-msg', style:{fontSize:'9px'} }, new Date(c.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})));
-    else chatInfo.appendChild(h('div', { class: 'chat-item-last-msg', style:{fontSize:'9px'} }, 'Vacío'));
+    if (c.last_message_at) chatInfo.appendChild(h('div', { class: 'chat-item-last-msg', style:{fontSize:'9px'} }, new Date(c.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}))); // Adjusted font size
+    else chatInfo.appendChild(h('div', { class: 'chat-item-last-msg', style:{fontSize:'9px'} }, 'Vacío')); // Adjusted font size
     item.appendChild(chatInfo);
-    if (c.has_unread) item.appendChild(h('span', { class: 'chat-item-unread-badge' }, '•'));
+    if (c.has_unread) item.appendChild(h('span', { class: 'chat-item-unread-badge' }, '•')); // Simple dot for now
     list.appendChild(item);
   });
   sidebar.appendChild(list);
