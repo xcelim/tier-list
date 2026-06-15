@@ -43,7 +43,13 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--a
 .page-title .heart-icon { display: inline-block; width: 14px; height: 14px; background: #60a5fa; clip-path: polygon(50% 18%, 82% 0, 100% 28%, 100% 58%, 50% 100%, 0 58%, 0 28%, 18% 0); margin-left: 4px; vertical-align: middle; margin-bottom: 10px; }
 .page-subtitle { text-align: center; color: #7a90bb; font-size: 14.5px; margin-bottom: 2rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .diamond-sm { width: 6px; height: 6px; background: #4a7fd4; transform: rotate(45deg); display: inline-block; flex-shrink: 0; }
-.profile-card { background: rgba(12, 20, 52, 0.88); border: 1px solid rgba(80, 130, 230, 0.28); border-radius: 18px; padding: 1.6rem; margin-bottom: 1rem; backdrop-filter: blur(10px); }
+.profile-card { 
+  background: 
+    linear-gradient(165deg,rgba(12, 20, 52, 0.88) 0%,rgba(8, 14, 40, 0.94) 100%) padding-box,
+    linear-gradient(150deg,#cfe4ff 0%,#7c9bff 45%,#3548c9 100%) border-box !important;
+  border: 1.5px solid transparent !important;
+  border-radius: 18px; padding: 1.6rem; margin-bottom: 1rem; backdrop-filter: blur(10px); 
+}
 .profile-top { display: flex; align-items: center; gap: 1.3rem; margin-bottom: 1.6rem; }
 .avatar-wrap { position: relative; flex-shrink: 0; }
 .avatar-ring { width: 92px; height: 92px; border-radius: 50%; padding: 3px; background: linear-gradient(135deg, #3b6fd4, #1e3fa0, #4f8ef5, #38bdf8); }
@@ -53,7 +59,13 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--a
 .profile-right { flex: 1; min-width: 0; }
 .field-label { font-size: 13.5px; color: #7a90bb; margin-bottom: 7px; text-align: left;}
 .field-input { width: 100%; background: rgba(16, 28, 65, 0.8); border: 1px solid rgba(80, 130, 230, 0.38); border-radius: 10px; padding: 10px 14px; color: #c8d8ff; font-size: 15px; outline: none; transition: border-color 0.2s; margin-bottom: 10px; }
-.save-btn { width: 100%; background: linear-gradient(135deg, #3b6fd4 0%, #2450b0 100%); border: none; border-radius: 10px; padding: 11px; color: #fff; font-size: 14.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity 0.2s, transform 0.1s; }
+.save-btn { 
+  width: 100%; 
+  background: linear-gradient(135deg, #3b6fd4 0%, #2450b0 100%) padding-box,
+              linear-gradient(150deg, #cfe4ff, #7c9bff) border-box !important;
+  border: 1.5px solid transparent !important;
+  border-radius: 10px; padding: 11px; color: #fff; font-size: 14.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity 0.2s, transform 0.1s; 
+}
 .save-btn:hover { opacity: 0.9; }
 .save-btn:active { transform: scale(0.98); }
 .colors-section { text-align: center; }
@@ -65,9 +77,19 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--a
 .color-dot:hover { transform: scale(1.12); }
 .action-row { display: flex; gap: 12px; margin-bottom: 2.2rem; }
 .logout-btn, .delete-btn { flex: 1; border-radius: 13px; padding: 14px; font-size: 14.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s, transform 0.1s; background: transparent; }
-.logout-btn { border: 1px solid rgba(80, 130, 220, 0.4); color: #a0b8e8; }
+.logout-btn { 
+  background: linear-gradient(var(--bg), var(--bg)) padding-box,
+              linear-gradient(150deg, #60a5fa, #3d7bff) border-box !important;
+  border: 1.5px solid transparent !important;
+  color: #a0b8e8; 
+}
 .logout-btn:hover { background: rgba(80,130,220,0.1); }
-.delete-btn { border: 1px solid rgba(220, 60, 60, 0.4); color: #f87171; }
+.delete-btn { 
+  background: linear-gradient(var(--bg), var(--bg)) padding-box,
+              linear-gradient(150deg, #f87171, #ef4444) border-box !important;
+  border: 1.5px solid transparent !important;
+  color: #f87171; 
+}
 .delete-btn:hover { background: rgba(220,60,60,0.08); }
 .divider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 1.4rem; }
 .div-line { flex: 1; height: 1px; background: rgba(80,130,220,0.28); }
@@ -86,11 +108,6 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--a
 .color-dot.c5 { background: #34d399; }
 .color-dot.c6 { background: #fbbf24; }
 .color-dot.c7 { background: #f87171; }
-.friend-card { width: 110px; background: rgba(12, 20, 52, 0.88); border: 1px solid rgba(80, 130, 230, 0.25); border-radius: 14px; padding: 0.85rem 0.5rem; text-align: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: border-color 0.2s, transform 0.15s; cursor: pointer; }
-.friend-card:hover { border-color: rgba(96,165,250,0.5); transform: translateY(-2px); }
-.friend-avatar { width: 58px; height: 58px; border-radius: 50%; margin: 0 auto 9px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(80,130,220,0.4); }
-.friend-name { font-size: 11.5px; font-weight: 600; color: #c0d4ff; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.friend-stats { font-size: 10px; color: #5a78a8; margin-bottom: 9px; line-height: 1.5; }
 .friend-btns { display: flex; justify-content: center; gap: 6px; }
 .fb-add, .fb-remove { width: 26px; height: 26px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.15s, opacity 0.2s; }
 .fb-add:hover, .fb-remove:hover { transform: scale(1.15); }
@@ -1609,9 +1626,6 @@ function ProfilePage() {
   ));
 
   // Amigos
-  content.appendChild(h('div', { class: 'section-deco' },
-    h('div', { class: 'deco-line' }), h('div', { class: 'deco-diamond' }), h('div', { class: 'deco-line' })
-  ));
   content.appendChild(h('h2', { class: 'friends-title' }, 'Amigos', h('span', { class: 'heart-icon' })));
   content.appendChild(h('p', { class: 'friends-subtitle' }, 'Aquí puedes ver a tus amigos y compartir tierlists juntos.'));
 
@@ -1621,15 +1635,17 @@ function ProfilePage() {
   } else {
     const grid = h('div', { class: 'friends-grid' });
     friends.forEach(f => {
-      const fc = h('div', { class: 'friend-card', onclick: () => viewUser(f.id) });
-      const av = h('div', { class: 'friend-avatar' });
-      av.appendChild(h('img', {
-        src: f.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${f.name}`,
-        style: { width:'100%', height:'100%', objectFit:'cover' }
-      }));
-      fc.appendChild(av);
-      fc.appendChild(h('div', { class: 'friend-name' }, f.name));
-      fc.appendChild(h('div', { class: 'friend-stats' }, `${f.tl_count || 0} tierlists`, h('br'), `${f.friend_count || 0} amigos`));
+      const fc = h('div', { class: 'user-card', onclick: () => viewUser(f.id) });
+      const avWrap = h('div', { class: 'user-avatar-wrap' });
+      avWrap.appendChild(h('div', { class: 'user-avatar-ring' }));
+      avWrap.appendChild(h('div', { class: 'user-avatar-border' }));
+      const av = h('img', { class: 'user-avatar', src: f.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${f.name}` });
+      avWrap.appendChild(av);
+      fc.appendChild(avWrap);
+      
+      fc.appendChild(h('span', { class: 'user-name' }, f.name));
+      fc.appendChild(h('div', { class: 'user-stats' }, `${f.tl_count || 0} tierlists · ${f.friend_count || 0} amigos`));
+
       const btns = h('div', { class: 'friend-btns' });
       btns.appendChild(h('button', { class: 'fb-add', title: 'Ver perfil', onclick: (e) => { e.stopPropagation(); viewUser(f.id); } }, h('i', { class: 'ti ti-eye' })));
       btns.appendChild(h('button', { class: 'fb-remove', title: 'Eliminar amigo', onclick: (e) => { e.stopPropagation(); removeFriend(f.relId); } }, h('i', { class: 'ti ti-minus' })));
