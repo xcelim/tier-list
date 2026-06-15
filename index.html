@@ -2103,7 +2103,7 @@ function updPool(cont,tl){
 // ============ MODALS ============
 function ModalEl(){
   if(!S.modal)return null;
-  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'chat': MChat};
+  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'create-group': MCreateGroupChat, 'chat': MChat};
   const fn=fns[S.modal];
   if(!fn) return null;
 
@@ -2168,10 +2168,12 @@ function MCropAvatar() {
 }
 
 // ============ CHAT WINDOW COMPONENT (persistent, toggled visibility) ============
-function ChatWindowComponent() {
+function MChat() {
   const m = h('div', { 
-    class: 'chat-modal',
-    style: S.chatModalPosition.x !== null ? { left: S.chatModalPosition.x + 'px', top: S.chatModalPosition.y + 'px', right: 'auto', bottom: 'auto' } : {}
+    class: 'chat-modal', 
+    style: S.chatModalPosition.x !== null 
+      ? { left: S.chatModalPosition.x + 'px', top: S.chatModalPosition.y + 'px', right: 'auto', bottom: 'auto', display: 'flex' } 
+      : { display: 'flex' }
   });
 
   const activeChat = S.activeChat || (S.chats && S.chats.length > 0 ? S.chats[0] : null);
@@ -2220,7 +2222,7 @@ function ChatWindowComponent() {
   headerLeft.appendChild(h('span', { class: 'chat-window-title' }, chatTitle));
   header.appendChild(headerLeft);
   
-  const closeBtn = h('div', { class: 'chat-close-btn', onclick: () => { S.chatWindowVisible = false; S.chatModalPosition = { x: null, y: null }; render(); } });
+  const closeBtn = h('div', { class: 'chat-close-btn', onclick: () => { S.modal = null; S.chatModalPosition = { x: null, y: null }; render(); } });
   closeBtn.appendChild(h('i', { class: 'ti ti-x', style: { fontSize: '15px' } }));
   header.appendChild(closeBtn);
   m.appendChild(header);
