@@ -947,33 +947,22 @@ function Nav(){
     }},'Editor'));
   }
   const nr=h('div',{class:'nav-right'});
-  
   if(userSession) {
-    const notif = h('div', { class: 'nav-notif', onclick: () => toast("No tienes notificaciones", "info") }, 
+    const notifBtn = h('div', { class: 'nav-notif', onclick: (e) => { e.stopPropagation(); S.notifMenu = !S.notifMenu; S.profileMenu = null; render(); } },
       h('span', {style:{fontSize:'18px'}}, '🔔'),
-      h('div', { class: 'notif-badge' }, '0')
+      S.pendingRequests.length > 0 ? h('div', { class: 'notif-badge' }, S.pendingRequests.length + '') : null
     );
-    nr.appendChild(notif);
+    nr.appendChild(notifBtn);
   }
-
   if (!userSession) {
-    nr.appendChild(h('div', { 
-      class: 'profile-btn', 
-      style: { background: 'var(--bg3)', color: 'var(--text2)' },
-      onclick: handleGoogleLogin,
-      title: 'Iniciar Sesión con Google'
-    }, '👤'));
+    nr.appendChild(h('div', { class: 'profile-btn', style: { background: 'var(--bg3)', color: 'var(--text2)' }, onclick: handleGoogleLogin, title: 'Iniciar Sesión con Google' }, '👤'));
   } else {
     const p = currentUserProfile || { name: '...', color: '#888' };
-    const btn = h('div', { 
-      class: 'profile-btn active', 
-      style: { background: p.color + '33', color: p.color }, 
-      onclick: (e) => { e.stopPropagation(); S.profileMenu = userSession.user.id; render(); }
-    }, p.name.charAt(0).toUpperCase());
+    const btn = h('div', { class: 'profile-btn active', style: { background: p.color + '33', color: p.color }, onclick: (e) => { e.stopPropagation(); S.profileMenu = userSession.user.id; S.notifMenu = false; render(); } }, p.name.charAt(0).toUpperCase());
     nr.appendChild(btn);
   }
   n.appendChild(nr);
-  // Profile menu
+
   if(S.profileMenu){
     const p=getProfile(S.profileMenu);
     if(p){
@@ -984,40 +973,32 @@ function Nav(){
       }else{
         pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.modal='edit-profile';S.md={profileId:p.id};S.profileMenu=null;render();}},'\u270F Editar perfil'));
         pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.profileMenu=null;handleLogout();}},'🚪 Cerrar sesión'));
-    // ... existente logic de pm ...
-  }
-  
-  if(userSession) {
-    const notifBtn = h('div', { class: 'nav-notif', onclick: (e) => { e.stopPropagation(); S.notifMenu = !S.notifMenu; render(); } }, 
-      h('span', {style:{fontSize:'18px'}}, '🔔'),
-      S.pendingRequests.length > 0 ? h('div', { class: 'notif-badge' }, S.pendingRequests.length + '') : null
-    );
-    nr.insertBefore(notifBtn, nr.firstChild);
-
-    if(S.notifMenu) {
-      const nm = h('div', { class: 'notif-menu' }, h('div', { class: 'notif-title' }, 'Notificaciones', h('span', {style:{cursor:'pointer'}, onclick:()=>S.notifMenu=false}, '✕')));
-      if(S.pendingRequests.length === 0) {
-        nm.appendChild(h('div', { class: 'notif-empty' }, 'No tienes solicitudes pendientes.'));
-      } else {
-        S.pendingRequests.forEach(req => {
-          const item = h('div', { class: 'notif-item' });
-          item.appendChild(h('div', { class: 'notif-msg' }, h('strong', {}, req.profiles.name), ' ha solicitado ser tu amigo.'));
-          const acts = h('div', { class: 'notif-actions' });
-          acts.appendChild(h('button', { class: 'btn bp bsm btn-notif', onclick: () => respondFriendRequest(req.id, 'accepted') }, '✓ Aceptar'));
-          acts.appendChild(h('button', { class: 'btn bd bsm btn-notif', onclick: () => respondFriendRequest(req.id, 'rejected') }, '✕'));
-          item.appendChild(acts);
-          nm.appendChild(item);
-        });
       }
       pm.appendChild(h('div',{class:'pm-divider'}));
       pm.appendChild(h('div',{class:'pm-item danger',onclick:()=>{S.profileMenu=null;handleDeleteAccount();}},'✕ Eliminar cuenta'));
       document.addEventListener('click',()=>{S.profileMenu=null;render();},{once:true});
       n.appendChild(pm);
-      document.addEventListener('click',()=>{S.notifMenu=false;render();},{once:true});
-      n.appendChild(nm);
     }
   }
 
+  if(userSession && S.notifMenu) {
+    const nm = h('div', { class: 'notif-menu' }, h('div', { class: 'notif-title' }, 'Notificaciones', h('span', {style:{cursor:'pointer'}, onclick:()=>S.notifMenu=false}, '✕')));
+    if(S.pendingRequests.length === 0) {
+      nm.appendChild(h('div', { class: 'notif-empty' }, 'No tienes solicitudes pendientes.'));
+    } else {
+      S.pendingRequests.forEach(req => {
+        const item = h('div', { class: 'notif-item' });
+        item.appendChild(h('div', { class: 'notif-msg' }, h('strong', {}, (req.profiles||{}).name || 'Usuario'), ' ha solicitado ser tu amigo.'));
+        const acts = h('div', { class: 'notif-actions' });
+        acts.appendChild(h('button', { class: 'btn bp bsm btn-notif', onclick: () => respondFriendRequest(req.id, 'accepted') }, '✓ Aceptar'));
+        acts.appendChild(h('button', { class: 'btn bd bsm btn-notif', onclick: () => respondFriendRequest(req.id, 'rejected') }, '✕'));
+        item.appendChild(acts);
+        nm.appendChild(item);
+      });
+    }
+    document.addEventListener('click',()=>{S.notifMenu=false;render();},{once:true});
+    n.appendChild(nm);
+  }
   return n;
 }
 
@@ -1032,6 +1013,7 @@ async function sendFriendRequest(targetUserId) {
   if(!confirm('¿Quieres enviar una solicitud de amistad?')) return;
   const { error } = await sbClient.from('friendships').insert({ user_id: userSession.user.id, friend_id: targetUserId, status: 'pending' });
   if(!error) { toast('Solicitud enviada ✓'); fetchAllUsers(); }
+  else { toast('Ya has enviado una solicitud o ya sois amigos', 'err'); }
 }
 
 async function respondFriendRequest(requestId, status) {
@@ -1177,6 +1159,7 @@ function UsersPage() {
     card.appendChild(h('div', { class: 'user-stats' }, `${tls} tierlists · ${friends} amigos`));
     // Stats Reales
     card.appendChild(h('div', { class: 'user-stats' }, `${u.tl_count} tierlists · ${u.friend_count} amigos`));
+    card.appendChild(h('div', { class: 'user-stats' }, `${u.tl_count || 0} tierlists · ${u.friend_count || 0} amigos`));
 
     // Solo botón añadir
     const addBtn = h('button', { class: 'user-add-btn', onclick: (e) => { e.stopPropagation(); toast('Solicitud enviada a ' + u.name); } }, '+');
@@ -1188,6 +1171,8 @@ function UsersPage() {
         btn = h('button', { class: 'user-add-btn', onclick: (e) => { e.stopPropagation(); sendFriendRequest(u.id); } }, '+');
       } else if(u.relStatus === 'pending_sent') {
         btn = h('button', { class: 'user-add-btn pending', title: 'Solicitud enviada' }, '...');
+      } else if(u.relStatus === 'pending_received') {
+        btn = h('button', { class: 'user-add-btn pending', title: 'Tienes una solicitud de este usuario' }, '!');
       } else if(u.relStatus === 'accepted') {
         btn = h('button', { class: 'user-add-btn remove', title: 'Eliminar amigo', onclick: (e) => { e.stopPropagation(); removeFriend(u.relId); } }, '✕');
       } else {
@@ -2227,16 +2212,9 @@ window.addEventListener('popstate',()=>{
 });
 
 async function fetchAllUsers() {
-  if (!sbClient) return;
-  const { data, error } = await sbClient.from('profiles').select('*').order('name');
-  if (!error) S.allUsers = data;
-  render();
   if (!sbClient) return; 
-  // 1. Obtener perfiles
   const { data: profiles } = await sbClient.from('profiles').select('*').order('name');
-  // 2. Obtener conteo de rankings personalizados (donde haya tiers_data con chars)
   const { data: rankings } = await sbClient.from('user_rankings').select('user_id');
-  // 3. Obtener amistades aceptadas para los conteos
   const { data: friendships } = await sbClient.from('friendships').select('*');
   
   if (profiles) {
@@ -2244,10 +2222,12 @@ async function fetchAllUsers() {
       const tlCount = (rankings || []).filter(r => r.user_id === u.id).length;
       const userFriends = (friendships || []).filter(f => f.status === 'accepted' && (f.user_id === u.id || f.friend_id === u.id));
       
-      // Determinar relación con el usuario logueado
       let relStatus = 'none', relId = null;
       if(userSession) {
-        const rel = (friendships || []).find(f => (f.user_id === userSession.user.id && f.friend_id === u.id) || (f.friend_id === userSession.user.id && f.user_id === u.id));
+        const rel = (friendships || []).find(f => 
+          (f.user_id === userSession.user.id && f.friend_id === u.id) || 
+          (f.friend_id === userSession.user.id && f.user_id === u.id)
+        );
         if(rel) {
           relId = rel.id;
           if(rel.status === 'accepted') relStatus = 'accepted';
