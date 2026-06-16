@@ -171,7 +171,7 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .hh-footer::before,.hh-footer::after{content:'';flex:1;max-width:80px;height:1px;background:linear-gradient(90deg,transparent,var(--border2))}
 .profile-notice{text-align:center;padding:40px 20px;color:var(--text3)}
 .profile-notice h2{font-size:22px;margin-bottom:8px;font-family:'Rajdhani',sans-serif;color:var(--text2)}
-.tlg{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:16px}
+.tlg{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:16px}
 .tlc{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:.2s;position:relative}
 .tlc:hover{border-color:var(--border2);background:var(--bg3);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
 .tlc h3{font-size:16px;font-weight:600;font-family:'Rajdhani',sans-serif;margin-bottom:4px}
@@ -485,6 +485,28 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 .users-footer{text-align:center;margin-top:40px;color:var(--text3);font-size:12px;display:flex;align-items:center;gap:8px;justify-content:center}
 .users-footer::before,.users-footer::after{content:'';flex:1;max-width:80px;height:1px;background:linear-gradient(90deg,transparent,rgba(120,150,255,.3))}
 .users-footer::after{background:linear-gradient(90deg,rgba(120,150,255,.3),transparent)}
+
+/* --- MEDIA QUERIES PARA MÓVIL --- */
+@media (max-width: 600px) {
+  .hh h1 { font-size: 42px; }
+  .tlg { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  .tlc h3 { font-size: 13px; }
+  
+  /* Editor en móvil */
+  .tlbl { width: 60px; min-width: 60px; }
+  .tlbl-txt { font-size: 11px; }
+  .tchars { padding: 4px; gap: 3px; }
+  .tc, .pc { width: 75px; height: 120px; }
+  .drag-float { width: 75px; height: 120px; }
+  .drop-placeholder { width: 75px; height: 120px; }
+  .trow { min-height: 130px; }
+  .tc .cn, .pc .cn { font-size: 6px; }
+  
+  /* Nav en móvil */
+  .ntab { padding: 6px 8px; font-size: 11px; }
+  .logo { font-size: 18px; letter-spacing: 1px; }
+  .chat-modal { width: 95% !important; right: 2.5% !important; left: 2.5% !important; }
+}
 </style>
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
