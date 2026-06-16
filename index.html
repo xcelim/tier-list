@@ -496,16 +496,36 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
   .tlbl { width: 60px; min-width: 60px; }
   .tlbl-txt { font-size: 11px; }
   .tchars { padding: 4px; gap: 3px; }
-  .tc, .pc { width: 75px; height: 120px; }
-  .drag-float { width: 75px; height: 120px; }
-  .drop-placeholder { width: 75px; height: 120px; }
-  .trow { min-height: 130px; }
+  .tc, .pc { width: 68px; height: 110px; }
+  .drag-float { width: 68px; height: 110px; }
+  .drop-placeholder { width: 68px; height: 110px; }
+  .trow { min-height: 120px; }
   .tc .cn, .pc .cn { font-size: 6px; }
   
   /* Nav en móvil */
   .ntab { padding: 6px 8px; font-size: 11px; }
   .logo { font-size: 18px; letter-spacing: 1px; }
   .chat-modal { width: 95% !important; right: 2.5% !important; left: 2.5% !important; }
+}
+
+/* --- MODO LANDSCAPE (GIRADO) PARA MÓVIL --- */
+@media (max-width: 950px) and (orientation: landscape) {
+  .hh { padding: 20px 0 5px; }
+  .hh h1 { font-size: 34px; margin-bottom: 4px; }
+  .hh-diamond-sep { margin: 4px auto 8px; }
+  .hh p { font-size: 12px; }
+  .menu-grid { margin-top: 15px; gap: 15px; }
+  .menu-box { width: 170px; height: 210px; gap: 10px; }
+  .menu-box h2 { font-size: 16px; }
+  .menu-box .mb-icon { width: 44px; height: 44px; }
+  .menu-box .mb-icon svg { width: 22px; height: 22px; }
+  .tlg { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+  .tc, .pc { width: 60px; height: 95px; }
+  .drag-float, .drop-placeholder { width: 60px; height: 95px; }
+  .trow { min-height: 105px; }
+  .tlbl { width: 50px; min-width: 50px; }
+  .tlbl-txt { font-size: 10px; }
+  .tchars { padding: 3px; gap: 2px; }
 }
 </style>
 <!-- Supabase SDK -->
@@ -1749,8 +1769,8 @@ function Viewer() {
     (tier.chars || []).forEach(cid => {
       const c = getChar(cid, { folder: tlMeta.folder });
       if(!c) return;
-      const el = h('div', { class: 'tc' });
-      const imgSrc = c.file?.startsWith('http') ? c.file : (BUCKET_BASE + (tlMeta.folder || 'waifus') + '/' + c.file);
+      const el = h('div', { class: 'tc', style: { position: 'relative' } });
+      const imgSrc = charImg(cid, { folder: tlMeta.folder });
       el.appendChild(h('img', { 
         src: imgSrc,
         onerror: (e) => e.target.src = 'https://api.dicebear.com/7.x/initials/svg?seed=' + encodeURIComponent(c.name)
