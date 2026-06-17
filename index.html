@@ -206,7 +206,8 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 /* CHARS - SMOOTH DRAG ANIMATIONS */
 .tchars{flex:1;display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;gap:4px;padding:6px;min-height:172px;position:relative}
 .tc,.pc{border-radius:10px;overflow:visible;cursor:grab;position:relative;flex-shrink:0;border:2px solid transparent; background: var(--bg3);
-  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s; touch-action: auto;}
+  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s; touch-action: auto;
+  -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
 .tc{width:100px;height:160px}
 .pc{width:102px;height:162px;border-color:var(--border)}
 .tc:hover{border-color:var(--accent2);transform:scale(1.1) translateY(-3px) rotate(1deg);z-index:20;box-shadow:0 10px 24px rgba(0,0,0,.55)}
@@ -1157,6 +1158,8 @@ function h(tag,a,...ch){
 let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
 let scrollDir=0,scrollInt=null;
 let _md=false,_mdMoved=false,_mdX=0,_mdY=0,_mdImg='',_lastZoneKey='';
+let _lpT=null,_pointerId=null,_isTouch=false;
+const LONG_PRESS_MS=2000; // tiempo de pulsación larga en móvil/táctil antes de poder arrastrar
 
 function updateScroll(){if(scrollDir!==0)window.scrollBy(0,scrollDir*60);}
 function createFloat(imgSrc){
@@ -1266,7 +1269,7 @@ function _executeDrop(zone){
 }
 function _dragCleanup(){
   document.body.style.userSelect='';
-  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;_lastZoneKey='';
+  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;_lastZoneKey='';_isTouch=false;
   removeFloat();lastZone=null;
   const ph=document.getElementById('drop-ph');if(ph)ph.remove();
   document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
@@ -1274,23 +1277,33 @@ function _dragCleanup(){
   document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
 }
 
+function _cancelLongPress(){
+  if(_lpT){clearTimeout(_lpT);_lpT=null;}
+}
+function _activateDrag(x,y){
+  // Llamado cuando el drag debe empezar de verdad (inmediato en ratón, tras long-press en táctil)
+  _md=true;_mdMoved=false;_mdX=x;_mdY=y;
+}
+
 document.addEventListener('pointermove',e=>{
-  // If pointer capture is active, ensure this event is for the captured pointer
-  if (_pointerId !== null && e.pointerId !== _pointerId) {
-    return;
+  if(_pointerId!==null&&e.pointerId!==_pointerId)return;
+
+  // Pulsación larga pendiente en táctil: si se mueve antes de tiempo, es un scroll -> cancelar
+  if(_lpT&&!_md){
+    if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)>10){
+      _cancelLongPress();
+    }
+    return; // mientras no se confirme el drag, no hacemos nada más (deja scrollear)
   }
 
-  // If long press is pending and not yet dragging
-  if(_lpT && !_md){
-    // Si se mueve más de 10px antes del tiempo de pulsación larga, cancelar
-    if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)>10){
-      clearTimeout(_lpT); _lpT=null;
-    }
-  }
   if(!_md)return;
-  if(!_mdMoved){ // Only set _mdMoved to true once there's significant movement AND _md is true
+  if(!_mdMoved){
     if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)<5)return;
     _mdMoved=true;
+    // Ahora sí confirmamos que es un drag: bloqueamos scroll/selección del navegador
+    if(_pointerId!==null){
+      try{e.target.setPointerCapture?.(_pointerId);}catch(err){}
+    }
     document.body.style.userSelect='none';
     createFloat(_mdImg);
     _posFloat(e.clientX,e.clientY);
@@ -1298,36 +1311,55 @@ document.addEventListener('pointermove',e=>{
       if(el.dataset.cid===DG)el.classList.add('is-dragging');
     });
   }
+  if(_mdMoved)e.preventDefault();
   _posFloat(e.clientX,e.clientY);
   const zone=_getDropZone(e.clientX,e.clientY);
   const key=zone?(zone.type+(zone.tid||'')+(zone.idx??'')):'';
   if(key!==_lastZoneKey){_lastZoneKey=key;_updatePlaceholder(zone);}
-});
+},{passive:false});
 
 document.addEventListener('pointerup',e=>{
-  // Always clear long press timer on pointerup
-  if(_lpT){clearTimeout(_lpT); _lpT=null;} 
+  _cancelLongPress();
 
-  // Release pointer capture if it was set
-  if (_pointerId !== null && e.target.hasPointerCapture(_pointerId)) {
+  if(_pointerId!==null&&e.target.hasPointerCapture?.(_pointerId)){
     e.target.releasePointerCapture(_pointerId);
   }
-  _pointerId = null; // Reset pointer ID
+  _pointerId=null;
 
-  // If no drag was active (_md is false) or no movement occurred (simple click/tap)
-  if(!_md || !_mdMoved){_dragCleanup();return;} 
+  if(!_md||!_mdMoved){_dragCleanup();return;}
 
   const zone=_getDropZone(e.clientX,e.clientY);
   _executeDrop(zone);
   _dragCleanup();
-},{passive:true});
+});
+
+document.addEventListener('pointercancel',e=>{
+  _cancelLongPress();
+  _pointerId=null;
+  _dragCleanup();
+});
 
 function dgPointerDown(e,id,src,idx,imgSrc){
-  if(e.button!==0)return;
+  if(e.button!==undefined&&e.button!==0)return;
   DG=id;DS=src;DGidx=idx;
-  _md=true;_mdMoved=false;
-  _mdX=e.clientX;_mdY=e.clientY;
   _mdImg=imgSrc||'';
+  _isTouch=e.pointerType==='touch'||e.pointerType==='pen';
+
+  if(_isTouch){
+    // En móvil/táctil: hace falta mantener pulsado 2s para poder arrastrar.
+    // No activamos el drag todavía, así el dedo puede seguir deslizando la pantalla normalmente.
+    _pointerId=e.pointerId;
+    _mdX=e.clientX;_mdY=e.clientY;
+    _cancelLongPress();
+    _lpT=setTimeout(()=>{
+      _lpT=null;
+      _activateDrag(_mdX,_mdY);
+    },LONG_PRESS_MS);
+  }else{
+    // En PC con ratón: arrastrar funciona igual que siempre, sin pulsación larga.
+    _pointerId=e.pointerId;
+    _activateDrag(e.clientX,e.clientY);
+  }
 }
 function dgstart(e){e.preventDefault();}
 function dgend(){}
@@ -2649,7 +2681,7 @@ function MPick(){
 // ADD CUSTOM CHAR (con AniList)
 function MAddChar(){
   const tl=S.workingTL;if(!tl)return h('div',{class:'modal'},h('p',{},'Error'));
-  const m=h('div',{class:'modal'});
+  const m=h('div',{class:'modal',onmousedown:e=>e.stopPropagation()});
   m.appendChild(h('h2',{},'A\xf1adir waifu a "'+tl.title+'"'));
   let imgData=null,fileName='',charName='',animeName='',aniSearchT=null;
 
