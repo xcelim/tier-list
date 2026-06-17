@@ -1275,6 +1275,12 @@ function _dragCleanup(){
 }
 
 document.addEventListener('pointermove',e=>{
+  if(_lpT && !_md){
+    // Si se mueve más de 10px antes del tiempo de pulsación larga, cancelar
+    if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)>10){
+      clearTimeout(_lpT); _lpT=null;
+    }
+  }
   if(!_md)return;
   if(!_mdMoved){
     if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)<5)return;
@@ -1293,6 +1299,7 @@ document.addEventListener('pointermove',e=>{
 });
 
 document.addEventListener('pointerup',e=>{
+  if(_lpT){clearTimeout(_lpT); _lpT=null;}
   if(!_md)return;
   if(!_mdMoved){_dragCleanup();return;}
   const zone=_getDropZone(e.clientX,e.clientY);
