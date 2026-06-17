@@ -206,7 +206,7 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 /* CHARS - SMOOTH DRAG ANIMATIONS */
 .tchars{flex:1;display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;gap:4px;padding:6px;min-height:172px;position:relative}
 .tc,.pc{border-radius:10px;overflow:visible;cursor:grab;position:relative;flex-shrink:0;border:2px solid transparent; background: var(--bg3);
-  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s}
+  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s; touch-action: none;}
 .tc{width:100px;height:160px}
 .pc{width:102px;height:162px;border-color:var(--border)}
 .tc:hover{border-color:var(--accent2);transform:scale(1.1) translateY(-3px) rotate(1deg);z-index:20;box-shadow:0 10px 24px rgba(0,0,0,.55)}
@@ -1274,7 +1274,7 @@ function _dragCleanup(){
   document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
 }
 
-document.addEventListener('mousemove',e=>{
+document.addEventListener('pointermove',e=>{
   if(!_md)return;
   if(!_mdMoved){
     if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)<5)return;
@@ -1290,9 +1290,9 @@ document.addEventListener('mousemove',e=>{
   const zone=_getDropZone(e.clientX,e.clientY);
   const key=zone?(zone.type+(zone.tid||'')+(zone.idx??'')):'';
   if(key!==_lastZoneKey){_lastZoneKey=key;_updatePlaceholder(zone);}
-},{passive:true});
+});
 
-document.addEventListener('mouseup',e=>{
+document.addEventListener('pointerup',e=>{
   if(!_md)return;
   if(!_mdMoved){_dragCleanup();return;}
   const zone=_getDropZone(e.clientX,e.clientY);
@@ -2085,7 +2085,7 @@ function Editor(){
       el.appendChild(h('img',{src:imgSrcVal,onerror:(e)=>e.target.src='https://api.dicebear.com/7.x/initials/svg?seed='+encodeURIComponent(c.name||cid)}));
       el.appendChild(h('div',{class:'cn'},c.name||cid));
       el.appendChild(h('button',{class:'del-btn',title:'Eliminar permanentemente',onclick:(e)=>{e.stopPropagation();deleteCustomChar(cid,tl);}},'✕'));
-      el.addEventListener('mousedown',e=>dgPointerDown(e,cid,tier.id,ci,imgSrcVal));
+      el.addEventListener('pointerdown',e=>dgPointerDown(e,cid,tier.id,ci,imgSrcVal));
       el.ondblclick=()=>{tier.chars=tier.chars.filter(x=>x!==cid);if(!tl.pool.includes(cid))tl.pool.unshift(cid);markUnsaved();};
       ce.appendChild(el);
     });
@@ -2203,7 +2203,7 @@ function updPool(cont,tl){
     el.appendChild(im);el.appendChild(h('div',{class:'cn'},c.name||cid));
     el.appendChild(h('button',{class:'del-btn',title:'Eliminar permanentemente',onclick:(e)=>{e.stopPropagation();deleteCustomChar(cid,tl);}},'✕'));
     const imgSrcVal=charImg(cid,tl);
-    el.addEventListener('mousedown',e=>dgPointerDown(e,cid,'pool',-1,imgSrcVal));
+    el.addEventListener('pointerdown',e=>dgPointerDown(e,cid,'pool',-1,imgSrcVal));
     cont.appendChild(el);
   });
   if(shown.length<chars.length){
@@ -2222,7 +2222,12 @@ function ModalEl(){
   if(S.modal === 'chat') {
      return fn();
   }
-  const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}});
+  let _ovDown = false;
+  const ov=h('div',{
+    class:'ov',
+    onmousedown: (e) => { if(e.target === ov) _ovDown = true; },
+    onmouseup: (e) => { if(_ovDown && e.target === ov) { S.modal = null; render(); } _ovDown = false; }
+  });
   ov.appendChild(fn());
   return ov;
 }
@@ -2643,12 +2648,12 @@ function MAddChar(){
 
   // Name
   const ng=h('div',{class:'fg'});ng.appendChild(h('label',{},'Nombre'));
-  const ni=h('input',{type:'text',placeholder:'Ej: Rem'});ni.oninput=e=>charName=e.target.value;ng.appendChild(ni);m.appendChild(ng);
+  const ni=h('input',{type:'text',placeholder:'Ej: Rem', onmousedown: e => e.stopPropagation()});ni.oninput=e=>charName=e.target.value;ng.appendChild(ni);m.appendChild(ng);
 
   // Anime (AniList)
   const ag=h('div',{class:'fg'});ag.appendChild(h('label',{},'Anime (busca en cualquier idioma)'));
   const awrap=h('div',{class:'ac-wrap'});
-  const ai=h('input',{type:'text',placeholder:'Ej: yofukashi no uta, Demon Slayer, naruto...'});
+  const ai=h('input',{type:'text',placeholder:'Ej: yofukashi no uta, Demon Slayer, naruto...', onmousedown: e => e.stopPropagation()});
   const acl=h('div',{class:'ac-list',style:{display:'none'}});
   let acFocus=-1,aniResults=[];
 
@@ -2677,7 +2682,7 @@ function MAddChar(){
     acl.style.display='block';
   }
   ai.oninput=e=>{
-    animeName=e.target.value;
+      animeName=e.target.value; // Update animeName immediately
     clearTimeout(aniSearchT);
     if(e.target.value.length>=2){aniSearchT=setTimeout(()=>doAniSearch(e.target.value),350);}
     else{acl.style.display='none';}
@@ -2753,10 +2758,10 @@ function MEditChar(){
   ph.appendChild(pi);ph.appendChild(h('div',{},h('div',{style:{fontWeight:'600',fontSize:'14px'}},c.name),h('div',{style:{fontSize:'11px',color:'var(--text3)',marginTop:'3px'}},c.anime||'')));
   m.appendChild(ph);
   let newName=c.name,newAnime=c.anime||'',aniSearchT2=null,aniRes2=[];
-  const ng=h('div',{class:'fg'});ng.appendChild(h('label',{},'Nombre'));
-  const ni=h('input',{type:'text',value:c.name});ni.oninput=e=>newName=e.target.value;ng.appendChild(ni);m.appendChild(ng);
-  const ag=h('div',{class:'fg'});ag.appendChild(h('label',{},'Anime'));
-  const awrap=h('div',{class:'ac-wrap'});
+      const ng=h('div',{class:'fg'});ng.appendChild(h('label',{},'Nombre')); // Name input
+      const ni=h('input',{type:'text',value:c.name, onmousedown:(e)=>e.stopPropagation()});ni.oninput=e=>newName=e.target.value;ng.appendChild(ni);m.appendChild(ng);
+      const ag=h('div',{class:'fg'});ag.appendChild(h('label',{},'Anime')); // Anime input
+      const awrap=h('div',{class:'ac-wrap'}); 
   const ai=h('input',{type:'text',value:c.anime||''});
   const acl=h('div',{class:'ac-list',style:{display:'none'}});
   let acF=-1;
@@ -2774,8 +2779,8 @@ function MEditChar(){
     });
     acl.style.display='block';
   }
-  ai.oninput=e=>{newAnime=e.target.value;clearTimeout(aniSearchT2);if(e.target.value.length>=2)aniSearchT2=setTimeout(()=>doSearch2(e.target.value),350);else acl.style.display='none';};
-  document.addEventListener('mousedown',e=>{if(!awrap.contains(e.target))acl.style.display='none';});
+    ai.oninput=e=>{newAnime=e.target.value;clearTimeout(aniSearchT2);if(e.target.value.length>=2)aniSearchT2=setTimeout(()=>doSearch2(e.target.value),350);else acl.style.display='none';}; // Anime input
+    ai.onmousedown = (e) => e.stopPropagation(); // Prevent modal closing when interacting with this input
   awrap.appendChild(ai);awrap.appendChild(acl);ag.appendChild(awrap);m.appendChild(ag);
   const row=h('div',{style:{display:'flex',gap:'8px',marginTop:'14px'}});
   row.appendChild(h('button',{class:'btn bg',style:{flex:'1'},onclick:()=>{S.modal=null;if(onDone)onDone();else render();}},'Cancelar'));
