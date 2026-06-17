@@ -1275,6 +1275,12 @@ function _dragCleanup(){
 }
 
 document.addEventListener('pointermove',e=>{
+  // If pointer capture is active, ensure this event is for the captured pointer
+  if (_pointerId !== null && e.pointerId !== _pointerId) {
+    return;
+  }
+
+  // If long press is pending and not yet dragging
   if(_lpT && !_md){
     // Si se mueve más de 10px antes del tiempo de pulsación larga, cancelar
     if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)>10){
@@ -1282,7 +1288,7 @@ document.addEventListener('pointermove',e=>{
     }
   }
   if(!_md)return;
-  if(!_mdMoved){
+  if(!_mdMoved){ // Only set _mdMoved to true once there's significant movement AND _md is true
     if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)<5)return;
     _mdMoved=true;
     document.body.style.userSelect='none';
@@ -1299,9 +1305,18 @@ document.addEventListener('pointermove',e=>{
 });
 
 document.addEventListener('pointerup',e=>{
-  if(_lpT){clearTimeout(_lpT); _lpT=null;}
-  if(!_md)return;
-  if(!_mdMoved){_dragCleanup();return;}
+  // Always clear long press timer on pointerup
+  if(_lpT){clearTimeout(_lpT); _lpT=null;} 
+
+  // Release pointer capture if it was set
+  if (_pointerId !== null && e.target.hasPointerCapture(_pointerId)) {
+    e.target.releasePointerCapture(_pointerId);
+  }
+  _pointerId = null; // Reset pointer ID
+
+  // If no drag was active (_md is false) or no movement occurred (simple click/tap)
+  if(!_md || !_mdMoved){_dragCleanup();return;} 
+
   const zone=_getDropZone(e.clientX,e.clientY);
   _executeDrop(zone);
   _dragCleanup();
