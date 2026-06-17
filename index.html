@@ -1196,12 +1196,36 @@ function _getDropZone(cx,cy){
     const ce=trow.querySelector('.tchars');
     if(!ce)return{type:'tier',tid,idx:0};
     const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
-    let idx=cards.length;
-    for(let i=0;i<cards.length;i++){
-      const r=cards[i].getBoundingClientRect();
-      if(cy<r.top){idx=i;break;}
-      if(cy<r.bottom&&cx<r.left+r.width/2){idx=i;break;}
+    if(cards.length===0)return{type:'tier',tid,idx:0};
+    // Agrupar las cartas por fila (mismo top redondeado), ya que el contenedor usa flex-wrap
+    const rows=[];
+    cards.forEach(c=>{
+      const r=c.getBoundingClientRect();
+      let row=rows.find(rw=>Math.abs(rw.top-r.top)<r.height*0.5);
+      if(!row){row={top:r.top,items:[]};rows.push(row);}
+      row.items.push({el:c,rect:r});
+    });
+    rows.sort((a,b)=>a.top-b.top);
+    rows.forEach(row=>row.items.sort((a,b)=>a.rect.left-b.rect.left));
+
+    // Elegir la fila más cercana verticalmente al cursor
+    let targetRow=rows[0];
+    for(const row of rows){
+      const bottom=row.top+row.items[0].rect.height;
+      if(cy>=row.top-row.items[0].rect.height*0.5&&cy<bottom+row.items[0].rect.height*0.5)targetRow=row;
     }
+    if(cy<rows[0].top)targetRow=rows[0];
+    if(cy>=rows[rows.length-1].top)targetRow=rows[rows.length-1];
+
+    // Dentro de la fila, encontrar el índice según el centro horizontal de cada carta
+    let idxInRow=targetRow.items.length;
+    for(let i=0;i<targetRow.items.length;i++){
+      const r=targetRow.items[i].rect;
+      if(cx<r.left+r.width/2){idxInRow=i;break;}
+    }
+    // Convertir idx-dentro-de-fila a idx global dentro de la lista completa de cartas
+    const targetCard=targetRow.items[idxInRow];
+    const idx=targetCard?cards.indexOf(targetCard.el):cards.length;
     return{type:'tier',tid,idx};
   }
   return null;
@@ -1287,19 +1311,19 @@ function _activateDrag(x,y){
   _md=true;_mdMoved=false;_mdX=x;_mdY=y;
 }
 
+document.addEventListener('contextmenu',e=>{if(e.target.closest('.tc,.pc'))e.preventDefault();});
+document.addEventListener('dragstart',e=>{if(e.target.closest('.tc,.pc'))e.preventDefault();});
+
 document.addEventListener('pointermove',e=>{
-  if(_pointerId!==null&&e.pointerId!==_pointerId)return;
+  if(_pointerId!==null&&e.pointerId!==_pointerId&&e.isPrimary===false)return;
 
   // Pulsación larga pendiente en táctil: dejamos que el dedo deslice la pantalla manualmente
   // (con touch-action:none el navegador ya no lo hace solo, así que lo hacemos nosotros)
   if(_lpT&&!_md){
     const dx=e.clientX-_mdX,dy=e.clientY-_mdY;
-    if(Math.sqrt(dx*dx+dy*dy)>10){
+    if(Math.sqrt(dx*dx+dy*dy)>18){
       _cancelLongPress();
       _scrolling=true;
-    }
-    if(_scrolling){
-      window.scrollBy(0,-dy);
       _mdX=e.clientX;_mdY=e.clientY;
     }
     return;
