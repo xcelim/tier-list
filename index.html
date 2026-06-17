@@ -206,11 +206,12 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 /* CHARS - SMOOTH DRAG ANIMATIONS */
 .tchars{flex:1;display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;gap:4px;padding:6px;min-height:172px;position:relative}
 .tc,.pc{border-radius:10px;overflow:visible;cursor:grab;position:relative;flex-shrink:0;border:2px solid transparent; background: var(--bg3);
-  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s; touch-action: auto;
+  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s; touch-action: none;
   -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
 .tc{width:100px;height:160px}
 .pc{width:102px;height:162px;border-color:var(--border)}
 .tc:hover{border-color:var(--accent2);transform:scale(1.1) translateY(-3px) rotate(1deg);z-index:20;box-shadow:0 10px 24px rgba(0,0,0,.55)}
+body.dragging-now .tc:hover{transform:none!important;z-index:auto;box-shadow:none}
 .pc:hover{border-color:var(--accent2);transform:scale(1.08) translateY(-2px);z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.5)}
 
 .del-btn{position:absolute;top:1px;right:1px;background:rgba(224,85,84,.85);color:#fff;border:none;border-radius:3px;width:14px;height:14px;font-size:9px;display:none;align-items:center;justify-content:center;cursor:pointer;padding:0;line-height:1;z-index:10}
@@ -1158,7 +1159,7 @@ function h(tag,a,...ch){
 let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
 let scrollDir=0,scrollInt=null;
 let _md=false,_mdMoved=false,_mdX=0,_mdY=0,_mdImg='',_lastZoneKey='';
-let _lpT=null,_pointerId=null,_isTouch=false;
+let _lpT=null,_pointerId=null,_isTouch=false,_scrolling=false;
 const LONG_PRESS_MS=2000; // tiempo de pulsación larga en móvil/táctil antes de poder arrastrar
 
 function updateScroll(){if(scrollDir!==0)window.scrollBy(0,scrollDir*60);}
@@ -1269,7 +1270,8 @@ function _executeDrop(zone){
 }
 function _dragCleanup(){
   document.body.style.userSelect='';
-  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;_lastZoneKey='';_isTouch=false;
+  document.body.classList.remove('dragging-now');
+  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;_lastZoneKey='';_isTouch=false;_scrolling=false;
   removeFloat();lastZone=null;
   const ph=document.getElementById('drop-ph');if(ph)ph.remove();
   document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
@@ -1288,12 +1290,26 @@ function _activateDrag(x,y){
 document.addEventListener('pointermove',e=>{
   if(_pointerId!==null&&e.pointerId!==_pointerId)return;
 
-  // Pulsación larga pendiente en táctil: si se mueve antes de tiempo, es un scroll -> cancelar
+  // Pulsación larga pendiente en táctil: dejamos que el dedo deslice la pantalla manualmente
+  // (con touch-action:none el navegador ya no lo hace solo, así que lo hacemos nosotros)
   if(_lpT&&!_md){
-    if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)>10){
+    const dx=e.clientX-_mdX,dy=e.clientY-_mdY;
+    if(Math.sqrt(dx*dx+dy*dy)>10){
       _cancelLongPress();
+      _scrolling=true;
     }
-    return; // mientras no se confirme el drag, no hacemos nada más (deja scrollear)
+    if(_scrolling){
+      window.scrollBy(0,-dy);
+      _mdX=e.clientX;_mdY=e.clientY;
+    }
+    return;
+  }
+  // Ya se canceló el long-press por movimiento (estamos en modo scroll manual), seguimos scrolleando
+  if(_scrolling&&!_md){
+    const dy=e.clientY-_mdY;
+    window.scrollBy(0,-dy);
+    _mdX=e.clientX;_mdY=e.clientY;
+    return;
   }
 
   if(!_md)return;
@@ -1305,6 +1321,7 @@ document.addEventListener('pointermove',e=>{
       try{e.target.setPointerCapture?.(_pointerId);}catch(err){}
     }
     document.body.style.userSelect='none';
+    document.body.classList.add('dragging-now');
     createFloat(_mdImg);
     _posFloat(e.clientX,e.clientY);
     document.querySelectorAll('.tc,.pc').forEach(el=>{
@@ -1320,6 +1337,7 @@ document.addEventListener('pointermove',e=>{
 
 document.addEventListener('pointerup',e=>{
   _cancelLongPress();
+  _scrolling=false;
 
   if(_pointerId!==null&&e.target.hasPointerCapture?.(_pointerId)){
     e.target.releasePointerCapture(_pointerId);
@@ -1335,6 +1353,7 @@ document.addEventListener('pointerup',e=>{
 
 document.addEventListener('pointercancel',e=>{
   _cancelLongPress();
+  _scrolling=false;
   _pointerId=null;
   _dragCleanup();
 });
