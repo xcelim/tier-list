@@ -206,7 +206,7 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 /* CHARS - SMOOTH DRAG ANIMATIONS */
 .tchars{flex:1;display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;gap:4px;padding:6px;min-height:172px;position:relative}
 .tc,.pc{border-radius:10px;overflow:visible;cursor:grab;position:relative;flex-shrink:0;border:2px solid transparent; background: var(--bg3);
-  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s; touch-action: none;}
+  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s; touch-action: auto;}
 .tc{width:100px;height:160px}
 .pc{width:102px;height:162px;border-color:var(--border)}
 .tc:hover{border-color:var(--accent2);transform:scale(1.1) translateY(-3px) rotate(1deg);z-index:20;box-shadow:0 10px 24px rgba(0,0,0,.55)}
