@@ -34,45 +34,38 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Insertar el placeholder justo donde estaba la carta inicialmente
                     card.parentNode.insertBefore(placeholder, card);
                 }, 0);
-                
-                e.dataTransfer.setData('text/plain', card.dataset.id || '');
-                e.dataTransfer.effectAllowed = 'move';
             });
-            
+
             card.addEventListener('dragend', () => {
                 if (draggingCard) {
                     draggingCard.classList.remove('dragging');
                 }
-                // Si el placeholder sigue en el DOM, colocar la carta ahí y quitar el placeholder
                 if (placeholder && placeholder.parentNode) {
                     placeholder.parentNode.insertBefore(draggingCard, placeholder);
                     placeholder.remove();
                 }
                 draggingCard = null;
-                placeholder = null;
                 saveTierListState();
             });
         });
 
-        // Configurar los contenedores (filas y pool)
+        // Configurar los contenedores (filas de tiers y el pool)
         const containers = [...tierRows, poolContent];
-        
         containers.forEach(container => {
+            if (!container) return;
+
             container.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                
+                e.preventDefault(); // Permitir el drop
                 if (!draggingCard) return;
 
-                // Encontrar el elemento sobre el que estamos flotando
+                // Encontrar el elemento bajo el cursor excluyendo la carta arrastrada y el propio placeholder
                 const afterElement = getDragAfterElement(container, e.clientX, e.clientY);
                 
-                // Asegurar que el placeholder tenga el tamaño correcto de la fila actual
-                createPlaceholder(draggingCard);
-
                 if (afterElement == null) {
+                    // Si vamos al final de la fila
                     container.appendChild(placeholder);
                 } else {
+                    // Si vamos hacia atrás o entre medias, se inserta justo antes del elemento detectado
                     container.insertBefore(placeholder, afterElement);
                 }
             });
@@ -90,20 +83,39 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Función matemática para saber exactamente en qué hueco meter el placeholder
+    // Función matemática ultra precisa para detectar la carta exacta bajo el cursor
+    // tanto moviéndose hacia adelante como hacia atrás en una cuadrícula fluida (wrap)
     function getDragAfterElement(container, x, y) {
         const draggableElements = [...container.querySelectorAll('.character-card:not(.dragging)')];
         
         return draggableElements.reduce((closest, child) => {
             const box = child.getBoundingClientRect();
-            // Evaluamos la posición horizontal principalmente ya que es una cuadrícula/fila inline-flex
-            const offset = x - box.left - box.width / 2;
             
-            if (offset < 0 && offset > closest.offset) {
-                return { offset: offset, element: child };
-            } else {
-                return closest;
+            // Calculamos la distancia desde el centro horizontal y vertical de la carta
+            const centerX = box.left + box.width / 2;
+            const centerY = box.top + box.height / 2;
+            
+            // Si el cursor está en una línea superior o inferior (soporte multilínea/wrap)
+            const isLineBefore = y < box.top;
+            const isLineAfter = y > box.bottom;
+            const isSameLine = y >= box.top && y <= box.bottom;
+
+            if (isSameLine) {
+                // Si estamos en la misma fila, evaluamos la posición horizontal de izquierda a derecha
+                const offset = x - centerX;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                }
+            } else if (isLineBefore) {
+                // Si el cursor está más arriba que esta carta, esta carta está "después" de nuestra posición
+                // Le damos un peso basado en la distancia vertical
+                const offset = y - box.top;
+                if (offset > closest.offset) {
+                    return { offset: offset, element: child };
+                }
             }
+            
+            return closest;
         }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
