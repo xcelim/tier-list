@@ -1157,178 +1157,166 @@ function h(tag,a,...ch){
 let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
 let scrollDir=0,scrollInt=null;
 let _md=false,_mdMoved=false,_mdX=0,_mdY=0,_mdImg='',_lastZoneKey='';
+let _pointerId=null, _lpT=null; // <-- AQUÍ ESTABA EL DAÑO (Faltaban estas declaraciones)
 
 function updateScroll(){if(scrollDir!==0)window.scrollBy(0,scrollDir*60);}
 function createFloat(imgSrc){
-  removeFloat();
-  dragFloatEl=document.createElement('div');
-  dragFloatEl.className='drag-float';
-  const im=document.createElement('img');im.src=imgSrc;
-  dragFloatEl.appendChild(im);document.body.appendChild(dragFloatEl);
+ removeFloat();
+ dragFloatEl=document.createElement('div');
+ dragFloatEl.className='drag-float';
+ const im=document.createElement('img');im.src=imgSrc;
+ dragFloatEl.appendChild(im);document.body.appendChild(dragFloatEl);
 }
 function removeFloat(){
-  if(dragFloatEl){dragFloatEl.remove();dragFloatEl=null;}
-  if(scrollInt){clearInterval(scrollInt);scrollInt=null;}
-  scrollDir=0;
+ if(dragFloatEl){dragFloatEl.remove();dragFloatEl=null;}
+ if(scrollInt){clearInterval(scrollInt);scrollInt=null;}
+ scrollDir=0;
 }
 function _posFloat(cx,cy){
-  if(!dragFloatEl)return;
-  dragFloatEl.style.left=(cx-51)+'px';
-  dragFloatEl.style.top=(cy-81)+'px';
-  const th=100,wh=window.innerHeight;
-  scrollDir=cy<th?-1:cy>wh-th?1:0;
-  if(scrollDir&&!scrollInt)scrollInt=setInterval(updateScroll,16);
-  else if(!scrollDir&&scrollInt){clearInterval(scrollInt);scrollInt=null;}
+ if(!dragFloatEl)return;
+ dragFloatEl.style.left=(cx-51)+'px';
+ dragFloatEl.style.top=(cy-81)+'px';
+ const th=100,wh=window.innerHeight;
+ scrollDir=cy<th?-1:cy>wh-th?1:0;
+ if(scrollDir&&!scrollInt)scrollInt=setInterval(updateScroll,16);
+ else if(!scrollDir&&scrollInt){clearInterval(scrollInt);scrollInt=null;}
 }
 function _getDropZone(cx,cy){
-  if(dragFloatEl)dragFloatEl.style.visibility='hidden';
-  const el=document.elementFromPoint(cx,cy);
-  if(dragFloatEl)dragFloatEl.style.visibility='';
-  if(!el)return null;
-  if(el.closest('#pdrop'))return{type:'pool'};
-  const trow=el.closest('.trow');
-  if(trow){
-    const tid=trow.id.replace(/^t/,'');
-    const ce=trow.querySelector('.tchars');
-    if(!ce)return{type:'tier',tid,idx:0};
-    const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
-    let idx=cards.length;
-    for(let i=0;i<cards.length;i++){
-      const r=cards[i].getBoundingClientRect();
-      if(cy<r.top){idx=i;break;}
-      if(cy<r.bottom&&cx<r.left+r.width/2){idx=i;break;}
-    }
-    return{type:'tier',tid,idx};
-  }
-  return null;
+ if(dragFloatEl)dragFloatEl.style.visibility='hidden';
+ const el=document.elementFromPoint(cx,cy);
+ if(dragFloatEl)dragFloatEl.style.visibility='';
+ if(!el)return null;
+ if(el.closest('#pdrop'))return{type:'pool'};
+ const trow=el.closest('.trow');
+ if(trow){
+ const tid=trow.id.replace(/^t/,'');
+ const ce=trow.querySelector('.tchars');
+ if(!ce)return{type:'tier',tid,idx:0};
+ const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
+ let idx=cards.length;
+ for(let i=0;i<cards.length;i++){
+ const r=cards[i].getBoundingClientRect();
+ if(cy<r.top){idx=i;break;}
+ if(cy<r.bottom&&cx<r.left+r.width/2){idx=i;break;}
+ }
+ return{type:'tier',tid,idx};
+ }
+ return null;
 }
 function _updatePlaceholder(zone){
-  // Limpiar highlights
-  document.querySelectorAll('.trow.dov').forEach(e=>e.classList.remove('dov'));
-  document.getElementById('pdrop')?.classList.remove('dov');
-  if(!zone){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
-  if(zone.type==='pool'){
-    const ph=document.getElementById('drop-ph');if(ph)ph.remove();
-    document.getElementById('pdrop')?.classList.add('dov');
-    return;
-  }
-  if(zone.type==='tier'){
-    document.getElementById('t'+zone.tid)?.classList.add('dov');
-    const ce=document.getElementById('t'+zone.tid)?.querySelector('.tchars');
-    if(!ce){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
-    const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
-    if(DS===zone.tid&&zone.idx===DGidx){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
-    // 1. Capturar posiciones ANTES de cualquier cambio DOM
-    const allCards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
-    const snapshots=allCards.map(c=>({el:c,rect:c.getBoundingClientRect()}));
-    // 2. Quitar placeholder viejo
-    const oldph=document.getElementById('drop-ph');if(oldph)oldph.remove();
-    // 3. Insertar nuevo placeholder
-    const newph=document.createElement('div');
-    newph.id='drop-ph';newph.className='drop-placeholder';
-    const freshCards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
-    if(zone.idx>=freshCards.length)ce.appendChild(newph);
-    else ce.insertBefore(newph,freshCards[zone.idx]);
-    // 4. FLIP: animar solo las cartas que se movieron
-    snapshots.forEach(({el,rect:oldRect})=>{
-      const newRect=el.getBoundingClientRect();
-      const dx=oldRect.left-newRect.left,dy=oldRect.top-newRect.top;
-      if(dx||dy){
-        el.style.transition='none';
-        el.style.transform=`translate(${dx}px,${dy}px)`;
-        el.offsetHeight;
-        el.style.transition='';
-        el.style.transform='';
-      }
-    });
-  }
+ document.querySelectorAll('.trow.dov').forEach(e=>e.classList.remove('dov'));
+ document.getElementById('pdrop')?.classList.remove('dov');
+ if(!zone){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
+ if(zone.type==='pool'){
+ const ph=document.getElementById('drop-ph');if(ph)ph.remove();
+ document.getElementById('pdrop')?.classList.add('dov');
+ return;
+ }
+ if(zone.type==='tier'){
+ document.getElementById('t'+zone.tid)?.classList.add('dov');
+ const ce=document.getElementById('t'+zone.tid)?.querySelector('.tchars');
+ if(!ce){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
+ const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
+ if(DS===zone.tid&&zone.idx===DGidx){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
+ const allCards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
+ const snapshots=allCards.map(c=>({el:c,rect:c.getBoundingClientRect()}));
+ const oldph=document.getElementById('drop-ph');if(oldph)oldph.remove();
+ const newph=document.createElement('div');
+ newph.id='drop-ph';newph.className='drop-placeholder';
+ const freshCards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
+ if(zone.idx>=freshCards.length)ce.appendChild(newph);
+ else ce.insertBefore(newph,freshCards[zone.idx]);
+ snapshots.forEach(({el,rect:oldRect})=>{
+ const newRect=el.getBoundingClientRect();
+ const dx=oldRect.left-newRect.left,dy=oldRect.top-newRect.top;
+ if(dx||dy){
+ el.style.transition='none';
+ el.style.transform=`translate(${dx}px,${dy}px)`;
+ el.offsetHeight;
+ el.style.transition='';
+ el.style.transform='';
+ }
+ });
+ }
 }
 function _executeDrop(zone){
-  if(!zone||!DG)return;
-  const tl=S.workingTL;
-  if(zone.type==='pool'){
-    if(DS==='pool')return;
-    const s=tl.tiers.find(t=>t.id===DS);
-    if(s)s.chars=s.chars.filter(x=>x!==DG);
-    if(!tl.pool.includes(DG))tl.pool.push(DG);
-    markUnsaved();
-  }else if(zone.type==='tier'){
-    if(DS==='pool')tl.pool=tl.pool.filter(x=>x!==DG);
-    else{const s=tl.tiers.find(t=>t.id===DS);if(s)s.chars=s.chars.filter(x=>x!==DG);}
-    const dest=tl.tiers.find(t=>t.id===zone.tid);
-    if(dest){
-      dest.chars=dest.chars.filter(x=>x!==DG);
-      if(typeof zone.idx==='number'&&zone.idx>=0)dest.chars.splice(zone.idx,0,DG);
-      else dest.chars.push(DG);
-    }
-    markUnsaved();
-  }
+ if(!zone||!DG)return;
+ const tl=S.workingTL;
+ if(zone.type==='pool'){
+ if(DS==='pool')return;
+ const s=tl.tiers.find(t=>t.id===DS);
+ if(s)s.chars=s.chars.filter(x=>x!==DG);
+ if(!tl.pool.includes(DG))tl.pool.push(DG);
+ markUnsaved();
+ }else if(zone.type==='tier'){
+ if(DS==='pool')tl.pool=tl.pool.filter(x=>x!==DG);
+ else{const s=tl.tiers.find(t=>t.id===DS);if(s)s.chars=s.chars.filter(x=>x!==DG);}
+ const dest=tl.tiers.find(t=>t.id===zone.tid);
+ if(dest){
+ dest.chars=dest.chars.filter(x=>x!==DG);
+ if(typeof zone.idx==='number'&&zone.idx>=0)dest.chars.splice(zone.idx,0,DG);
+ else dest.chars.push(DG);
+ }
+ markUnsaved();
+ }
 }
 function _dragCleanup(){
-  document.body.style.userSelect='';
-  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;_lastZoneKey='';
-  removeFloat();lastZone=null;
-  const ph=document.getElementById('drop-ph');if(ph)ph.remove();
-  document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
-  document.querySelectorAll('.tc').forEach(el=>el.style.transform='');
-  document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
+ document.body.style.userSelect='';
+ DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;_lastZoneKey='';
+ removeFloat();lastZone=null;
+ const ph=document.getElementById('drop-ph');if(ph)ph.remove();
+ document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
+ document.querySelectorAll('.tc').forEach(el=>el.style.transform='');
+ document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
 }
 
 document.addEventListener('pointermove',e=>{
-  // If pointer capture is active, ensure this event is for the captured pointer
-  if (_pointerId !== null && e.pointerId !== _pointerId) {
-    return;
-  }
-
-  // If long press is pending and not yet dragging
-  if(_lpT && !_md){
-    // Si se mueve más de 10px antes del tiempo de pulsación larga, cancelar
-    if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)>10){
-      clearTimeout(_lpT); _lpT=null;
-    }
-  }
-  if(!_md)return;
-  if(!_mdMoved){ // Only set _mdMoved to true once there's significant movement AND _md is true
-    if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)<5)return;
-    _mdMoved=true;
-    document.body.style.userSelect='none';
-    createFloat(_mdImg);
-    _posFloat(e.clientX,e.clientY);
-    document.querySelectorAll('.tc,.pc').forEach(el=>{
-      if(el.dataset.cid===DG)el.classList.add('is-dragging');
-    });
-  }
-  _posFloat(e.clientX,e.clientY);
-  const zone=_getDropZone(e.clientX,e.clientY);
-  const key=zone?(zone.type+(zone.tid||'')+(zone.idx??'')):'';
-  if(key!==_lastZoneKey){_lastZoneKey=key;_updatePlaceholder(zone);}
+ if (_pointerId !== null && e.pointerId !== _pointerId) { return; }
+ if(_lpT && !_md){
+ if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)>10){
+ clearTimeout(_lpT);
+ _lpT=null;
+ }
+ }
+ if(!_md)return;
+ if(!_mdMoved){
+ if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)<5)return;
+ _mdMoved=true;
+ document.body.style.userSelect='none';
+ createFloat(_mdImg);
+ _posFloat(e.clientX,e.clientY);
+ document.querySelectorAll('.tc,.pc').forEach(el=>{
+ if(el.dataset.cid===DG)el.classList.add('is-dragging');
+ });
+ }
+ _posFloat(e.clientX,e.clientY);
+ const zone=_getDropZone(e.clientX,e.clientY);
+ const key=zone?(zone.type+(zone.tid||'')+(zone.idx??'')):'';
+ if(key!==_lastZoneKey){_lastZoneKey=key;_updatePlaceholder(zone);}
 });
 
 document.addEventListener('pointerup',e=>{
-  // Always clear long press timer on pointerup
-  if(_lpT){clearTimeout(_lpT); _lpT=null;} 
-
-  // Release pointer capture if it was set
-  if (_pointerId !== null && e.target.hasPointerCapture(_pointerId)) {
-    e.target.releasePointerCapture(_pointerId);
-  }
-  _pointerId = null; // Reset pointer ID
-
-  // If no drag was active (_md is false) or no movement occurred (simple click/tap)
-  if(!_md || !_mdMoved){_dragCleanup();return;} 
-
-  const zone=_getDropZone(e.clientX,e.clientY);
-  _executeDrop(zone);
-  _dragCleanup();
+ if(_lpT){clearTimeout(_lpT); _lpT=null;}
+ if (_pointerId !== null && e.target.hasPointerCapture && e.target.hasPointerCapture(_pointerId)) {
+ e.target.releasePointerCapture(_pointerId);
+ }
+ _pointerId = null;
+ if(!_md || !_mdMoved){_dragCleanup();return;}
+ const zone=_getDropZone(e.clientX,e.clientY);
+ _executeDrop(zone);
+ _dragCleanup();
 },{passive:true});
 
 function dgPointerDown(e,id,src,idx,imgSrc){
-  if(e.button!==0)return;
-  DG=id;DS=src;DGidx=idx;
-  _md=true;_mdMoved=false;
-  _mdX=e.clientX;_mdY=e.clientY;
-  _mdImg=imgSrc||'';
+ if(e.button!==0)return;
+ DG=id;DS=src;DGidx=idx;
+ _md=true;_mdMoved=false;
+ _mdX=e.clientX;_mdY=e.clientY;
+ _mdImg=imgSrc||'';
+ _pointerId = e.pointerId; // <-- GUARDAR EL ID DEL PUNTERO CORRECTAMENTE
+ if(e.target.setPointerCapture) { e.target.setPointerCapture(e.pointerId); }
 }
+
 function dgstart(e){e.preventDefault();}
 function dgend(){}
 function tover(e){e.preventDefault();}
