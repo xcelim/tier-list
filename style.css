@@ -364,3 +364,35 @@ main{padding:20px; max-width:1400px; margin:0 auto}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 .confirm-bar{background:var(--bg3);border:1px solid var(--gold);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:12px}
 .confirm-bar span{flex:1;color:var(--gold)}
+
+/* --- Arreglos de Animación y Estabilidad de Drag & Drop --- */
+
+/* La carta que se está moviendo se vuelve semi-transparente y no interfiere con el cursor */
+.character-card.dragging {
+    opacity: 0.4;
+    transform: scale(0.95);
+    cursor: grabbing;
+    transition: none !important; /* Evita lag mientras arrastras */
+}
+
+/* El hueco (Placeholder) ahora mantiene el flujo perfecto de la cuadrícula */
+.card-placeholder {
+    display: inline-block;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    margin: 5px; /* Sincronizado con el margen de tus cartas */
+    box-sizing: border-box;
+    vertical-align: top;
+    animation: placeholderFadeIn 0.2s ease;
+}
+
+/* Animación para que las cartas remanentes se muevan suavemente */
+.character-card {
+    transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.2s ease;
+}
+
+@keyframes placeholderFadeIn {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+}
