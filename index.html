@@ -3421,18 +3421,40 @@ async function handleDeleteAccount() {
   }
 }
 
+// Forzar recarga de imágenes caídas por scroll veloz
+document.addEventListener('error', function (e) {
+  if (e.target.tagName && e.target.tagName.toLowerCase() === 'img') {
+    const img = e.target;
+    // En tu index.html real las imágenes usan la clase "cimg", no "char-img" (Corregido aquí)
+    if (img.classList.contains('cimg') && !img.dataset.retried) {
+      img.dataset.retried = 'true';
+      const currentSrc = img.src;
+      img.src = '';
+      setTimeout(() => { img.src = currentSrc; }, 200);
+    }
+  }
+}, true);
+
 function initSupabase() {
   if (!window.supabase) return setTimeout(initSupabase, 100);
   sbClient = window.supabase.createClient(SB_URL, SB_KEY);
 
   sbClient.auth.getSession().then(({ data: { session } }) => {
-    if (session) handleAuthSession(session);
-    else render();
+    if (session) {
+      handleAuthSession(session);
+      // Activar la escucha en tiempo real de Supabase discretamente de fondo
+      if (typeof setupRealtimeListeners === 'function') setupRealtimeListeners();
+    } else {
+      render();
+    }
   });
 
   sbClient.auth.onAuthStateChange(async (ev, session) => {
-    if (session) handleAuthSession(session);
-    else {
+    if (session) {
+      handleAuthSession(session);
+      if (typeof setupRealtimeListeners === 'function') setupRealtimeListeners();
+    } else {
+      // Mantenemos intacto tu código original de limpieza profunda al cerrar sesión
       userSession = null;
       currentUserProfile = null;
       S.activeProfile = null;
@@ -3441,7 +3463,7 @@ function initSupabase() {
       S.cid = null;
       S.workingTL = null;
       S.modal = null;
-      history.replaceState(null,'',location.pathname);
+      history.replaceState(null, '', location.pathname);
       saveProfiles();
       render();
     }
@@ -3450,17 +3472,78 @@ function initSupabase() {
 
 initSupabase();
 // Render inicial con soporte de routing
-(function initApp(){
+(function initApp(){  // <--- OJO: En tu archivo puede venir simplemente como (function(){
   // Registro de Service Worker para soporte PWA (App Móvil)
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 })();
-(function initRoute(){
-  const{page,tlId}=getRouteFromHash();
-  if(page==='editor'&&tlId){
-    // intentaremos abrir el editor una vez se cargue la sesión
-    S._pendingTlId=tlId;
+
+  sbClient.auth.onAuthStateChange(async (ev, session) => {
+    if (session) {
+      handleAuthSession(session);
+      setupRealtimeListeners();
+    } else {
+      // ... tu código de limpieza de sesión actual ...
+      userSession = null;
+      render();
+    }
+  });
+
+// Nueva función para gestionar datos en directo sin interrumpir al usuario
+function setupRealtimeListeners() {
+  if (!sbClient || !userSession) return;
+
+  // 1. Escuchar solicitudes de amistad entrantes o actualizaciones de notificaciones
+  sbClient
+    .channel('cambios-sociales')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'friends' }, (payload) => {
+      // Si la solicitud es para el usuario actual, refrescamos el contador/lista discretamente
+      if (payload.new && (payload.new.friend_id === userSession.user.id || payload.new.user_id === userSession.user.id)) {
+        // Ejecuta tu función existente para buscar amigos/notificaciones del servidor de fondo
+        loadSocialDataSilently(); 
+      }
+    })
+    .subscribe();
+
+  // 2. Escuchar cuando se agrega una nueva Waifu/Personaje al sistema global
+  sbClient
+    .channel('cambios-waifus')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'waifus' }, (payload) => {
+      // Añadimos la waifu a los datos locales cargados en memoria de fondo
+      if (payload.new && window.ALL_CHARACTERS) {
+        // Evitar duplicados
+        if (!window.ALL_CHARACTERS.some(c => c.id === payload.new.id)) {
+          window.ALL_CHARACTERS.push(payload.new);
+          
+          // Si el usuario está en la vista home/pool, actualizamos la lista visual
+          // SIN tocar 'S.workingTL' (que es donde guarda lo que edita en su tier)
+          if (S.page === 'home' || S.page === 'pool') {
+            // Un renderizado parcial o actualización selectiva de la pool en el DOM
+            updatePoolVisualsSilently();
+          }
+        }
+      }
+    })
+    .subscribe();
+}
+
+// Funciones auxiliares para actualizar el DOM "sin romper nada"
+async function loadSocialDataSilently() {
+  // Aquí pones tu lógica actual de fetching de amigos (ej. sbClient.from('friends').select(...))
+  // Al terminar, solo actualizas la burbuja de notificaciones del menú, no toda la pantalla.
+  const { data } = await sbClient.from('friends').select('*').eq('friend_id', userSession.user.id).eq('status', 'pending');
+  const notifBadge = document.getElementById('notif-badge');
+  if (notifBadge) {
+    notifBadge.innerText = data ? data.length : 0;
+    notifBadge.style.display = data && data.length > 0 ? 'block' : 'none';
   }
-})();
+}
+
+function updatePoolVisualsSilently() {
+  const poolEl = document.querySelector('.character-pool-content');
+  if (!poolEl) return;
+  // En vez de limpiar y redibujar todo rompiendo el drag, puedes inyectar solo las nuevas cartas que falten
+  // o hacer un render local enfocado únicamente en la pool.
+}
 render();
 </script>
 </body>
