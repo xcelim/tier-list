@@ -206,12 +206,10 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 /* CHARS - SMOOTH DRAG ANIMATIONS */
 .tchars{flex:1;display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;gap:4px;padding:6px;min-height:172px;position:relative}
 .tc,.pc{border-radius:10px;overflow:visible;cursor:grab;position:relative;flex-shrink:0;border:2px solid transparent; background: var(--bg3);
-  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s; touch-action: pan-y;
-  -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
+  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s}
 .tc{width:100px;height:160px}
 .pc{width:102px;height:162px;border-color:var(--border)}
 .tc:hover{border-color:var(--accent2);transform:scale(1.1) translateY(-3px) rotate(1deg);z-index:20;box-shadow:0 10px 24px rgba(0,0,0,.55)}
-body.dragging-now .tc:hover{transform:none!important;z-index:auto;box-shadow:none}
 .pc:hover{border-color:var(--accent2);transform:scale(1.08) translateY(-2px);z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.5)}
 
 .del-btn{position:absolute;top:1px;right:1px;background:rgba(224,85,84,.85);color:#fff;border:none;border-radius:3px;width:14px;height:14px;font-size:9px;display:none;align-items:center;justify-content:center;cursor:pointer;padding:0;line-height:1;z-index:10}
@@ -885,8 +883,6 @@ function h(tag,a,...ch){
 let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
 let scrollDir=0,scrollInt=null;
 let _md=false,_mdMoved=false,_mdX=0,_mdY=0,_mdImg='',_lastZoneKey='';
-let _lpT=null,_pointerId=null,_isTouch=false,_origZoneKey='';
-const LONG_PRESS_MS=450; // tiempo de pulsación larga en móvil/táctil antes de poder arrastrar
 
 function updateScroll(){if(scrollDir!==0)window.scrollBy(0,scrollDir*60);}
 function createFloat(imgSrc){
@@ -911,54 +907,26 @@ function _posFloat(cx,cy){
   else if(!scrollDir&&scrollInt){clearInterval(scrollInt);scrollInt=null;}
 }
 function _getDropZone(cx,cy){
-  // Quitamos el placeholder temporalmente para medir las posiciones "de reposo" reales,
-  // si no, el propio hueco desplaza las cartas y eso desincroniza el cálculo (causaba rebote).
-  const ph=document.getElementById('drop-ph');
-  let phParent=null,phNext=null;
-  if(ph){phParent=ph.parentNode;phNext=ph.nextSibling;ph.remove();}
-
   if(dragFloatEl)dragFloatEl.style.visibility='hidden';
   const el=document.elementFromPoint(cx,cy);
   if(dragFloatEl)dragFloatEl.style.visibility='';
-
-  let result=null;
-  if(el){
-    if(el.closest('#pdrop')){result={type:'pool'};}
-    else{
-      const trow=el.closest('.trow');
-      if(trow){
-        const tid=trow.id.replace(/^t/,'');
-        const ce=trow.querySelector('.tchars');
-        if(!ce){result={type:'tier',tid,idx:0};}
-        else{
-          const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
-          if(cards.length===0){result={type:'tier',tid,idx:0};}
-          else{
-            const rects=cards.map(c=>c.getBoundingClientRect());
-            let bestI=0,bestD=Infinity;
-            for(let i=0;i<rects.length;i++){
-              const r=rects[i];
-              const ccx=r.left+r.width/2,ccy=r.top+r.height/2;
-              const d=(cx-ccx)**2+(cy-ccy)**2;
-              if(d<bestD){bestD=d;bestI=i;}
-            }
-            const r=rects[bestI];
-            // Solo cambia de lado si se sobrepasa el centro horizontal de la carta sobre la que se está
-            const after=cx>r.left+r.width/2;
-            const idx=after?bestI+1:bestI;
-            result={type:'tier',tid,idx};
-          }
-        }
-      }
+  if(!el)return null;
+  if(el.closest('#pdrop'))return{type:'pool'};
+  const trow=el.closest('.trow');
+  if(trow){
+    const tid=trow.id.replace(/^t/,'');
+    const ce=trow.querySelector('.tchars');
+    if(!ce)return{type:'tier',tid,idx:0};
+    const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
+    let idx=cards.length;
+    for(let i=0;i<cards.length;i++){
+      const r=cards[i].getBoundingClientRect();
+      if(cy<r.top){idx=i;break;}
+      if(cy<r.bottom&&cx<r.left+r.width/2){idx=i;break;}
     }
+    return{type:'tier',tid,idx};
   }
-
-  // Reponemos el placeholder donde estaba para no perderlo si el resultado no cambia
-  if(ph&&phParent){
-    if(phNext&&phNext.parentNode===phParent)phParent.insertBefore(ph,phNext);
-    else phParent.appendChild(ph);
-  }
-  return result;
+  return null;
 }
 function _updatePlaceholder(zone){
   // Limpiar highlights
@@ -974,6 +942,8 @@ function _updatePlaceholder(zone){
     document.getElementById('t'+zone.tid)?.classList.add('dov');
     const ce=document.getElementById('t'+zone.tid)?.querySelector('.tchars');
     if(!ce){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
+    const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
+    if(DS===zone.tid&&zone.idx===DGidx){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
     // 1. Capturar posiciones ANTES de cualquier cambio DOM
     const allCards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
     const snapshots=allCards.map(c=>({el:c,rect:c.getBoundingClientRect()}));
@@ -989,23 +959,12 @@ function _updatePlaceholder(zone){
     snapshots.forEach(({el,rect:oldRect})=>{
       const newRect=el.getBoundingClientRect();
       const dx=oldRect.left-newRect.left,dy=oldRect.top-newRect.top;
-      // Si esta carta ya tenía una animación FLIP en curso, la cancelamos para no pisarnos
-      if(el._flipRaf1)cancelAnimationFrame(el._flipRaf1);
-      if(el._flipRaf2)cancelAnimationFrame(el._flipRaf2);
       if(dx||dy){
         el.style.transition='none';
         el.style.transform=`translate(${dx}px,${dy}px)`;
-        el._flipRaf1=requestAnimationFrame(()=>{
-          el._flipRaf2=requestAnimationFrame(()=>{
-            el.style.transition='transform .3s cubic-bezier(0.2, 0, 0.2, 1)';
-            el.style.transform='';
-            el._flipRaf1=null;el._flipRaf2=null;
-          });
-        });
-      }else{
-        el.style.transition='transform .3s cubic-bezier(0.2, 0, 0.2, 1)';
+        el.offsetHeight;
+        el.style.transition='';
         el.style.transform='';
-        el._flipRaf1=null;el._flipRaf2=null;
       }
     });
   }
@@ -1033,105 +992,46 @@ function _executeDrop(zone){
 }
 function _dragCleanup(){
   document.body.style.userSelect='';
-  document.body.classList.remove('dragging-now');
-  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;_lastZoneKey='';_isTouch=false;_origZoneKey='';
+  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;_lastZoneKey='';
   removeFloat();lastZone=null;
   const ph=document.getElementById('drop-ph');if(ph)ph.remove();
   document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
-  document.querySelectorAll('.tc').forEach(el=>{el.style.transform='';el.style.transition='';});
+  document.querySelectorAll('.tc').forEach(el=>el.style.transform='');
   document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
 }
 
-function _cancelLongPress(){
-  if(_lpT){clearTimeout(_lpT);_lpT=null;}
-}
-
-document.addEventListener('contextmenu',e=>{if(e.target.closest('.tc,.pc'))e.preventDefault();});
-document.addEventListener('dragstart',e=>{if(e.target.closest('.tc,.pc'))e.preventDefault();});
-
-document.addEventListener('pointermove',e=>{
-  if(_pointerId!==null&&e.pointerId!==_pointerId)return;
-
-  // Pulsación larga pendiente en táctil y el dedo se mueve antes de tiempo: es scroll, cancelamos
-  // el long-press y dejamos que el navegador haga scroll de forma nativa (no llamamos preventDefault).
-  if(_lpT&&!_md){
-    const dx=e.clientX-_mdX,dy=e.clientY-_mdY;
-    if(Math.sqrt(dx*dx+dy*dy)>12)_cancelLongPress();
-    return;
-  }
-
+document.addEventListener('mousemove',e=>{
   if(!_md)return;
   if(!_mdMoved){
     if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)<5)return;
     _mdMoved=true;
     document.body.style.userSelect='none';
-    document.body.classList.add('dragging-now');
     createFloat(_mdImg);
     _posFloat(e.clientX,e.clientY);
     document.querySelectorAll('.tc,.pc').forEach(el=>{
       if(el.dataset.cid===DG)el.classList.add('is-dragging');
     });
-    // Calculamos la zona "de origen" (donde estaría si no se moviera nada) para poder
-    // ignorarla como no-op y no abrir un hueco ahí mismo en el primer frame.
-    {
-      const origZone=_getDropZone(_mdX,_mdY);
-      _origZoneKey=origZone?(origZone.type+(origZone.tid||'')+(origZone.idx??'')):'';
-    }
-    e.preventDefault();
-    return;
   }
-  if(_mdMoved)e.preventDefault();
   _posFloat(e.clientX,e.clientY);
   const zone=_getDropZone(e.clientX,e.clientY);
   const key=zone?(zone.type+(zone.tid||'')+(zone.idx??'')):'';
-  if(key===_origZoneKey){
-    // El cursor sigue (o ha vuelto) sobre la posición original: no mostramos hueco
-    if(_lastZoneKey!==''){_lastZoneKey='';_updatePlaceholder(null);}
-    return;
-  }
   if(key!==_lastZoneKey){_lastZoneKey=key;_updatePlaceholder(zone);}
-},{passive:false});
+},{passive:true});
 
-document.addEventListener('pointerup',e=>{
-  _cancelLongPress();
-  if(_pointerId!==null&&e.target.hasPointerCapture?.(_pointerId)){
-    e.target.releasePointerCapture(_pointerId);
-  }
-  _pointerId=null;
-
-  if(!_md||!_mdMoved){_dragCleanup();return;}
-
+document.addEventListener('mouseup',e=>{
+  if(!_md)return;
+  if(!_mdMoved){_dragCleanup();return;}
   const zone=_getDropZone(e.clientX,e.clientY);
   _executeDrop(zone);
   _dragCleanup();
-});
-
-document.addEventListener('pointercancel',e=>{
-  _cancelLongPress();
-  _pointerId=null;
-  _dragCleanup();
-});
+},{passive:true});
 
 function dgPointerDown(e,id,src,idx,imgSrc){
-  if(e.button!==undefined&&e.button!==0)return;
+  if(e.button!==0)return;
   DG=id;DS=src;DGidx=idx;
-  _mdImg=imgSrc||'';
-  _isTouch=e.pointerType==='touch'||e.pointerType==='pen';
-  _pointerId=e.pointerId;
+  _md=true;_mdMoved=false;
   _mdX=e.clientX;_mdY=e.clientY;
-
-  if(_isTouch){
-    // En móvil/táctil: hace falta mantener pulsado un momento para poder arrastrar,
-    // así el dedo puede seguir deslizando la pantalla con normalidad si no se mantiene.
-    _cancelLongPress();
-    _lpT=setTimeout(()=>{
-      _lpT=null;
-      _md=true;_mdMoved=false;
-    },LONG_PRESS_MS);
-  }else{
-    // En PC con ratón: arrastrar funciona igual que siempre, al instante.
-    _md=true;_mdMoved=false;
-  }
+  _mdImg=imgSrc||'';
 }
 function dgstart(e){e.preventDefault();}
 function dgend(){}
@@ -1896,7 +1796,7 @@ function Editor(){
       el.appendChild(h('img',{src:imgSrcVal,onerror:(e)=>e.target.src='https://api.dicebear.com/7.x/initials/svg?seed='+encodeURIComponent(c.name||cid)}));
       el.appendChild(h('div',{class:'cn'},c.name||cid));
       el.appendChild(h('button',{class:'del-btn',title:'Eliminar permanentemente',onclick:(e)=>{e.stopPropagation();deleteCustomChar(cid,tl);}},'✕'));
-      el.addEventListener('pointerdown',e=>dgPointerDown(e,cid,tier.id,ci,imgSrcVal));
+      el.addEventListener('mousedown',e=>dgPointerDown(e,cid,tier.id,ci,imgSrcVal));
       el.ondblclick=()=>{tier.chars=tier.chars.filter(x=>x!==cid);if(!tl.pool.includes(cid))tl.pool.unshift(cid);markUnsaved();};
       ce.appendChild(el);
     });
@@ -2014,7 +1914,7 @@ function updPool(cont,tl){
     el.appendChild(im);el.appendChild(h('div',{class:'cn'},c.name||cid));
     el.appendChild(h('button',{class:'del-btn',title:'Eliminar permanentemente',onclick:(e)=>{e.stopPropagation();deleteCustomChar(cid,tl);}},'✕'));
     const imgSrcVal=charImg(cid,tl);
-    el.addEventListener('pointerdown',e=>dgPointerDown(e,cid,'pool',-1,imgSrcVal));
+    el.addEventListener('mousedown',e=>dgPointerDown(e,cid,'pool',-1,imgSrcVal));
     cont.appendChild(el);
   });
   if(shown.length<chars.length){
@@ -2239,7 +2139,7 @@ function MPick(){
 // ADD CUSTOM CHAR (con AniList)
 function MAddChar(){
   const tl=S.workingTL;if(!tl)return h('div',{class:'modal'},h('p',{},'Error'));
-  const m=h('div',{class:'modal',onmousedown:e=>e.stopPropagation()});
+  const m=h('div',{class:'modal'});
   m.appendChild(h('h2',{},'A\xf1adir waifu a "'+tl.title+'"'));
   let imgData=null,fileName='',charName='',animeName='',aniSearchT=null;
 
