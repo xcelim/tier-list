@@ -1157,7 +1157,7 @@ function h(tag,a,...ch){
 let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
 let scrollDir=0,scrollInt=null;
 let _md=false,_mdMoved=false,_mdX=0,_mdY=0,_mdImg='',_lastZoneKey='';
-let _pointerId=null, _lpT=null; // <-- AQUÍ ESTABA EL DAÑO (Faltaban estas declaraciones)
+let _pointerId=null, _lpT=null;
 
 function updateScroll(){if(scrollDir!==0)window.scrollBy(0,scrollDir*60);}
 function createFloat(imgSrc){
@@ -1204,8 +1204,10 @@ function _getDropZone(cx,cy){
  return null;
 }
 function _updatePlaceholder(zone){
+ // Limpiar highlights
  document.querySelectorAll('.trow.dov').forEach(e=>e.classList.remove('dov'));
  document.getElementById('pdrop')?.classList.remove('dov');
+ 
  if(!zone){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
  if(zone.type==='pool'){
  const ph=document.getElementById('drop-ph');if(ph)ph.remove();
@@ -1216,24 +1218,37 @@ function _updatePlaceholder(zone){
  document.getElementById('t'+zone.tid)?.classList.add('dov');
  const ce=document.getElementById('t'+zone.tid)?.querySelector('.tchars');
  if(!ce){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
- const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
- if(DS===zone.tid&&zone.idx===DGidx){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
- const allCards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
- const snapshots=allCards.map(c=>({el:c,rect:c.getBoundingClientRect()}));
+ 
+ // Evitar calcular si estamos exactamente sobre la misma posición original
+ if(DS===zone.tid && zone.idx===DGidx){
+ const ph=document.getElementById('drop-ph');if(ph)ph.remove();
+ return;
+ }
+ 
+ // 1. Capturar posiciones reales exclusivamente de las cartas visibles (no la que arrastramos)
+ const freshCards=Array.from(ce.querySelectorAll('.tc')).filter(c => c.dataset.cid !== DG && !c.classList.contains('is-dragging'));
+ const snapshots=freshCards.map(c=>({el:c,rect:c.getBoundingClientRect()}));
+ 
+ // 2. Quitar placeholder viejo
  const oldph=document.getElementById('drop-ph');if(oldph)oldph.remove();
+ 
+ // 3. Insertar nuevo placeholder
  const newph=document.createElement('div');
  newph.id='drop-ph';newph.className='drop-placeholder';
- const freshCards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
- if(zone.idx>=freshCards.length)ce.appendChild(newph);
+ 
+ if(zone.idx>=freshCards.length) ce.appendChild(newph);
  else ce.insertBefore(newph,freshCards[zone.idx]);
+ 
+ // 4. FLIP: Animación suave sin saltos dobles
  snapshots.forEach(({el,rect:oldRect})=>{
  const newRect=el.getBoundingClientRect();
- const dx=oldRect.left-newRect.left,dy=oldRect.top-newRect.top;
+ const dx=oldRect.left-newRect.left;
+ const dy=oldRect.top-newRect.top;
  if(dx||dy){
  el.style.transition='none';
  el.style.transform=`translate(${dx}px,${dy}px)`;
- el.offsetHeight;
- el.style.transition='';
+ el.offsetHeight; // Forzar reflow
+ el.style.transition='transform .25s cubic-bezier(0.2, 0, 0.2, 1)';
  el.style.transform='';
  }
  });
