@@ -1193,6 +1193,27 @@ function _getDropZone(cx,cy){
  const ce=trow.querySelector('.tchars');
  if(!ce)return{type:'tier',tid,idx:0};
  const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
+ 
+ // 1. Si el cursor está directamente sobre el hueco (placeholder), mantenemos la posición para evitar rebotes o bloqueos
+ if(el.id==='drop-ph'||el.closest('#drop-ph')){
+ if(_lastZoneKey&&_lastZoneKey.startsWith('tier'+tid)){
+ const prevIdx=parseInt(_lastZoneKey.replace('tier'+tid,''),10);
+ if(!isNaN(prevIdx))return{type:'tier',tid,idx:prevIdx};
+ }
+ }
+ 
+ // 2. Si el cursor está sobre una carta real, decidimos si va antes o después según su mitad exacta
+ const hoveredCard=el.closest('.tc:not(.is-dragging)');
+ if(hoveredCard){
+ const cardIdx=cards.indexOf(hoveredCard);
+ if(cardIdx!==-1){
+ const r=hoveredCard.getBoundingClientRect();
+ if(cx<r.left+r.width/2) return{type:'tier',tid,idx:cardIdx};
+ else return{type:'tier',tid,idx:cardIdx+1};
+ }
+ }
+ 
+ // 3. Fallback/Respaldo ultra preciso para cuando el cursor está en zonas vacías o márgenes de la fila
  let idx=cards.length;
  for(let i=0;i<cards.length;i++){
  const r=cards[i].getBoundingClientRect();
