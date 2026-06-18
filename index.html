@@ -171,7 +171,7 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .hh-footer::before,.hh-footer::after{content:'';flex:1;max-width:80px;height:1px;background:linear-gradient(90deg,transparent,var(--border2))}
 .profile-notice{text-align:center;padding:40px 20px;color:var(--text3)}
 .profile-notice h2{font-size:22px;margin-bottom:8px;font-family:'Rajdhani',sans-serif;color:var(--text2)}
-.tlg{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:16px}
+.tlg{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:16px}
 .tlc{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:.2s;position:relative}
 .tlc:hover{border-color:var(--border2);background:var(--bg3);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
 .tlc h3{font-size:16px;font-weight:600;font-family:'Rajdhani',sans-serif;margin-bottom:4px}
@@ -206,12 +206,10 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 /* CHARS - SMOOTH DRAG ANIMATIONS */
 .tchars{flex:1;display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;gap:4px;padding:6px;min-height:172px;position:relative}
 .tc,.pc{border-radius:10px;overflow:visible;cursor:grab;position:relative;flex-shrink:0;border:2px solid transparent; background: var(--bg3);
-  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s; touch-action: pan-y;
-  -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
+  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s; touch-action: auto;}
 .tc{width:100px;height:160px}
 .pc{width:102px;height:162px;border-color:var(--border)}
 .tc:hover{border-color:var(--accent2);transform:scale(1.1) translateY(-3px) rotate(1deg);z-index:20;box-shadow:0 10px 24px rgba(0,0,0,.55)}
-body.dragging-now .tc:hover{transform:none!important;z-index:auto;box-shadow:none}
 .pc:hover{border-color:var(--accent2);transform:scale(1.08) translateY(-2px);z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.5)}
 
 .del-btn{position:absolute;top:1px;right:1px;background:rgba(224,85,84,.85);color:#fff;border:none;border-radius:3px;width:14px;height:14px;font-size:9px;display:none;align-items:center;justify-content:center;cursor:pointer;padding:0;line-height:1;z-index:10}
@@ -281,7 +279,85 @@ body.dragging-now .tc:hover{transform:none!important;z-index:auto;box-shadow:non
 .crop-container img { max-width: 100%; }
 .cropper-view-box, .cropper-face { border-radius: 50%; }
 .char-edit-preview{width:80px;height:100px;object-fit:cover;border-radius:6px;border:2px solid var(--border2)}
+/* ===== CHAT STYLES ===== */
+@keyframes chat-open {
+  0%   { opacity: 0; transform: translate(50px, -50px) scale(0.25) rotate(-6deg); }
+  100% { opacity: 1; transform: translate(0,0) scale(1) rotate(0deg); }
+}
+@keyframes chat-close {
+  0%   { opacity: 1; transform: translate(0,0) scale(1) rotate(0deg); }
+  100% { opacity: 0; transform: translate(50px, -50px) scale(0.25) rotate(-6deg); }
+}
+.chat-modal {
+  width: 360px; height: 240px; display: flex; flex-direction: column; overflow: hidden; padding: 0 !important;
+  position: fixed; top: 60px; right: 16px; z-index: 2000;
+  background: #0c1434; border: 1.5px solid rgba(120, 80, 230, 0.4);
+  box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(160,100,255,0.08);
+  border-radius: 12px; transform-origin: top right; user-select: none;
+  animation: chat-open 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.chat-modal.closing {
+  animation: chat-close 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+/* Header */
+.chat-window-header {
+  background: #0a1128; padding: 7px 10px; display: flex; align-items: center;
+  justify-content: space-between; border-bottom: 1px solid rgba(120,80,230,0.2);
+  cursor: move; flex-shrink: 0;
+}
+.chat-header-left { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; }
+.chat-window-title { font-size: 11px; font-weight: 600; color: var(--accent2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-close-btn { color: #7a90bb; cursor: pointer; display: flex; align-items: center; flex-shrink: 0; transition: color 0.2s; }
+.chat-close-btn:hover { color: var(--red); }
+/* Body */
+.chat-container-body { display: flex; flex: 1; min-height: 0; }
+/* Sidebar */
+.chat-sidebar { width: 120px; border-right: 1px solid rgba(120,80,230,0.2); display: flex; flex-direction: column; background: #0a1128; flex-shrink: 0; }
+.chat-list { flex: 1; overflow-y: auto; }
+.chat-item { padding: 7px 9px; display: flex; align-items: center; gap: 7px; cursor: pointer; transition: 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02); }
+.chat-item:hover { background: rgba(120,80,230,0.1); }
+.chat-item.active { background: rgba(120,80,230,0.18); border-left: 3px solid var(--violet); }
+.chat-item-info { flex: 1; min-width: 0; }
+.chat-item-name { font-weight: 600; font-size: 10px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-item-last-msg { font-size: 9px; color: rgba(255,255,255,0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-item-unread-badge { background: var(--red); color: white; font-size: 8px; font-weight: bold; padding: 1px 4px; border-radius: 10px; min-width: 15px; text-align: center; flex-shrink: 0; }
+.create-group-btn { background: transparent; border: none; border-top: 1px solid rgba(120,80,230,0.2); color: var(--accent2); padding: 5px; font-size: 9px; cursor: pointer; text-align: center; font-weight: bold; flex-shrink: 0; }
+.create-group-btn:hover { background: rgba(120,80,230,0.1); }
+/* Main area */
+.chat-main { flex: 1; display: flex; flex-direction: column; background: #070d24; min-width: 0; }
+.chat-active-header { padding: 6px 8px; border-bottom: 1px solid rgba(120,80,230,0.2); display: flex; align-items: center; gap: 6px; flex-shrink: 0; background: #08112e; }
+.chat-active-header strong { font-size: 10px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 7px; display: flex; flex-direction: column; gap: 5px; }
+.msg { max-width: 85%; padding: 5px 9px; border-radius: 10px; font-size: 10px; line-height: 1.35; word-break: break-word; }
+.msg.sent { align-self: flex-end; background: var(--violet); color: white; border-bottom-right-radius: 2px; }
+.msg.received { align-self: flex-start; background: #1e2a5a; color: #e8e8f0; border-bottom-left-radius: 2px; }
+.msg-info { font-size: 8px; opacity: 0.6; margin-top: 2px; display: block; text-align: right; }
+.chat-sender-name { font-size: 8px; font-weight: bold; margin-bottom: 2px; color: var(--accent2); }
+.chat-input-area { padding: 5px; border-top: 1px solid rgba(120,80,230,0.2); display: flex; gap: 4px; background: #0a1128; flex-shrink: 0; }
+.chat-input { flex: 1; background: #101c41 !important; border: 1px solid rgba(120,80,230,0.3) !important; padding: 3px 7px; border-radius: 6px; color: #fff; font-size: 10px; outline: none; }
+.chat-send-btn { background: var(--violet); border: none; color: white; padding: 3px 9px; border-radius: 6px; cursor: pointer; font-size: 10px; font-weight: bold; }
+/* Avatares compuestos */
+.chat-avatar-single { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.group-avatars-container { position: relative; width: 30px; height: 24px; flex-shrink: 0; }
+.group-avatar-stacked { width: 17px; height: 17px; border-radius: 50%; object-fit: cover; position: absolute; border: 1.5px solid #0a1128; }
+.group-avatar-stacked:nth-child(1) { left: 0; top: 3px; z-index: 3; }
+.group-avatar-stacked:nth-child(2) { left: 9px; top: 3px; z-index: 2; }
+.group-avatar-extra { width: 17px; height: 17px; border-radius: 50%; background: #1e2a5a; border: 1.5px solid #0a1128; position: absolute; left: 18px; top: 3px; z-index: 1; display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: bold; color: var(--accent2); }
+/* Modal crear grupo */
+.group-creation-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 3000; }
+.group-creation-box { background: #0c1434; border: 1.5px solid rgba(120,80,230,0.4); border-radius: 12px; padding: 14px; width: 240px; }
+.friend-selection-list { max-height: 100px; overflow-y: auto; margin: 7px 0; display: flex; flex-direction: column; gap: 5px; }
+.friend-select-item { display: flex; align-items: center; gap: 7px; font-size: 11px; color: white; cursor: pointer; }
+.group-box-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 10px; }
+.group-box-actions button { padding: 4px 10px; border: none; border-radius: 6px; font-size: 11px; cursor: pointer; }
+.btn-cancel { background: #3a3a4a; color: white; }
+.btn-confirm { background: var(--violet); color: white; }
+
 .tw{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:5px}
+.chat-button-badge {
+  position: absolute; top: -5px; right: -5px; background: var(--red); color: white; border: 2px solid #0c1434; /* Adjusted border */
+  font-size: 10px; padding: 2px 5px; border-radius: 10px; min-width: 20px; text-align: center;
+}
 .toast{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 14px;font-size:12px;animation:si .2s ease;box-shadow:0 6px 24px rgba(0,0,0,.4);max-width:320px}
 .toast.ok{border-left:3px solid var(--green)}.toast.err{border-left:3px solid var(--red)}.toast.info{border-left:3px solid var(--accent2)}
 @keyframes si{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
@@ -409,6 +485,48 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 .users-footer{text-align:center;margin-top:40px;color:var(--text3);font-size:12px;display:flex;align-items:center;gap:8px;justify-content:center}
 .users-footer::before,.users-footer::after{content:'';flex:1;max-width:80px;height:1px;background:linear-gradient(90deg,transparent,rgba(120,150,255,.3))}
 .users-footer::after{background:linear-gradient(90deg,rgba(120,150,255,.3),transparent)}
+
+/* --- MEDIA QUERIES PARA MÓVIL --- */
+@media (max-width: 600px) {
+  .hh h1 { font-size: 42px; }
+  .tlg { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  .tlc h3 { font-size: 13px; }
+  
+  /* Editor en móvil */
+  .tlbl { width: 60px; min-width: 60px; }
+  .tlbl-txt { font-size: 11px; }
+  .tchars { padding: 4px; gap: 3px; }
+  .tc, .pc { width: 68px; height: 110px; }
+  .drag-float { width: 68px; height: 110px; }
+  .drop-placeholder { width: 68px; height: 110px; }
+  .trow { min-height: 120px; }
+  .tc .cn, .pc .cn { font-size: 6px; }
+  
+  /* Nav en móvil */
+  .ntab { padding: 6px 8px; font-size: 11px; }
+  .logo { font-size: 18px; letter-spacing: 1px; }
+  .chat-modal { width: 95% !important; right: 2.5% !important; left: 2.5% !important; }
+}
+
+/* --- MODO LANDSCAPE (GIRADO) PARA MÓVIL --- */
+@media (max-width: 950px) and (orientation: landscape) {
+  .hh { padding: 20px 0 5px; }
+  .hh h1 { font-size: 34px; margin-bottom: 4px; }
+  .hh-diamond-sep { margin: 4px auto 8px; }
+  .hh p { font-size: 12px; }
+  .menu-grid { margin-top: 15px; gap: 15px; }
+  .menu-box { width: 170px; height: 210px; gap: 10px; }
+  .menu-box h2 { font-size: 16px; }
+  .menu-box .mb-icon { width: 44px; height: 44px; }
+  .menu-box .mb-icon svg { width: 22px; height: 22px; }
+  .tlg { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+  .tc, .pc { width: 60px; height: 95px; }
+  .drag-float, .drop-placeholder { width: 60px; height: 95px; }
+  .trow { min-height: 105px; }
+  .tlbl { width: 50px; min-width: 50px; }
+  .tlbl-txt { font-size: 10px; }
+  .tchars { padding: 3px; gap: 2px; }
+}
 </style>
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -565,6 +683,11 @@ let S={
   // Profile draft state
   profileDraft: null,
   profileUnsaved: false,
+  chats: [],
+  totalUnread: 0, // Nuevo: para el badge global
+  chatModalPosition: { x: null, y: null }, // Nuevo: para la posición del modal arrastrable
+  activeChat: null,
+  messages: [],
   hasUnsaved:false,
   saveT:null,
 };
@@ -757,6 +880,155 @@ async function saveProfileChanges() {
   }
 }
 
+async function fetchChats() {
+  if (!userSession) return;
+  // Traemos los chats donde el usuario es miembro, incluyendo la info del chat y de los otros miembros
+  const { data, error } = await sbClient.from('chat_members')
+    .select('last_read_at, chats(*, chat_members(user_id, profiles(name, avatar_url)))')
+    .eq('user_id', userSession.user.id);
+  
+  if (!error) {
+    let globalUnread = 0;
+    S.chats = data.map(d => {
+      const chat = d.chats;
+      // Un chat no está leído si el last_message_at del chat es posterior al last_read_at del miembro
+      const hasUnread = chat.last_message_at && (!d.last_read_at || new Date(chat.last_message_at) > new Date(d.last_read_at));
+      
+      if (hasUnread) globalUnread++;
+      
+      return {
+        ...chat,
+        has_unread: hasUnread,
+        unread_count: hasUnread ? 1 : 0 // Supabase no da el conteo exacto fácil sin RPC, marcamos como 1 para mostrar el punto
+      };
+    });
+    S.totalUnread = globalUnread;
+    render();
+  }
+}
+
+async function openChat(chat) {
+  if (chat.is_temp) {
+    // Crear el chat real en la base de datos al primer contacto
+    const { data: nc } = await sbClient.from('chats').insert({ is_group: false }).select().single();
+    if (nc) {
+      const m = [
+        { chat_id: nc.id, user_id: userSession.user.id, last_read_at: new Date().toISOString() },
+        { chat_id: nc.id, user_id: chat.friend_id }
+      ];
+      await sbClient.from('chat_members').insert(m);
+      await fetchChats();
+      const real = S.chats.find(c => c.id === nc.id);
+      if (real) return openChat(real);
+    }
+    return;
+  }
+
+  S.activeChat = chat;
+  S.messages = [];
+  render();
+  
+  const { data, error } = await sbClient.from('messages')
+    .select('*, profiles(name)')
+    .eq('chat_id', chat.id)
+    .order('created_at', { ascending: true });
+    
+  if (!error) {
+    S.messages = data;
+    render();
+    const container = document.querySelector('.chat-messages');
+    if(container) setTimeout(() => container.scrollTop = container.scrollHeight, 50);
+  }
+  
+  // Marcar como leído en la base de datos
+  const now = new Date().toISOString();
+  const idx = S.chats.findIndex(c => c.id === chat.id);
+  if (idx !== -1) S.chats[idx].has_unread = false;
+
+  await sbClient.from('chat_members')
+    .update({ last_read_at: now })
+    .eq('chat_id', chat.id)
+    .eq('user_id', userSession.user.id);
+  fetchChats(); // Refrescar para actualizar el badge de no leídos
+
+  // Suscribirse a nuevos mensajes en tiempo real
+  sbClient.channel(`chat:${chat.id}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chat.id}` }, 
+    payload => {
+      if (!S.messages.find(m => m.id === payload.new.id)) {
+        S.messages.push({ ...payload.new, profiles: { name: currentUserProfile.name } }); // Asumimos que el perfil del sender es el nuestro
+        render();
+      }
+    }).subscribe();
+}
+
+async function sendChatMessage(content) {
+  if (!content.trim() || !S.activeChat) return;
+  const msg = {
+    chat_id: S.activeChat.id,
+    sender_id: userSession.user.id,
+    content: content.trim()
+  };
+  const { data: newMsg, error } = await sbClient.from('messages').insert(msg).select().single();
+  if (error) toast("Error al enviar", "err");
+  else {
+    // Actualizar last_message_at en el chat
+    await sbClient.from('chats').update({ last_message_at: new Date().toISOString() }).eq('id', S.activeChat.id);
+  }
+}
+
+async function createGroup(name, friendIds) {
+  if (!name || friendIds.length === 0) return;
+  
+  const { data: chat, error: cErr } = await sbClient.from('chats')
+    .insert({ name, is_group: true }).select().single();
+    
+  if (chat) {
+    const members = [...friendIds, userSession.user.id].map(uid => ({
+      chat_id: chat.id,
+      user_id: uid,
+      last_read_at: new Date().toISOString()
+    }));
+    await sbClient.from('chat_members').insert(members);
+    toast("Grupo creado ✓");
+    
+    // Refrescar lista y abrir el nuevo chat
+    await fetchChats();
+    const newChat = S.chats.find(c => c.id === chat.id);
+    if (newChat) openChat(newChat);
+    else S.activeChat = chat;
+  }
+}
+
+function renderChatAvatars(chat) {
+  const members = chat.chat_members.filter(m => m.user_id !== userSession?.user.id);
+  
+  if (!chat.is_group || members.length === 0) { // Handle single friend chat or empty group
+    const other = members[0]?.profiles || { name: 'Usuario', avatar_url: null };
+    return h('img', {
+        src: other.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${other.name}`,
+        class: 'chat-avatar-single'
+    });
+  }
+  
+  const wrap = h('div', { class: 'group-avatars-container' });
+  if (members.length <= 2) {
+      members.slice(0,2).forEach((m, idx) => { // Limit to 2 for stacked
+          const img = h('img', {
+              src: m.profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${m.profiles.name}`,
+              class: 'group-avatar-stacked',
+              style: { left: (idx * 8) + 'px', zIndex: 3 - idx } // Adjusted left offset
+          });
+          wrap.appendChild(img);
+      });
+  } else {
+      wrap.appendChild(h('img', { src: members[0].profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${members[0].profiles.name}`, class: 'group-avatar-stacked', style: { left: '0px', zIndex: 3 } })); // First avatar
+      wrap.appendChild(h('img', { src: members[1].profiles.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${members[1].profiles.name}`, class: 'group-avatar-stacked', style: { left: '8px', zIndex: 2 } })); // Second avatar, adjusted left
+      wrap.appendChild(h('div', { class: 'group-avatar-extra' }, '+' + (members.length - 2))); // Extra count
+  }
+  return wrap;
+}
+
 // ============ WORKING COPY (editor) ============
 function openEditor(tlid){
   const tl=getTLfromProfile(tlid);
@@ -885,8 +1157,6 @@ function h(tag,a,...ch){
 let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
 let scrollDir=0,scrollInt=null;
 let _md=false,_mdMoved=false,_mdX=0,_mdY=0,_mdImg='',_lastZoneKey='';
-let _lpT=null,_pointerId=null,_isTouch=false,_origZoneKey='';
-const LONG_PRESS_MS=450; // tiempo de pulsación larga en móvil/táctil antes de poder arrastrar
 
 function updateScroll(){if(scrollDir!==0)window.scrollBy(0,scrollDir*60);}
 function createFloat(imgSrc){
@@ -911,54 +1181,26 @@ function _posFloat(cx,cy){
   else if(!scrollDir&&scrollInt){clearInterval(scrollInt);scrollInt=null;}
 }
 function _getDropZone(cx,cy){
-  // Quitamos el placeholder temporalmente para medir las posiciones "de reposo" reales,
-  // si no, el propio hueco desplaza las cartas y eso desincroniza el cálculo (causaba rebote).
-  const ph=document.getElementById('drop-ph');
-  let phParent=null,phNext=null;
-  if(ph){phParent=ph.parentNode;phNext=ph.nextSibling;ph.remove();}
-
   if(dragFloatEl)dragFloatEl.style.visibility='hidden';
   const el=document.elementFromPoint(cx,cy);
   if(dragFloatEl)dragFloatEl.style.visibility='';
-
-  let result=null;
-  if(el){
-    if(el.closest('#pdrop')){result={type:'pool'};}
-    else{
-      const trow=el.closest('.trow');
-      if(trow){
-        const tid=trow.id.replace(/^t/,'');
-        const ce=trow.querySelector('.tchars');
-        if(!ce){result={type:'tier',tid,idx:0};}
-        else{
-          const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
-          if(cards.length===0){result={type:'tier',tid,idx:0};}
-          else{
-            const rects=cards.map(c=>c.getBoundingClientRect());
-            let bestI=0,bestD=Infinity;
-            for(let i=0;i<rects.length;i++){
-              const r=rects[i];
-              const ccx=r.left+r.width/2,ccy=r.top+r.height/2;
-              const d=(cx-ccx)**2+(cy-ccy)**2;
-              if(d<bestD){bestD=d;bestI=i;}
-            }
-            const r=rects[bestI];
-            // Solo cambia de lado si se sobrepasa el centro horizontal de la carta sobre la que se está
-            const after=cx>r.left+r.width/2;
-            const idx=after?bestI+1:bestI;
-            result={type:'tier',tid,idx};
-          }
-        }
-      }
+  if(!el)return null;
+  if(el.closest('#pdrop'))return{type:'pool'};
+  const trow=el.closest('.trow');
+  if(trow){
+    const tid=trow.id.replace(/^t/,'');
+    const ce=trow.querySelector('.tchars');
+    if(!ce)return{type:'tier',tid,idx:0};
+    const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
+    let idx=cards.length;
+    for(let i=0;i<cards.length;i++){
+      const r=cards[i].getBoundingClientRect();
+      if(cy<r.top){idx=i;break;}
+      if(cy<r.bottom&&cx<r.left+r.width/2){idx=i;break;}
     }
+    return{type:'tier',tid,idx};
   }
-
-  // Reponemos el placeholder donde estaba para no perderlo si el resultado no cambia
-  if(ph&&phParent){
-    if(phNext&&phNext.parentNode===phParent)phParent.insertBefore(ph,phNext);
-    else phParent.appendChild(ph);
-  }
-  return result;
+  return null;
 }
 function _updatePlaceholder(zone){
   // Limpiar highlights
@@ -974,6 +1216,8 @@ function _updatePlaceholder(zone){
     document.getElementById('t'+zone.tid)?.classList.add('dov');
     const ce=document.getElementById('t'+zone.tid)?.querySelector('.tchars');
     if(!ce){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
+    const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
+    if(DS===zone.tid&&zone.idx===DGidx){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
     // 1. Capturar posiciones ANTES de cualquier cambio DOM
     const allCards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
     const snapshots=allCards.map(c=>({el:c,rect:c.getBoundingClientRect()}));
@@ -989,23 +1233,12 @@ function _updatePlaceholder(zone){
     snapshots.forEach(({el,rect:oldRect})=>{
       const newRect=el.getBoundingClientRect();
       const dx=oldRect.left-newRect.left,dy=oldRect.top-newRect.top;
-      // Si esta carta ya tenía una animación FLIP en curso, la cancelamos para no pisarnos
-      if(el._flipRaf1)cancelAnimationFrame(el._flipRaf1);
-      if(el._flipRaf2)cancelAnimationFrame(el._flipRaf2);
       if(dx||dy){
         el.style.transition='none';
         el.style.transform=`translate(${dx}px,${dy}px)`;
-        el._flipRaf1=requestAnimationFrame(()=>{
-          el._flipRaf2=requestAnimationFrame(()=>{
-            el.style.transition='transform .3s cubic-bezier(0.2, 0, 0.2, 1)';
-            el.style.transform='';
-            el._flipRaf1=null;el._flipRaf2=null;
-          });
-        });
-      }else{
-        el.style.transition='transform .3s cubic-bezier(0.2, 0, 0.2, 1)';
+        el.offsetHeight;
+        el.style.transition='';
         el.style.transform='';
-        el._flipRaf1=null;el._flipRaf2=null;
       }
     });
   }
@@ -1033,105 +1266,68 @@ function _executeDrop(zone){
 }
 function _dragCleanup(){
   document.body.style.userSelect='';
-  document.body.classList.remove('dragging-now');
-  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;_lastZoneKey='';_isTouch=false;_origZoneKey='';
+  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;_lastZoneKey='';
   removeFloat();lastZone=null;
   const ph=document.getElementById('drop-ph');if(ph)ph.remove();
   document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
-  document.querySelectorAll('.tc').forEach(el=>{el.style.transform='';el.style.transition='';});
+  document.querySelectorAll('.tc').forEach(el=>el.style.transform='');
   document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
 }
 
-function _cancelLongPress(){
-  if(_lpT){clearTimeout(_lpT);_lpT=null;}
-}
-
-document.addEventListener('contextmenu',e=>{if(e.target.closest('.tc,.pc'))e.preventDefault();});
-document.addEventListener('dragstart',e=>{if(e.target.closest('.tc,.pc'))e.preventDefault();});
-
 document.addEventListener('pointermove',e=>{
-  if(_pointerId!==null&&e.pointerId!==_pointerId)return;
-
-  // Pulsación larga pendiente en táctil y el dedo se mueve antes de tiempo: es scroll, cancelamos
-  // el long-press y dejamos que el navegador haga scroll de forma nativa (no llamamos preventDefault).
-  if(_lpT&&!_md){
-    const dx=e.clientX-_mdX,dy=e.clientY-_mdY;
-    if(Math.sqrt(dx*dx+dy*dy)>12)_cancelLongPress();
+  // If pointer capture is active, ensure this event is for the captured pointer
+  if (_pointerId !== null && e.pointerId !== _pointerId) {
     return;
   }
 
+  // If long press is pending and not yet dragging
+  if(_lpT && !_md){
+    // Si se mueve más de 10px antes del tiempo de pulsación larga, cancelar
+    if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)>10){
+      clearTimeout(_lpT); _lpT=null;
+    }
+  }
   if(!_md)return;
-  if(!_mdMoved){
+  if(!_mdMoved){ // Only set _mdMoved to true once there's significant movement AND _md is true
     if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)<5)return;
     _mdMoved=true;
     document.body.style.userSelect='none';
-    document.body.classList.add('dragging-now');
     createFloat(_mdImg);
     _posFloat(e.clientX,e.clientY);
     document.querySelectorAll('.tc,.pc').forEach(el=>{
       if(el.dataset.cid===DG)el.classList.add('is-dragging');
     });
-    // Calculamos la zona "de origen" (donde estaría si no se moviera nada) para poder
-    // ignorarla como no-op y no abrir un hueco ahí mismo en el primer frame.
-    {
-      const origZone=_getDropZone(_mdX,_mdY);
-      _origZoneKey=origZone?(origZone.type+(origZone.tid||'')+(origZone.idx??'')):'';
-    }
-    e.preventDefault();
-    return;
   }
-  if(_mdMoved)e.preventDefault();
   _posFloat(e.clientX,e.clientY);
   const zone=_getDropZone(e.clientX,e.clientY);
   const key=zone?(zone.type+(zone.tid||'')+(zone.idx??'')):'';
-  if(key===_origZoneKey){
-    // El cursor sigue (o ha vuelto) sobre la posición original: no mostramos hueco
-    if(_lastZoneKey!==''){_lastZoneKey='';_updatePlaceholder(null);}
-    return;
-  }
   if(key!==_lastZoneKey){_lastZoneKey=key;_updatePlaceholder(zone);}
-},{passive:false});
+});
 
 document.addEventListener('pointerup',e=>{
-  _cancelLongPress();
-  if(_pointerId!==null&&e.target.hasPointerCapture?.(_pointerId)){
+  // Always clear long press timer on pointerup
+  if(_lpT){clearTimeout(_lpT); _lpT=null;} 
+
+  // Release pointer capture if it was set
+  if (_pointerId !== null && e.target.hasPointerCapture(_pointerId)) {
     e.target.releasePointerCapture(_pointerId);
   }
-  _pointerId=null;
+  _pointerId = null; // Reset pointer ID
 
-  if(!_md||!_mdMoved){_dragCleanup();return;}
+  // If no drag was active (_md is false) or no movement occurred (simple click/tap)
+  if(!_md || !_mdMoved){_dragCleanup();return;} 
 
   const zone=_getDropZone(e.clientX,e.clientY);
   _executeDrop(zone);
   _dragCleanup();
-});
-
-document.addEventListener('pointercancel',e=>{
-  _cancelLongPress();
-  _pointerId=null;
-  _dragCleanup();
-});
+},{passive:true});
 
 function dgPointerDown(e,id,src,idx,imgSrc){
-  if(e.button!==undefined&&e.button!==0)return;
+  if(e.button!==0)return;
   DG=id;DS=src;DGidx=idx;
-  _mdImg=imgSrc||'';
-  _isTouch=e.pointerType==='touch'||e.pointerType==='pen';
-  _pointerId=e.pointerId;
+  _md=true;_mdMoved=false;
   _mdX=e.clientX;_mdY=e.clientY;
-
-  if(_isTouch){
-    // En móvil/táctil: hace falta mantener pulsado un momento para poder arrastrar,
-    // así el dedo puede seguir deslizando la pantalla con normalidad si no se mantiene.
-    _cancelLongPress();
-    _lpT=setTimeout(()=>{
-      _lpT=null;
-      _md=true;_mdMoved=false;
-    },LONG_PRESS_MS);
-  }else{
-    // En PC con ratón: arrastrar funciona igual que siempre, al instante.
-    _md=true;_mdMoved=false;
-  }
+  _mdImg=imgSrc||'';
 }
 function dgstart(e){e.preventDefault();}
 function dgend(){}
@@ -1204,16 +1400,31 @@ function Nav(){
       S.pendingRequests.length > 0 ? h('div', { class: 'notif-badge' }, S.pendingRequests.length + '') : null
     );
     nr.appendChild(notifBtn);
-  }
-  if (!userSession) {
-    nr.appendChild(h('div', { class: 'profile-btn', style: { background: 'var(--bg3)', color: 'var(--text2)' }, onclick: handleGoogleLogin, title: 'Iniciar Sesión con Google' }, '👤'));
-  } else {
+    
+    const chatBtn = h('button', { class: 'btn bg bsm', style:{padding:'8px', marginLeft:'4px', position:'relative'}, onclick: (e) => {
+        e.stopPropagation();
+        if(S.modal === 'chat') { closeChatModal(); }
+        else {
+          if(!S.chatModalPosition) S.chatModalPosition = { x: null, y: null };
+          else { S.chatModalPosition.x = null; S.chatModalPosition.y = null; }
+          S.modal = 'chat';
+          render();
+          fetchChats();
+        }
+    } }, 
+      h('i', { class: 'ti ti-messages', style:{fontSize:'18px'} })
+    );
+    if (S.totalUnread > 0) chatBtn.appendChild(h('span', { class: 'chat-button-badge' }, S.totalUnread > 99 ? '+99' : S.totalUnread.toString()));
+    nr.appendChild(chatBtn);
+
     const p = currentUserProfile || { name: '...', color: '#888' };
     const btnContent = p.avatar_url 
       ? h('img', { src: p.avatar_url, style: { width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' } }) 
       : p.name.charAt(0).toUpperCase();
-    const btn = h('div', { class: 'profile-btn active', style: { background: p.color + '33', color: p.color }, onclick: (e) => { e.stopPropagation(); S.profileMenu = userSession.user.id; S.notifMenu = false; render(); } }, btnContent);
+    const btn = h('div', { class: 'profile-btn active', style: { background: p.color + '33', color: p.color }, onclick: (e) => { e.stopPropagation(); S.profileMenu = userSession.user.id; S.notifMenu = false; render(); } }, btnContent); // Mantener el perfil
     nr.appendChild(btn);
+  } else {
+    nr.appendChild(h('div', { class: 'profile-btn', style: { background: 'var(--bg3)', color: 'var(--text2)' }, onclick: handleGoogleLogin, title: 'Iniciar Sesión con Google' }, '👤'));
   }
   n.appendChild(nr);
 
@@ -1580,8 +1791,8 @@ function Viewer() {
     (tier.chars || []).forEach(cid => {
       const c = getChar(cid, { folder: tlMeta.folder });
       if(!c) return;
-      const el = h('div', { class: 'tc' });
-      const imgSrc = c.file?.startsWith('http') ? c.file : (BUCKET_BASE + (tlMeta.folder || 'waifus') + '/' + c.file);
+      const el = h('div', { class: 'tc', style: { position: 'relative' } });
+      const imgSrc = charImg(cid, { folder: tlMeta.folder });
       el.appendChild(h('img', { 
         src: imgSrc,
         onerror: (e) => e.target.src = 'https://api.dicebear.com/7.x/initials/svg?seed=' + encodeURIComponent(c.name)
@@ -2026,9 +2237,20 @@ function updPool(cont,tl){
 // ============ MODALS ============
 function ModalEl(){
   if(!S.modal)return null;
-  const ov=h('div',{class:'ov',onclick:(e)=>{if(e.target===ov){S.modal=null;render();}}});
-  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar};
-  const fn=fns[S.modal];if(fn)ov.appendChild(fn());
+  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'chat': MChat};
+  const fn=fns[S.modal];
+  if(!fn) return null;
+
+  if(S.modal === 'chat') {
+     return fn();
+  }
+  let _ovDown = false;
+  const ov=h('div',{
+    class:'ov',
+    onmousedown: (e) => { if(e.target === ov) _ovDown = true; },
+    onmouseup: (e) => { if(_ovDown && e.target === ov) { S.modal = null; render(); } _ovDown = false; }
+  });
+  ov.appendChild(fn());
   return ov;
 }
 
@@ -2082,6 +2304,194 @@ function MCropAvatar() {
     cropper = new Cropper(img, { aspectRatio: 1, viewMode: 1, dragMode: 'move', guides: false, center: true, highlight: false, cropBoxMovable: false, cropBoxResizable: false, toggleDragModeOnDblclick: false });
   }, 50);
   return m;
+}
+
+// CHAT MODAL
+function closeChatModal() {
+  const el = document.querySelector('.chat-modal');
+  if (!el) { S.modal = null; S.chatModalPosition = { x: null, y: null }; render(); return; }
+  el.classList.add('closing');
+  el.addEventListener('animationend', () => { S.modal = null; S.chatModalPosition = { x: null, y: null }; render(); }, { once: true });
+}
+
+function renderChatAvatarItem(c) {
+  const members = (c.chat_members || []).filter(m => m.user_id !== userSession?.user?.id);
+  if (!c.is_group) {
+    const p = members[0]?.profiles;
+    if (p?.avatar_url) return h('img', { src: p.avatar_url, class: 'chat-avatar-single' });
+    const initEl = h('div', { class: 'chat-avatar-single', style: { background: '#1e2a5a', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'10px', fontWeight:'bold', color:'var(--accent2)' } }, (p?.name||'?').charAt(0).toUpperCase());
+    return initEl;
+  }
+  // Group
+  const wrap = h('div', { class: 'group-avatars-container' });
+  const show = members.slice(0, 2);
+  show.forEach((m, i) => {
+    const p = m.profiles;
+    if (p?.avatar_url) {
+      wrap.appendChild(h('img', { src: p.avatar_url, class: 'group-avatar-stacked' }));
+    } else {
+      wrap.appendChild(h('div', { class: 'group-avatar-stacked', style: { background:'#1e2a5a', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'7px', fontWeight:'bold', color:'var(--accent2)' } }, (p?.name||'?').charAt(0).toUpperCase()));
+    }
+  });
+  if (members.length > 2) {
+    wrap.appendChild(h('div', { class: 'group-avatar-extra' }, '+' + (members.length - 2)));
+  }
+  return wrap;
+}
+
+function MChat() {
+  // IMPORTANTE: Si no tenemos los usuarios cargados, los traemos para que el modal de grupo funcione
+  if (S.allUsers.length === 0) fetchAllUsers();
+
+  if (!S.chatModalPosition) S.chatModalPosition = { x: null, y: null };
+  const hasPos = S.chatModalPosition.x !== null && S.chatModalPosition.y !== null;
+  const m = h('div', {
+    class: 'chat-modal',
+    style: hasPos ? { left: S.chatModalPosition.x + 'px', top: S.chatModalPosition.y + 'px', right: 'auto', bottom: 'auto' } : {}
+  });
+
+  // ---- HEADER ----
+  const activeChat = S.activeChat || (S.chats?.length > 0 ? S.chats[0] : null);
+  const getTitle = (c) => {
+    if (!c) return 'Mensajes';
+    if (c.is_group) return c.name || 'Grupo';
+    const other = (c.chat_members||[]).find(m => m.user_id !== userSession?.user?.id);
+    return other?.profiles?.name || 'Usuario';
+  };
+
+  const headerLeft = h('div', { class: 'chat-header-left' });
+  if (activeChat) {
+    headerLeft.appendChild(renderChatAvatarItem(activeChat));
+    headerLeft.appendChild(h('span', { class: 'chat-window-title' }, getTitle(activeChat)));
+  } else {
+    headerLeft.appendChild(h('span', { class: 'chat-window-title' }, 'Mensajes'));
+  }
+
+  const closeBtn = h('div', { class: 'chat-close-btn', onclick: closeChatModal });
+  closeBtn.appendChild(h('i', { class: 'ti ti-x', style: { fontSize: '14px' } }));
+
+  const header = h('div', { class: 'chat-window-header' });
+  header.appendChild(headerLeft);
+  header.appendChild(closeBtn);
+  m.appendChild(header);
+
+  // ---- DRAG ----
+  let dragX, dragY, dragLeft, dragTop;
+  header.onmousedown = (e) => {
+    if (e.target.closest('.chat-close-btn')) return;
+    e.preventDefault();
+    dragX = e.clientX; dragY = e.clientY;
+    dragLeft = m.offsetLeft; dragTop = m.offsetTop;
+    const onMove = (mv) => {
+      let nl = dragLeft + (mv.clientX - dragX);
+      let nt = dragTop + (mv.clientY - dragY);
+      nl = Math.max(0, Math.min(nl, window.innerWidth - m.offsetWidth));
+      nt = Math.max(0, Math.min(nt, window.innerHeight - m.offsetHeight));
+      m.style.left = nl + 'px'; m.style.top = nt + 'px';
+      m.style.right = 'auto'; m.style.bottom = 'auto';
+      S.chatModalPosition = { x: nl, y: nt };
+    };
+    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  // ---- BODY ----
+  const body = h('div', { class: 'chat-container-body' });
+
+  // Sidebar
+  const sidebar = h('div', { class: 'chat-sidebar' });
+  const list = h('div', { class: 'chat-list' });
+  (S.chats || []).forEach(c => {
+    const name = getTitle(c);
+    const item = h('div', { 
+      class: 'chat-item' + (S.activeChat?.id === c.id ? ' active' : ''), 
+      onclick: () => openChat(c) 
+    });
+    item.appendChild(renderChatAvatarItem(c));
+    const info = h('div', { class: 'chat-item-info' });
+    info.appendChild(h('div', { class: 'chat-item-name' }, name));
+    if (c.last_message_at) info.appendChild(h('div', { class: 'chat-item-last-msg' }, new Date(c.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})));
+    item.appendChild(info);
+    if (c.has_unread) item.appendChild(h('span', { class: 'chat-item-unread-badge' }, '●'));
+    list.appendChild(item);
+  });
+  sidebar.appendChild(list);
+
+  const grpBtn = h('button', { class: 'create-group-btn', onclick: () => abrirModalCrearGrupoRef() }, '+ Grupo');
+  sidebar.appendChild(grpBtn);
+  body.appendChild(sidebar);
+
+  // Main
+  const main = h('div', { class: 'chat-main' });
+  if (S.activeChat) {
+    const msgs = h('div', { class: 'chat-messages' });
+    (S.messages || []).forEach(msg => {
+      const isMe = msg.sender_id === userSession.user.id;
+      const el = h('div', { class: 'msg ' + (isMe ? 'sent' : 'received') });
+      if (S.activeChat.is_group && !isMe) {
+        const senderName = (S.activeChat.chat_members||[]).find(cm => cm.user_id === msg.sender_id)?.profiles?.name || '...';
+        el.appendChild(h('div', { class: 'chat-sender-name' }, senderName));
+      }
+      el.appendChild(h('span', {}, msg.content));
+      if (msg.created_at) el.appendChild(h('small', { class: 'msg-info' }, new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})));
+      msgs.appendChild(el);
+    });
+    if (!S.messages?.length) msgs.appendChild(h('div', { style: { color:'rgba(255,255,255,0.25)', fontSize:'10px', textAlign:'center', marginTop:'20px' } }, 'Inicio de la conversación'));
+    setTimeout(() => { msgs.scrollTop = msgs.scrollHeight; }, 10);
+    main.appendChild(msgs);
+
+    const inpArea = h('div', { class: 'chat-input-area' });
+    const ci = h('input', { class: 'chat-input', placeholder: 'Mensaje...' });
+    const doSend = async () => { const v = ci.value.trim(); if (!v) return; ci.value = ''; await sendChatMessage(v); };
+    ci.onkeydown = e => { if (e.key === 'Enter') doSend(); };
+    inpArea.appendChild(ci);
+    inpArea.appendChild(h('button', { class: 'chat-send-btn', onclick: doSend }, 'Ir'));
+    main.appendChild(inpArea);
+    setTimeout(() => ci.focus(), 50);
+  } else {
+    main.appendChild(h('div', { style: { flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,0.2)', fontSize:'10px' } }, 'Selecciona un chat'));
+  }
+  body.appendChild(main);
+  m.appendChild(body);
+  return m;
+}
+
+function abrirModalCrearGrupoRef() {
+  // Aquí filtramos por relStatus === 'accepted', por eso es vital que fetchAllUsers() haya corrido
+  const friends = (S.allUsers || []).filter(u => u.relStatus === 'accepted');
+  const overlay = h('div', { class: 'group-creation-overlay', onclick: (e) => { if (e.target === overlay) overlay.remove(); } });
+  const box = h('div', { class: 'group-creation-box' });
+  box.appendChild(h('h4', { style: 'color:white; font-size:12px; margin-bottom:8px;' }, 'Nuevo grupo'));
+  const nameInp = h('input', { type: 'text', placeholder: 'Nombre del grupo...', class: 'chat-input', style: 'width:100%; margin-bottom:8px;' });
+  box.appendChild(nameInp);
+  const list = h('div', { class: 'friend-selection-list' });
+  if (friends.length === 0) {
+    list.appendChild(h('div', { style: 'color:rgba(255,255,255,0.4); font-size:11px;' }, 'No tienes amigos aún'));
+  }
+  friends.forEach(f => {
+    const item = h('label', { class: 'friend-select-item' });
+    const cb = h('input', { type: 'checkbox', value: f.id });
+    cb.dataset.avatar = f.avatar_url || '';
+    item.appendChild(cb);
+    if (f.avatar_url) item.appendChild(h('img', { src: f.avatar_url, style: 'width:18px;height:18px;border-radius:50%;object-fit:cover;' }));
+    item.appendChild(h('span', {}, f.name));
+    list.appendChild(item);
+  });
+  box.appendChild(list);
+  const actions = h('div', { class: 'group-box-actions' });
+  actions.appendChild(h('button', { class: 'btn-cancel', onclick: () => overlay.remove() }, 'Cancelar'));
+  actions.appendChild(h('button', { class: 'btn-confirm', onclick: async () => {
+    const gname = nameInp.value.trim() || 'Nuevo Grupo';
+    const selected = Array.from(list.querySelectorAll('input:checked')).map(cb => cb.value);
+    if (!selected.length) { toast('Selecciona al menos un amigo', 'err'); return; }
+    await createGroup(gname, selected);
+    overlay.remove();
+  }}, 'Crear'));
+  box.appendChild(actions);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  setTimeout(() => nameInp.focus(), 50);
 }
 
 // EDIT PROFILE
@@ -2239,7 +2649,7 @@ function MPick(){
 // ADD CUSTOM CHAR (con AniList)
 function MAddChar(){
   const tl=S.workingTL;if(!tl)return h('div',{class:'modal'},h('p',{},'Error'));
-  const m=h('div',{class:'modal',onmousedown:e=>e.stopPropagation()});
+  const m=h('div',{class:'modal'});
   m.appendChild(h('h2',{},'A\xf1adir waifu a "'+tl.title+'"'));
   let imgData=null,fileName='',charName='',animeName='',aniSearchT=null;
 
@@ -2260,12 +2670,12 @@ function MAddChar(){
 
   // Name
   const ng=h('div',{class:'fg'});ng.appendChild(h('label',{},'Nombre'));
-  const ni=h('input',{type:'text',placeholder:'Ej: Rem'});ni.oninput=e=>charName=e.target.value;ng.appendChild(ni);m.appendChild(ng);
+  const ni=h('input',{type:'text',placeholder:'Ej: Rem', onmousedown: e => e.stopPropagation()});ni.oninput=e=>charName=e.target.value;ng.appendChild(ni);m.appendChild(ng);
 
   // Anime (AniList)
   const ag=h('div',{class:'fg'});ag.appendChild(h('label',{},'Anime (busca en cualquier idioma)'));
   const awrap=h('div',{class:'ac-wrap'});
-  const ai=h('input',{type:'text',placeholder:'Ej: yofukashi no uta, Demon Slayer, naruto...'});
+  const ai=h('input',{type:'text',placeholder:'Ej: yofukashi no uta, Demon Slayer, naruto...', onmousedown: e => e.stopPropagation()});
   const acl=h('div',{class:'ac-list',style:{display:'none'}});
   let acFocus=-1,aniResults=[];
 
@@ -2294,7 +2704,7 @@ function MAddChar(){
     acl.style.display='block';
   }
   ai.oninput=e=>{
-    animeName=e.target.value;
+      animeName=e.target.value; // Update animeName immediately
     clearTimeout(aniSearchT);
     if(e.target.value.length>=2){aniSearchT=setTimeout(()=>doAniSearch(e.target.value),350);}
     else{acl.style.display='none';}
@@ -2370,10 +2780,10 @@ function MEditChar(){
   ph.appendChild(pi);ph.appendChild(h('div',{},h('div',{style:{fontWeight:'600',fontSize:'14px'}},c.name),h('div',{style:{fontSize:'11px',color:'var(--text3)',marginTop:'3px'}},c.anime||'')));
   m.appendChild(ph);
   let newName=c.name,newAnime=c.anime||'',aniSearchT2=null,aniRes2=[];
-  const ng=h('div',{class:'fg'});ng.appendChild(h('label',{},'Nombre'));
-  const ni=h('input',{type:'text',value:c.name});ni.oninput=e=>newName=e.target.value;ng.appendChild(ni);m.appendChild(ng);
-  const ag=h('div',{class:'fg'});ag.appendChild(h('label',{},'Anime'));
-  const awrap=h('div',{class:'ac-wrap'});
+      const ng=h('div',{class:'fg'});ng.appendChild(h('label',{},'Nombre')); // Name input
+      const ni=h('input',{type:'text',value:c.name, onmousedown:(e)=>e.stopPropagation()});ni.oninput=e=>newName=e.target.value;ng.appendChild(ni);m.appendChild(ng);
+      const ag=h('div',{class:'fg'});ag.appendChild(h('label',{},'Anime')); // Anime input
+      const awrap=h('div',{class:'ac-wrap'}); 
   const ai=h('input',{type:'text',value:c.anime||''});
   const acl=h('div',{class:'ac-list',style:{display:'none'}});
   let acF=-1;
@@ -2391,8 +2801,8 @@ function MEditChar(){
     });
     acl.style.display='block';
   }
-  ai.oninput=e=>{newAnime=e.target.value;clearTimeout(aniSearchT2);if(e.target.value.length>=2)aniSearchT2=setTimeout(()=>doSearch2(e.target.value),350);else acl.style.display='none';};
-  document.addEventListener('mousedown',e=>{if(!awrap.contains(e.target))acl.style.display='none';});
+    ai.oninput=e=>{newAnime=e.target.value;clearTimeout(aniSearchT2);if(e.target.value.length>=2)aniSearchT2=setTimeout(()=>doSearch2(e.target.value),350);else acl.style.display='none';}; // Anime input
+    ai.onmousedown = (e) => e.stopPropagation(); // Prevent modal closing when interacting with this input
   awrap.appendChild(ai);awrap.appendChild(acl);ag.appendChild(awrap);m.appendChild(ag);
   const row=h('div',{style:{display:'flex',gap:'8px',marginTop:'14px'}});
   row.appendChild(h('button',{class:'btn bg',style:{flex:'1'},onclick:()=>{S.modal=null;if(onDone)onDone();else render();}},'Cancelar'));
@@ -2891,6 +3301,8 @@ async function handleAuthSession(session) {
     saveProfiles();
     fetchGlobalTemplates();
     // Si hay una ruta pendiente (URL con hash al cargar), abrir el editor correspondiente
+    await fetchAllUsers(); // Vital para que salgan los amigos en el chat
+    fetchChats(); // Cargar chats al iniciar sesión
     fetchNotifications(); // Cargar notificaciones al iniciar sesión
     if(S._pendingTlId){
       const pendingTl=S.profiles.find(p=>p.id===S.activeProfile)?.tls.find(t=>t.id===S._pendingTlId);
