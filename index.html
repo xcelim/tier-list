@@ -1264,15 +1264,24 @@ function _updatePlaceholder(zone){
     snapshots.forEach(({el,rect:oldRect})=>{
       const newRect=el.getBoundingClientRect();
       const dx=oldRect.left-newRect.left,dy=oldRect.top-newRect.top;
+      // Si esta carta ya tenía una animación FLIP en curso, la cancelamos para no pisarnos
+      if(el._flipRaf1)cancelAnimationFrame(el._flipRaf1);
+      if(el._flipRaf2)cancelAnimationFrame(el._flipRaf2);
       if(dx||dy){
         el.style.transition='none';
         el.style.transform=`translate(${dx}px,${dy}px)`;
-        requestAnimationFrame(()=>{
-          requestAnimationFrame(()=>{
+        el._flipRaf1=requestAnimationFrame(()=>{
+          el._flipRaf2=requestAnimationFrame(()=>{
             el.style.transition='transform .3s cubic-bezier(0.2, 0, 0.2, 1)';
             el.style.transform='';
+            el._flipRaf1=null;el._flipRaf2=null;
           });
         });
+      }else{
+        // Esta carta no se mueve ahora: aseguramos que no quede a medias de un FLIP anterior
+        el.style.transition='transform .3s cubic-bezier(0.2, 0, 0.2, 1)';
+        el.style.transform='';
+        el._flipRaf1=null;el._flipRaf2=null;
       }
     });
   }
@@ -1301,7 +1310,7 @@ function _executeDrop(zone){
 function _dragCleanup(){
   document.body.style.userSelect='';
   document.body.classList.remove('dragging-now');
-  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;_lastZoneKey='';_isTouch=false;_scrolling=false;
+  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;_lastZoneKey='';_isTouch=false;_scrolling=false;_origZoneKey='';
   removeFloat();lastZone=null;
   const ph=document.getElementById('drop-ph');if(ph)ph.remove();
   document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
@@ -1319,6 +1328,8 @@ function _activateDrag(x,y){
 
 document.addEventListener('contextmenu',e=>{if(e.target.closest('.tc,.pc'))e.preventDefault();});
 document.addEventListener('dragstart',e=>{if(e.target.closest('.tc,.pc'))e.preventDefault();});
+
+let _origZoneKey='';
 
 document.addEventListener('pointermove',e=>{
   if(_pointerId!==null&&e.pointerId!==_pointerId)return;
@@ -1342,11 +1353,26 @@ document.addEventListener('pointermove',e=>{
     document.querySelectorAll('.tc,.pc').forEach(el=>{
       if(el.dataset.cid===DG)el.classList.add('is-dragging');
     });
+    // Calculamos la zona "de origen" (donde estaría si no se moviera nada) para poder
+    // ignorarla como no-op y no abrir un hueco ahí mismo en el primer frame.
+    {
+      const origZone=_getDropZone(_mdX,_mdY);
+      _origZoneKey=origZone?(origZone.type+(origZone.tid||'')+(origZone.idx??'')):'';
+    }
+    // No calculamos zona/hueco en este primer frame: el cursor sigue casi en el sitio
+    // original y abriría un hueco ahí mismo sin que el usuario haya movido nada de verdad.
+    e.preventDefault();
+    return;
   }
   if(_mdMoved)e.preventDefault();
   _posFloat(e.clientX,e.clientY);
   const zone=_getDropZone(e.clientX,e.clientY);
   const key=zone?(zone.type+(zone.tid||'')+(zone.idx??'')):'';
+  if(key===_origZoneKey){
+    // El cursor sigue (o ha vuelto) sobre la posición original: no mostramos hueco
+    if(_lastZoneKey!==''){_lastZoneKey='';_updatePlaceholder(null);}
+    return;
+  }
   if(key!==_lastZoneKey){_lastZoneKey=key;_updatePlaceholder(zone);}
 },{passive:false});
 
