@@ -206,7 +206,7 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 /* CHARS - SMOOTH DRAG ANIMATIONS */
 .tchars{flex:1;display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;gap:4px;padding:6px;min-height:172px;position:relative}
 .tc,.pc{border-radius:10px;overflow:visible;cursor:grab;position:relative;flex-shrink:0;border:2px solid transparent; background: var(--bg3);
-  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s; touch-action: none;
+  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s; touch-action: pan-y;
   -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
 .tc{width:100px;height:160px}
 .pc{width:102px;height:162px;border-color:var(--border)}
@@ -1197,35 +1197,19 @@ function _getDropZone(cx,cy){
     if(!ce)return{type:'tier',tid,idx:0};
     const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
     if(cards.length===0)return{type:'tier',tid,idx:0};
-    // Agrupar las cartas por fila (mismo top redondeado), ya que el contenedor usa flex-wrap
-    const rows=[];
-    cards.forEach(c=>{
-      const r=c.getBoundingClientRect();
-      let row=rows.find(rw=>Math.abs(rw.top-r.top)<r.height*0.5);
-      if(!row){row={top:r.top,items:[]};rows.push(row);}
-      row.items.push({el:c,rect:r});
-    });
-    rows.sort((a,b)=>a.top-b.top);
-    rows.forEach(row=>row.items.sort((a,b)=>a.rect.left-b.rect.left));
-
-    // Elegir la fila más cercana verticalmente al cursor
-    let targetRow=rows[0];
-    for(const row of rows){
-      const bottom=row.top+row.items[0].rect.height;
-      if(cy>=row.top-row.items[0].rect.height*0.5&&cy<bottom+row.items[0].rect.height*0.5)targetRow=row;
+    const rects=cards.map(c=>c.getBoundingClientRect());
+    // Carta más cercana al cursor por distancia al centro (robusto frente a wrap de filas)
+    let bestI=0,bestD=Infinity;
+    for(let i=0;i<rects.length;i++){
+      const r=rects[i];
+      const ccx=r.left+r.width/2,ccy=r.top+r.height/2;
+      const d=(cx-ccx)**2+(cy-ccy)**2;
+      if(d<bestD){bestD=d;bestI=i;}
     }
-    if(cy<rows[0].top)targetRow=rows[0];
-    if(cy>=rows[rows.length-1].top)targetRow=rows[rows.length-1];
-
-    // Dentro de la fila, encontrar el índice según el centro horizontal de cada carta
-    let idxInRow=targetRow.items.length;
-    for(let i=0;i<targetRow.items.length;i++){
-      const r=targetRow.items[i].rect;
-      if(cx<r.left+r.width/2){idxInRow=i;break;}
-    }
-    // Convertir idx-dentro-de-fila a idx global dentro de la lista completa de cartas
-    const targetCard=targetRow.items[idxInRow];
-    const idx=targetCard?cards.indexOf(targetCard.el):cards.length;
+    const r=rects[bestI];
+    // Si el cursor está en la mitad derecha de la carta más cercana, insertar después; si no, antes
+    const after=cx>r.left+r.width/2;
+    const idx=after?bestI+1:bestI;
     return{type:'tier',tid,idx};
   }
   return null;
@@ -1245,7 +1229,6 @@ function _updatePlaceholder(zone){
     const ce=document.getElementById('t'+zone.tid)?.querySelector('.tchars');
     if(!ce){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
     const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
-    if(DS===zone.tid&&zone.idx===DGidx){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
     // 1. Capturar posiciones ANTES de cualquier cambio DOM
     const allCards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
     const snapshots=allCards.map(c=>({el:c,rect:c.getBoundingClientRect()}));
@@ -1315,24 +1298,13 @@ document.addEventListener('contextmenu',e=>{if(e.target.closest('.tc,.pc'))e.pre
 document.addEventListener('dragstart',e=>{if(e.target.closest('.tc,.pc'))e.preventDefault();});
 
 document.addEventListener('pointermove',e=>{
-  if(_pointerId!==null&&e.pointerId!==_pointerId&&e.isPrimary===false)return;
+  if(_pointerId!==null&&e.pointerId!==_pointerId)return;
 
-  // Pulsación larga pendiente en táctil: dejamos que el dedo deslice la pantalla manualmente
-  // (con touch-action:none el navegador ya no lo hace solo, así que lo hacemos nosotros)
+  // Pulsación larga pendiente en táctil y el dedo se mueve antes de tiempo: es scroll, cancelamos
+  // el long-press y dejamos que el navegador haga scroll de forma nativa (no llamamos preventDefault).
   if(_lpT&&!_md){
     const dx=e.clientX-_mdX,dy=e.clientY-_mdY;
-    if(Math.sqrt(dx*dx+dy*dy)>18){
-      _cancelLongPress();
-      _scrolling=true;
-      _mdX=e.clientX;_mdY=e.clientY;
-    }
-    return;
-  }
-  // Ya se canceló el long-press por movimiento (estamos en modo scroll manual), seguimos scrolleando
-  if(_scrolling&&!_md){
-    const dy=e.clientY-_mdY;
-    window.scrollBy(0,-dy);
-    _mdX=e.clientX;_mdY=e.clientY;
+    if(Math.sqrt(dx*dx+dy*dy)>12)_cancelLongPress();
     return;
   }
 
@@ -1340,10 +1312,6 @@ document.addEventListener('pointermove',e=>{
   if(!_mdMoved){
     if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)<5)return;
     _mdMoved=true;
-    // Ahora sí confirmamos que es un drag: bloqueamos scroll/selección del navegador
-    if(_pointerId!==null){
-      try{e.target.setPointerCapture?.(_pointerId);}catch(err){}
-    }
     document.body.style.userSelect='none';
     document.body.classList.add('dragging-now');
     createFloat(_mdImg);
@@ -1361,8 +1329,6 @@ document.addEventListener('pointermove',e=>{
 
 document.addEventListener('pointerup',e=>{
   _cancelLongPress();
-  _scrolling=false;
-
   if(_pointerId!==null&&e.target.hasPointerCapture?.(_pointerId)){
     e.target.releasePointerCapture(_pointerId);
   }
@@ -1377,7 +1343,6 @@ document.addEventListener('pointerup',e=>{
 
 document.addEventListener('pointercancel',e=>{
   _cancelLongPress();
-  _scrolling=false;
   _pointerId=null;
   _dragCleanup();
 });
@@ -1387,21 +1352,20 @@ function dgPointerDown(e,id,src,idx,imgSrc){
   DG=id;DS=src;DGidx=idx;
   _mdImg=imgSrc||'';
   _isTouch=e.pointerType==='touch'||e.pointerType==='pen';
+  _pointerId=e.pointerId;
+  _mdX=e.clientX;_mdY=e.clientY;
 
   if(_isTouch){
-    // En móvil/táctil: hace falta mantener pulsado 2s para poder arrastrar.
-    // No activamos el drag todavía, así el dedo puede seguir deslizando la pantalla normalmente.
-    _pointerId=e.pointerId;
-    _mdX=e.clientX;_mdY=e.clientY;
+    // En móvil/táctil: hace falta mantener pulsado un momento para poder arrastrar,
+    // así el dedo puede seguir deslizando la pantalla con normalidad si no se mantiene.
     _cancelLongPress();
     _lpT=setTimeout(()=>{
       _lpT=null;
-      _activateDrag(_mdX,_mdY);
+      _md=true;_mdMoved=false;
     },LONG_PRESS_MS);
   }else{
-    // En PC con ratón: arrastrar funciona igual que siempre, sin pulsación larga.
-    _pointerId=e.pointerId;
-    _activateDrag(e.clientX,e.clientY);
+    // En PC con ratón: arrastrar funciona igual que siempre, al instante.
+    _md=true;_mdMoved=false;
   }
 }
 function dgstart(e){e.preventDefault();}
