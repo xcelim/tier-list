@@ -69,6 +69,58 @@ manifest.json, sw.js, favicon.ico
    incluido** en la nueva estructura, para no crear conflictos ni archivos
    fantasma. Si contienen algo que quieras recuperar, dímelo y lo reviso.
 
+## 🆕 Navegación por páginas reales (URLs)
+
+Cada sección ahora tiene su propia URL navegable, con botón atrás/adelante
+funcionando de verdad:
+
+| Sección              | URL              |
+|-----------------------|------------------|
+| Principal              | `/`              |
+| Mis Tierlists           | `/tierlists`      |
+| Usuarios                | `/usuarios`        |
+| Ajustes (tu perfil)      | `/ajustes`          |
+| Editor de una tierlist    | `/editor/<id>`       |
+| Perfil de otro usuario     | `/usuario/<id>`       |
+| Modo observador              | `/ver`                 |
+
+Esto se implementó de forma centralizada: `render()` (en `js/core/render.js`)
+llama automáticamente a `syncRouteWithState()` (en `js/core/router.js`) en
+cada repintado, así que la URL siempre refleja la página actual sin tener
+que tocar cada sitio del código que cambia de pantalla. El botón
+atrás/adelante del navegador dispara `popstate`, que reconstruye el estado
+a partir de la URL.
+
+⚠️ **Para producción hace falta configurar el hosting** para que rutas como
+`/tierlists` no den 404 al recargar la página (es una SPA: solo existe
+`index.html` de verdad). Ya incluyo la configuración lista para los
+proveedores más comunes:
+- **Netlify** → `_redirects`
+- **Vercel** → `vercel.json`
+- **GitHub Pages** → `404.html` (copia de `index.html`, el truco clásico)
+
+Si usas otro hosting (Apache, Nginx, Firebase Hosting...) dímelo y te paso
+la configuración exacta.
+
+## 🆕 Rediseño visual
+
+Se añadió una capa cósmica ambiental 100% CSS (`#cosmic-fx` en `index.html`
++ el bloque "REDISEÑO PREMIUM" al final de `css/style.css`): campo de
+estrellas parpadeantes, resplandores de color flotando de fondo, brillo en
+el logo y las pestañas activas, tarjetas con borde degradado al pasar el
+ratón, botones con más profundidad, scrollbar a juego con la paleta, y una
+transición suave al cambiar de página. Todo es aditivo — ninguna clase que
+usa el JS (drag&drop, editor, pool...) fue renombrada ni tocada en su
+comportamiento.
+
+De paso corregí dos bugs visuales que ya existían en el original:
+- La fuente **Rajdhani** se usaba en 12 sitios del CSS pero nunca se
+  cargaba desde Google Fonts (caía en la fuente del sistema sin que se
+  notara). Ya está añadida al `<link>` de fuentes.
+- La variable `--violet` se usaba en todo el chat (burbujas de mensajes,
+  botón de enviar, etc.) pero nunca se definió en `:root`. Ya está
+  definida.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

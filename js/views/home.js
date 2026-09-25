@@ -1,4 +1,5 @@
-// Vista de inicio (Home): pantalla principal tras entrar en la app.
+// Páginas principales de la app: Home, Tierlists, Usuarios, Perfil de
+// usuario visitado, Visor (modo observador) y Ajustes/Perfil propio.
 
 // ============ HOME ============
 function Home(){

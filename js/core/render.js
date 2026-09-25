@@ -2,6 +2,10 @@
 
 // ============ RENDER ============
 function render(){
+  // Mantiene la URL de la barra de direcciones sincronizada con S.page,
+  // sin que cada sitio que cambia de página tenga que acordarse de hacerlo.
+  if(typeof syncRouteWithState==='function') syncRouteWithState();
+
   const app=document.getElementById('app');app.innerHTML='';
 
   // Forzar el fondo siempre en todas las pantallas
@@ -93,6 +97,13 @@ async function handleAuthSession(session) {
       const pendingTl=S.profiles.find(p=>p.id===S.activeProfile)?.tls.find(t=>t.id===S._pendingTlId);
       if(pendingTl){S.cid=S._pendingTlId;S.workingTL=JSON.parse(JSON.stringify(pendingTl));S.hasUnsaved=false;S.page='editor';}
       S._pendingTlId=null;
+    }
+    // Ruta pendiente al entrar directamente por una URL como /tierlists,
+    // /usuarios, /ajustes o /usuario/:id antes de saber si había sesión.
+    if(S._pendingRoute){
+      const pr=S._pendingRoute; S._pendingRoute=null;
+      if(pr.page==='user-view' && pr.id && typeof viewUser==='function'){ viewUser(pr.id); }
+      else if(pr.page==='tierlists'||pr.page==='users'||pr.page==='profile'){ S.page=pr.page; }
     }
     if (S.cid) syncFromSupabase();
   } finally {

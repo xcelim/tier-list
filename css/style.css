@@ -5,13 +5,12 @@
    vive ahora en /css/ en vez de la raíz del proyecto.
    ========================================================================== */
 
-<style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#0a0a0f;--bg2:#12121a;--bg3:#1a1a26;--bg4:#22223a;
   --border:#2a2a45;--border2:#3a3a60;
   --text:#e8e8f0;--text2:#9090b0;--text3:#5050a0;
-  --accent:#7c5cbf;--accent2:#9b7dd4;--accentbg:#7c5cbf22;
+  --accent:#7c5cbf;--accent2:#9b7dd4;--accentbg:#7c5cbf22;--violet:#7c5cbf;
   --red:#e05555;--green:#55c87d;--gold:#f0b429;
   --glass:rgba(18,18,26,0.8);
 }
@@ -517,4 +516,197 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
   .tlbl { width: 50px; min-width: 50px; }
   .tlbl-txt { font-size: 10px; }
   .tchars { padding: 3px; gap: 2px; }
+}
+
+
+/* ============================================================================
+   REDISEÑO PREMIUM — capa "cósmica" ambiental + mejoras visuales globales
+   ----------------------------------------------------------------------------
+   Todo lo de aquí abajo es ADITIVO: no se ha renombrado ni eliminado ninguna
+   clase que ya usara el JS (drag&drop, editor, pool, modales...), solo se
+   embellecen las mismas clases / se añaden capas puramente decorativas
+   nuevas (#cosmic-fx) que no interfieren con nada.
+   ============================================================================ */
+
+/* --- Campo de estrellas + resplandores ambientales (#cosmic-fx) --- */
+#cosmic-fx{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+
+.cosmic-stars{
+  position:absolute;inset:-10%;
+  background-image:
+    radial-gradient(1px 1px at 63.94% 2.5%, rgba(255,255,255,0.5), transparent 100%),
+    radial-gradient(1px 1px at 13.95% 10.25%, rgba(255,255,255,0.7), transparent 100%),
+    radial-gradient(1px 1px at 3.18% 9.37%, rgba(255,255,255,0.65), transparent 100%),
+    radial-gradient(1px 1px at 2.65% 19.88%, rgba(255,255,255,0.48), transparent 100%),
+    radial-gradient(1px 1px at 58.93% 80.94%, rgba(255,255,255,0.81), transparent 100%),
+    radial-gradient(1px 1px at 15.97% 42.26%, rgba(255,255,255,0.44), transparent 100%),
+    radial-gradient(1px 1px at 95.72% 33.66%, rgba(255,255,255,0.58), transparent 100%),
+    radial-gradient(1px 1px at 35.9% 34.4%, rgba(255,255,255,0.83), transparent 100%),
+    radial-gradient(1px 1px at 72.97% 53.62%, rgba(255,255,255,0.4), transparent 100%),
+    radial-gradient(1px 1px at 29.32% 62.86%, rgba(255,255,255,0.7), transparent 100%),
+    radial-gradient(1px 1px at 70.46% 4.58%, rgba(255,255,255,0.81), transparent 100%),
+    radial-gradient(1px 1px at 98.52% 85.53%, rgba(255,255,255,0.58), transparent 100%),
+    radial-gradient(1px 1px at 45.34% 83.41%, rgba(255,255,255,0.57), transparent 100%),
+    radial-gradient(1px 1px at 20.95% 26.7%, rgba(255,255,255,0.72), transparent 100%),
+    radial-gradient(1px 1px at 17.11% 72.91%, rgba(255,255,255,0.63), transparent 100%),
+    radial-gradient(1px 1px at 26.99% 92.54%, rgba(255,255,255,0.76), transparent 100%),
+    radial-gradient(1px 1px at 84.29% 77.6%, rgba(255,255,255,0.84), transparent 100%),
+    radial-gradient(1px 1px at 80.5% 40.12%, rgba(255,255,255,0.48), transparent 100%),
+    radial-gradient(1px 1px at 94.29% 87.64%, rgba(255,255,255,0.48), transparent 100%),
+    radial-gradient(1px 1px at 49.92% 88.47%, rgba(255,255,255,0.44), transparent 100%),
+    radial-gradient(1px 1px at 13.96% 74.5%, rgba(255,255,255,0.8), transparent 100%),
+    radial-gradient(1px 1px at 42.84% 58.35%, rgba(255,255,255,0.48), transparent 100%),
+    radial-gradient(1px 1px at 99.75% 50.95%, rgba(255,255,255,0.8), transparent 100%),
+    radial-gradient(1px 1px at 86.11% 15.28%, rgba(255,255,255,0.83), transparent 100%),
+    radial-gradient(1px 1px at 42.22% 6.35%, rgba(255,255,255,0.71), transparent 100%),
+    radial-gradient(1px 1px at 46.8% 25.14%, rgba(255,255,255,0.76), transparent 100%),
+    radial-gradient(1px 1px at 11.46% 88.48%, rgba(255,255,255,0.81), transparent 100%),
+    radial-gradient(1px 1px at 34.02% 29.35%, rgba(255,255,255,0.62), transparent 100%),
+    radial-gradient(1px 1px at 95.38% 87.59%, rgba(255,255,255,0.93), transparent 100%),
+    radial-gradient(1px 1px at 76.2% 50.77%, rgba(255,255,255,0.87), transparent 100%),
+    radial-gradient(1px 1px at 29.84% 63.89%, rgba(255,255,255,0.44), transparent 100%),
+    radial-gradient(1px 1px at 76.25% 53.94%, rgba(255,255,255,0.71), transparent 100%),
+    radial-gradient(1px 1px at 48.86% 11.19%, rgba(255,255,255,0.88), transparent 100%),
+    radial-gradient(1px 1px at 83.17% 30.75%, rgba(255,255,255,0.49), transparent 100%),
+    radial-gradient(1px 1px at 56.74% 7.88%, rgba(255,255,255,0.84), transparent 100%),
+    radial-gradient(1px 1px at 97.8% 53.27%, rgba(255,255,255,0.43), transparent 100%),
+    radial-gradient(1px 1px at 47.53% 54.98%, rgba(255,255,255,0.67), transparent 100%),
+    radial-gradient(1px 1px at 60.66% 96.44%, rgba(255,255,255,0.78), transparent 100%),
+    radial-gradient(1px 1px at 39.9% 67.17%, rgba(255,255,255,0.61), transparent 100%),
+    radial-gradient(1px 1px at 51.76% 12.1%, rgba(255,255,255,0.39), transparent 100%),
+    radial-gradient(1px 1px at 2.1% 55.39%, rgba(255,255,255,0.35), transparent 100%),
+    radial-gradient(1px 1px at 70.78% 5.89%, rgba(255,255,255,0.89), transparent 100%),
+    radial-gradient(1px 1px at 85.96% 7.09%, rgba(255,255,255,0.52), transparent 100%),
+    radial-gradient(1px 1px at 48.54% 53.92%, rgba(255,255,255,0.5), transparent 100%),
+    radial-gradient(1px 1px at 47.3% 40.71%, rgba(255,255,255,0.41), transparent 100%),
+    radial-gradient(1px 1px at 43.11% 42.36%, rgba(255,255,255,0.87), transparent 100%),
+    radial-gradient(1px 1px at 5.42% 65.35%, rgba(255,255,255,0.39), transparent 100%),
+    radial-gradient(1px 1px at 72.82% 80.06%, rgba(255,255,255,0.5), transparent 100%),
+    radial-gradient(1px 1px at 19.02% 44.86%, rgba(255,255,255,0.46), transparent 100%),
+    radial-gradient(1px 1px at 46.26% 87.45%, rgba(255,255,255,0.62), transparent 100%),
+    radial-gradient(1px 1px at 86.13% 55.03%, rgba(255,255,255,0.74), transparent 100%),
+    radial-gradient(1px 1px at 54.06% 1.48%, rgba(255,255,255,0.91), transparent 100%),
+    radial-gradient(1px 1px at 84.87% 16.63%, rgba(255,255,255,0.64), transparent 100%),
+    radial-gradient(1px 1px at 86.47% 90.24%, rgba(255,255,255,0.58), transparent 100%),
+    radial-gradient(1px 1px at 98.53% 26.52%, rgba(255,255,255,0.52), transparent 100%),
+    radial-gradient(1px 1px at 69.66% 73.05%, rgba(255,255,255,0.44), transparent 100%),
+    radial-gradient(1px 1px at 29.67% 96.87%, rgba(255,255,255,0.8), transparent 100%),
+    radial-gradient(1px 1px at 5.72% 58.42%, rgba(255,255,255,0.38), transparent 100%),
+    radial-gradient(1px 1px at 50.78% 85.13%, rgba(255,255,255,0.71), transparent 100%),
+    radial-gradient(1px 1px at 67.52% 23.52%, rgba(255,255,255,0.91), transparent 100%),
+    radial-gradient(1px 1px at 56.97% 57.89%, rgba(255,255,255,0.72), transparent 100%),
+    radial-gradient(1px 1px at 41.92% 58.37%, rgba(255,255,255,0.91), transparent 100%),
+    radial-gradient(1px 1px at 20.43% 71.62%, rgba(255,255,255,0.51), transparent 100%),
+    radial-gradient(1px 1px at 13.09% 64.55%, rgba(255,255,255,0.54), transparent 100%),
+    radial-gradient(1px 1px at 75.19% 7.25%, rgba(255,255,255,0.72), transparent 100%),
+    radial-gradient(1px 1px at 56.3% 10.0%, rgba(255,255,255,0.65), transparent 100%),
+    radial-gradient(1px 1px at 13.25% 34.9%, rgba(255,255,255,0.88), transparent 100%),
+    radial-gradient(1px 1px at 36.95% 15.77%, rgba(255,255,255,0.72), transparent 100%),
+    radial-gradient(1px 1px at 98.72% 65.4%, rgba(255,255,255,0.75), transparent 100%),
+    radial-gradient(1px 1px at 55.46% 93.18%, rgba(255,255,255,0.91), transparent 100%);
+  background-repeat:no-repeat;
+  animation:cosmic-twinkle 6s ease-in-out infinite alternate;
+}
+.cosmic-stars-2{
+  background-image:
+    radial-gradient(1px 1px at 13.43% 11.54%, rgba(255,255,255,0.8), transparent 100%),
+    radial-gradient(1px 1px at 15.54% 28.18%, rgba(255,255,255,0.78), transparent 100%),
+    radial-gradient(2px 2px at 20.36% 63.42%, rgba(255,255,255,0.65), transparent 100%),
+    radial-gradient(1px 1px at 25.11% 90.82%, rgba(255,255,255,0.41), transparent 100%),
+    radial-gradient(1px 1px at 42.36% 27.67%, rgba(255,255,255,0.55), transparent 100%),
+    radial-gradient(1px 1px at 13.08% 97.98%, rgba(255,255,255,0.79), transparent 100%),
+    radial-gradient(1px 1px at 55.17% 42.77%, rgba(255,255,255,0.42), transparent 100%),
+    radial-gradient(1px 1px at 94.51% 69.1%, rgba(255,255,255,0.68), transparent 100%),
+    radial-gradient(1px 1px at 83.46% 58.25%, rgba(255,255,255,0.61), transparent 100%),
+    radial-gradient(1px 1px at 4.18% 36.47%, rgba(255,255,255,0.89), transparent 100%),
+    radial-gradient(1px 1px at 21.01% 24.95%, rgba(255,255,255,0.56), transparent 100%),
+    radial-gradient(1px 1px at 55.99% 87.47%, rgba(255,255,255,0.91), transparent 100%),
+    radial-gradient(1px 1px at 23.67% 16.25%, rgba(255,255,255,0.88), transparent 100%),
+    radial-gradient(2px 2px at 2.48% 73.66%, rgba(255,255,255,0.82), transparent 100%),
+    radial-gradient(1px 1px at 41.17% 66.99%, rgba(255,255,255,0.51), transparent 100%),
+    radial-gradient(1px 1px at 78.74% 10.81%, rgba(255,255,255,0.87), transparent 100%),
+    radial-gradient(2px 2px at 22.24% 81.66%, rgba(255,255,255,0.56), transparent 100%),
+    radial-gradient(1px 1px at 82.05% 87.13%, rgba(255,255,255,0.36), transparent 100%),
+    radial-gradient(1px 1px at 19.31% 32.83%, rgba(255,255,255,0.93), transparent 100%),
+    radial-gradient(2px 2px at 27.91% 64.15%, rgba(255,255,255,0.76), transparent 100%),
+    radial-gradient(1px 1px at 84.37% 33.11%, rgba(255,255,255,0.42), transparent 100%),
+    radial-gradient(2px 2px at 97.04% 17.86%, rgba(255,255,255,0.37), transparent 100%),
+    radial-gradient(2px 2px at 59.66% 34.57%, rgba(255,255,255,0.61), transparent 100%),
+    radial-gradient(1px 1px at 98.42% 11.56%, rgba(255,255,255,0.5), transparent 100%),
+    radial-gradient(1px 1px at 70.88% 0.17%, rgba(255,255,255,0.57), transparent 100%),
+    radial-gradient(2px 2px at 7.0% 66.42%, rgba(255,255,255,0.72), transparent 100%),
+    radial-gradient(2px 2px at 66.34% 12.46%, rgba(255,255,255,0.65), transparent 100%),
+    radial-gradient(2px 2px at 66.69% 32.62%, rgba(255,255,255,0.68), transparent 100%),
+    radial-gradient(2px 2px at 19.18% 66.49%, rgba(255,255,255,0.76), transparent 100%),
+    radial-gradient(2px 2px at 90.28% 61.55%, rgba(255,255,255,0.59), transparent 100%),
+    radial-gradient(1px 1px at 83.37% 30.39%, rgba(255,255,255,0.61), transparent 100%),
+    radial-gradient(2px 2px at 58.0% 65.47%, rgba(255,255,255,0.62), transparent 100%),
+    radial-gradient(1px 1px at 67.56% 51.12%, rgba(255,255,255,0.75), transparent 100%),
+    radial-gradient(2px 2px at 28.38% 66.39%, rgba(255,255,255,0.41), transparent 100%),
+    radial-gradient(2px 2px at 95.2% 23.49%, rgba(255,255,255,0.48), transparent 100%);
+  animation:cosmic-drift 90s linear infinite, cosmic-twinkle 8s ease-in-out infinite alternate-reverse;
+  opacity:.8;
+}
+@keyframes cosmic-twinkle{0%{opacity:.55}50%{opacity:1}100%{opacity:.7}}
+@keyframes cosmic-drift{from{transform:translate3d(0,0,0)}to{transform:translate3d(-2%,-3%,0)}}
+
+.cosmic-glow{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;mix-blend-mode:screen;animation:cosmic-pulse 12s ease-in-out infinite}
+.cosmic-glow-a{width:520px;height:520px;top:-160px;left:-120px;background:radial-gradient(circle,rgba(124,92,191,.55),transparent 70%);animation-delay:0s}
+.cosmic-glow-b{width:620px;height:620px;bottom:-220px;right:-160px;background:radial-gradient(circle,rgba(240,180,41,.30),transparent 70%);animation-delay:-4s}
+.cosmic-glow-c{width:420px;height:420px;top:35%;left:60%;background:radial-gradient(circle,rgba(56,189,248,.30),transparent 70%);animation-delay:-8s}
+@keyframes cosmic-pulse{0%,100%{transform:scale(1);opacity:.45}50%{transform:scale(1.15);opacity:.65}}
+
+/* --- Transición suave al cambiar de página --- */
+main{animation:page-fade-in .45s cubic-bezier(.22,1,.36,1)}
+@keyframes page-fade-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* --- Scrollbar de lujo --- */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,var(--accent2),var(--gold));border-radius:6px}
+::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,var(--gold),var(--accent2))}
+*{scrollbar-color:var(--accent2) var(--bg2);scrollbar-width:thin}
+
+/* --- Selección de texto a juego con la paleta --- */
+::selection{background:var(--accent2);color:#0a0a0f}
+
+/* --- NAV: brillo ambiental + logo con resplandor pulsante --- */
+nav{position:sticky;box-shadow:0 1px 32px rgba(124,92,191,.18),0 1px 0 rgba(240,180,41,.08)}
+nav::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,var(--accent2) 20%,var(--gold) 50%,var(--accent2) 80%,transparent);opacity:.55}
+.logo{position:relative;filter:drop-shadow(0 0 10px rgba(155,125,212,.55));transition:filter .25s,transform .25s}
+.logo:hover{filter:drop-shadow(0 0 18px rgba(240,180,41,.75));transform:scale(1.04)}
+.ntab{position:relative}
+.ntab.on::after{content:'';position:absolute;left:14%;right:14%;bottom:-7px;height:2px;background:linear-gradient(90deg,var(--accent2),var(--gold));border-radius:2px;box-shadow:0 0 8px var(--accent2)}
+
+/* --- HERO de la home: título con más profundidad y brillo --- */
+.hh h1{filter:drop-shadow(0 4px 26px rgba(155,125,212,.45));font-family:'Cinzel',serif;font-weight:900}
+.hh p{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:17px;letter-spacing:.4px;opacity:.85}
+
+/* --- Botones con brillo tipo "cristal encantado" --- */
+.btn{position:relative;overflow:hidden}
+.btn.bp{background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);box-shadow:0 4px 18px rgba(124,92,191,.35);transition:box-shadow .25s,transform .15s,filter .25s}
+.btn.bp:hover{box-shadow:0 6px 26px rgba(124,92,191,.55),0 0 0 1px rgba(240,180,41,.25);transform:translateY(-1px);filter:brightness(1.08)}
+.btn.bp:active{transform:translateY(0) scale(.98)}
+.btn.bg:hover{box-shadow:inset 0 0 0 1px var(--border2)}
+
+/* --- Tarjetas de tierlists: borde con degradado sutil + elevación --- */
+.tlc{background:linear-gradient(165deg,rgba(26,26,38,.9),rgba(18,18,26,.95));position:relative}
+.tlc::before{content:'';position:absolute;inset:0;border-radius:10px;padding:1px;background:linear-gradient(135deg,rgba(155,125,212,.35),rgba(240,180,41,.18) 60%,transparent);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .25s;pointer-events:none}
+.tlc:hover::before{opacity:1}
+.tlc:hover{box-shadow:0 14px 40px rgba(0,0,0,.45),0 0 0 1px rgba(155,125,212,.18)}
+
+/* --- Cartas de personajes: brillo dorado sutil al pasar el ratón --- */
+.tc:hover,.pc:hover{box-shadow:0 10px 28px rgba(0,0,0,.55),0 0 16px rgba(155,125,212,.35)}
+
+/* --- Modales: bordes con resplandor dorado suave y blur más marcado --- */
+.modal{background:linear-gradient(165deg,rgba(24,24,36,.96),rgba(14,14,22,.98));box-shadow:0 30px 90px rgba(0,0,0,.7),0 0 0 1px rgba(155,125,212,.15);backdrop-filter:blur(4px)}
+.modal h2{background:linear-gradient(135deg,var(--accent2),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;display:inline-block}
+
+/* --- Perfil / avatar: anillo con pulso suave --- */
+.avatar-ring{animation:avatar-pulse 4s ease-in-out infinite}
+@keyframes avatar-pulse{0%,100%{filter:drop-shadow(0 0 0 rgba(80,140,255,0))}50%{filter:drop-shadow(0 0 12px rgba(80,140,255,.5))}}
+
+/* --- Respeta accesibilidad: si el usuario pide menos movimiento, calmamos animaciones --- */
+@media (prefers-reduced-motion: reduce){
+  #cosmic-fx *, main, .avatar-ring, .logo { animation: none !important; }
 }

@@ -129,6 +129,19 @@ function initSupabase() {
   });
 }
 
+// Guarda la ruta con la que se ha entrado a la página (p.ej. alguien entra
+// directo por /tierlists o /editor/abc123) para aplicarla en cuanto
+// sepamos si hay sesión iniciada (ver S._pendingTlId / S._pendingRoute en
+// render.js -> handleAuthSession).
+(function capturarRutaInicial(){
+  if(typeof getRouteFromPath!=='function') return;
+  const {page,id} = getRouteFromPath();
+  if(page==='editor' && id){ S._pendingTlId = id; }
+  else if(page==='user-view' && id){ S._pendingRoute = {page,id}; }
+  else if(page==='tierlists' || page==='users' || page==='profile'){ S._pendingRoute = {page}; }
+  // 'home' y 'viewer' no necesitan nada especial: S.page ya empieza en 'home'.
+})();
+
 initSupabase();
 // Render inicial con soporte de routing
 (function initApp(){  // <--- OJO: En tu archivo puede venir simplemente como (function(){
