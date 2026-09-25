@@ -150,12 +150,20 @@ De paso corregí dos bugs visuales que ya existían en el original:
 
 ### ⚠️ Ejecuta `supabase-schema.sql`
 
-Este archivo, en la raíz del proyecto, crea (si no existen ya) las tablas
-`chats`, `chat_members`, `messages` (chat), `notifications` y
-`tierlist_comments` (comentarios), con sus políticas de seguridad (RLS).
-Cópialo en Supabase → SQL Editor → pégalo → Run. Si alguna tabla ya existe,
-Postgres avisará con un error en esa tabla concreta (no pasa nada, salta
-esa parte y ejecuta el resto).
+**v2, corregido** tras ver tu esquema real: `tierlists.id` es de tipo
+`TEXT` en tu base de datos (no `uuid`), así que las claves foráneas hacia
+`tierlists(id)` ahora también son `TEXT`. El script es seguro de
+re-ejecutar todas las veces que haga falta (usa `if not exists` y
+`drop policy if exists`).
+
+Tus tablas de chat (`chats`, `chat_members`, `messages`) **ya existían**,
+así que lo más probable es que el chat no funcionara por falta de
+**políticas RLS**: si activaste seguridad a nivel de fila en esas tablas
+pero nunca añadiste políticas, Supabase deniega todo por defecto — sin
+ningún error visible en el cliente, simplemente el chat aparece vacío o no
+deja enviar mensajes. El script añade esas políticas.
+
+Cópialo en Supabase → SQL Editor → pégalo → Run.
 
 ## Producción
 
