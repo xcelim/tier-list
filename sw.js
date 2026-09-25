@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v2'; // v2 porque cambia la lista de assets precacheados
+const CACHE_NAME = 'at-v3'; // v3: nuevas páginas (rutas), tema claro/oscuro, comentarios, logros, notificaciones
 const ASSETS = [
   './',
   './index.html',
@@ -26,6 +26,7 @@ const ASSETS = [
   './js/core/editor-working-copy.js',
 
   './js/ui/toast.js',
+  './js/ui/theme.js',
   './js/core/char-helpers.js',
   './js/services/anilist.js',
   './js/ui/h-helper.js',
@@ -37,6 +38,9 @@ const ASSETS = [
   './js/views/modals.js',
 
   './js/features/export-png.js',
+  './js/features/comments.js',
+  './js/features/achievements.js',
+  './js/core/notifications.js',
   './js/core/actions.js',
   './js/core/router.js',
   './js/core/render.js',

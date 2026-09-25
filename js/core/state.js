@@ -18,6 +18,9 @@ let S={
   profileMenu:null, // null | profileId
   notifMenu: false,
   pendingRequests: [],
+  appNotifications: [], // notificaciones genéricas (comentarios, etc.) — ver js/core/notifications.js
+  comments: {}, // caché de comentarios por tierlist_id — ver js/features/comments.js
+  commentDraft: '',
   modal:null,md:{},
   q:'',poolPage:0,
   etitle:false,

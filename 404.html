@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>AnimeTier</title>
 
+<!-- Aplica el tema guardado (claro/oscuro) ANTES de que cargue nada más,
+     para que no haya un parpadeo del tema incorrecto al abrir la página. -->
+<script>
+(function(){
+  try{
+    var t = JSON.parse(localStorage.getItem('at4_theme')||'null') || 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+  }catch(e){}
+})();
+</script>
+
 <!-- Fuentes -->
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Playfair+Display:wght@500;600&family=Poppins:wght@300;400;600&family=Inter:wght@400;700&family=Rajdhani:wght@500;600;700&family=Cormorant+Garamond:ital,wght@1,600&display=swap" rel="stylesheet">
 
@@ -47,6 +58,14 @@
 <div id="app"></div>
 <div class="tw" id="tw"></div>
 
+<!-- Cinta animada decorativa (100% CSS, sin JS) -->
+<div id="hype-ticker" aria-hidden="true">
+  <div class="hype-ticker-track">
+    <span>✦&nbsp;&nbsp;BIENVENIDO AL SANTUARIO DEFINITIVO DEL WAIFU TIER LIST&nbsp;&nbsp;✦&nbsp;&nbsp;CREA&nbsp;&nbsp;·&nbsp;&nbsp;RANKEA&nbsp;&nbsp;·&nbsp;&nbsp;PRESUME&nbsp;&nbsp;✦&nbsp;&nbsp;TU WAIFU. TU TROPA. TU LEYENDA.&nbsp;&nbsp;✦&nbsp;&nbsp;</span>
+    <span>✦&nbsp;&nbsp;BIENVENIDO AL SANTUARIO DEFINITIVO DEL WAIFU TIER LIST&nbsp;&nbsp;✦&nbsp;&nbsp;CREA&nbsp;&nbsp;·&nbsp;&nbsp;RANKEA&nbsp;&nbsp;·&nbsp;&nbsp;PRESUME&nbsp;&nbsp;✦&nbsp;&nbsp;TU WAIFU. TU TROPA. TU LEYENDA.&nbsp;&nbsp;✦&nbsp;&nbsp;</span>
+  </div>
+</div>
+
 <!--
   ============================================================================
   Carga de la lógica de la app en módulos clásicos (scripts normales, sin
@@ -67,10 +86,12 @@
 <script src="js/core/state.js"></script>
 <script src="js/core/profile-helpers.js"></script>
 <script src="js/core/save.js"></script>
+<script src="js/core/notifications.js"></script>
 <script src="js/core/editor-working-copy.js"></script>
 
 <!-- 3) Utilidades de interfaz -->
 <script src="js/ui/toast.js"></script>
+<script src="js/ui/theme.js"></script>
 <script src="js/core/char-helpers.js"></script>
 <script src="js/services/anilist.js"></script>
 <script src="js/ui/h-helper.js"></script>
@@ -84,6 +105,8 @@
 
 <!-- 5) Funcionalidades y lógica de aplicación -->
 <script src="js/features/export-png.js"></script>
+<script src="js/features/comments.js"></script>
+<script src="js/features/achievements.js"></script>
 <script src="js/core/actions.js"></script>
 <script src="js/core/router.js"></script>
 

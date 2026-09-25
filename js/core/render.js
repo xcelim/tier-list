@@ -1,6 +1,7 @@
 // Motor de renderizado principal: decide qué vista mostrar según la ruta/estado actual.
 
 // ============ RENDER ============
+let __lastRenderedPage = null; // para detectar cambios REALES de página (evita el "parpadeo")
 function render(){
   // Mantiene la URL de la barra de direcciones sincronizada con S.page,
   // sin que cada sitio que cambia de página tenga que acordarse de hacerlo.
@@ -13,6 +14,9 @@ function render(){
 
   app.appendChild(Nav());
   const main=document.createElement('main');
+  // Solo animamos la entrada cuando de verdad cambiamos de sección, no en
+  // cada render() (que se dispara con casi cualquier interacción).
+  if(S.page !== __lastRenderedPage){ main.classList.add('page-turn'); __lastRenderedPage = S.page; }
   if(S.page==='home')main.appendChild(Home());
   else if(S.page==='tierlists')main.appendChild(TierlistsPage());
   else if(S.page==='users')main.appendChild(UsersPage());
@@ -93,6 +97,7 @@ async function handleAuthSession(session) {
     await fetchAllUsers(); // Vital para que salgan los amigos en el chat
     fetchChats(); // Cargar chats al iniciar sesión
     fetchNotifications(); // Cargar notificaciones al iniciar sesión
+    if(typeof fetchAppNotifications==='function') fetchAppNotifications();
     if(S._pendingTlId){
       const pendingTl=S.profiles.find(p=>p.id===S.activeProfile)?.tls.find(t=>t.id===S._pendingTlId);
       if(pendingTl){S.cid=S._pendingTlId;S.workingTL=JSON.parse(JSON.stringify(pendingTl));S.hasUnsaved=false;S.page='editor';}

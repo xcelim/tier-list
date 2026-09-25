@@ -121,6 +121,42 @@ De paso corregí dos bugs visuales que ya existían en el original:
   botón de enviar, etc.) pero nunca se definió en `:root`. Ya está
   definida.
 
+## 🆕 Ronda 2 — parpadeo, tema, rediseño radical y funcionalidades
+
+- **Bug de parpadeo arreglado**: la animación de "entrada de página" se
+  disparaba en cada `render()` (casi cualquier clic), no solo al cambiar
+  de sección. Ahora se compara la página anterior vs la nueva en
+  `js/core/render.js` y solo anima cuando cambia de verdad.
+- **Tema claro/oscuro**: botón en el nav (`js/ui/theme.js`), persistente en
+  `localStorage`, sin parpadeo al cargar (se aplica en un script inline al
+  principio de `<head>`, antes de que cargue nada más).
+- **Rediseño radical** ("Grimorio Neón"): nueva paleta magenta/cian/oro,
+  tarjetas con esquina cortada tipo carta coleccionable, hero con título
+  gigante y efecto holográfico, cinta animada bajo el nav, nav con recorte
+  diagonal. El editor/ranking se dejó **intacto**, tal como pediste.
+- **Notificaciones**: se encontró y arregló un bug real — un listener de
+  tiempo real apuntaba a tablas `friends` y `waifus` que no existen (nunca
+  funcionó). Ahora usa las tablas reales y se añadió un sistema de
+  notificaciones genérico (`js/core/notifications.js`) que también avisa de
+  comentarios nuevos.
+- **Comentarios**: solo visibles en modo Visor (`js/features/comments.js`),
+  tal como pediste.
+- **Logros**: calculados 100% en el navegador a partir de tus propios
+  datos, sin depender de ninguna tabla nueva (`js/features/achievements.js`),
+  visibles en Ajustes.
+- **Chat**: revisado a fondo — el código cliente (`js/core/save.js`) ya
+  estaba bien hecho. Si no funcionaba, casi seguro era porque faltaban las
+  tablas en Supabase.
+
+### ⚠️ Ejecuta `supabase-schema.sql`
+
+Este archivo, en la raíz del proyecto, crea (si no existen ya) las tablas
+`chats`, `chat_members`, `messages` (chat), `notifications` y
+`tierlist_comments` (comentarios), con sus políticas de seguridad (RLS).
+Cópialo en Supabase → SQL Editor → pégalo → Run. Si alguna tabla ya existe,
+Postgres avisará con un error en esa tabla concreta (no pasa nada, salta
+esa parte y ejecuta el resto).
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

@@ -145,6 +145,10 @@ nav{background:linear-gradient(90deg,rgba(8,12,35,.92) 0%,rgba(12,18,50,.92) 50%
 .notif-title{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;margin-bottom:10px;color:var(--text2);display:flex;justify-content:space-between}
 .notif-empty{padding:20px;text-align:center;color:var(--text3);font-size:12px}
 .notif-item{padding:10px;border-radius:8px;background:rgba(255,255,255,.03);margin-bottom:8px;font-size:12px;border:1px solid var(--border)}
+.notif-sep{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin:10px 0 6px;padding-top:8px;border-top:1px solid var(--border)}
+.notif-item.notif-unread{border-color:var(--neon-magenta,var(--accent2));box-shadow:0 0 0 1px rgba(255,46,166,.15)}
+.notif-item[onclick]{cursor:pointer;transition:.15s}
+.notif-item[onclick]:hover{background:rgba(255,255,255,.07)}
 .notif-msg{margin-bottom:8px;line-height:1.4}
 .notif-actions{display:flex;gap:6px;justify-content:flex-end}
 .btn-notif{padding:4px 10px;border-radius:5px;font-size:11px;font-weight:600}
@@ -656,9 +660,14 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 .cosmic-glow-c{width:420px;height:420px;top:35%;left:60%;background:radial-gradient(circle,rgba(56,189,248,.30),transparent 70%);animation-delay:-8s}
 @keyframes cosmic-pulse{0%,100%{transform:scale(1);opacity:.45}50%{transform:scale(1.15);opacity:.65}}
 
-/* --- Transición suave al cambiar de página --- */
-main{animation:page-fade-in .45s cubic-bezier(.22,1,.36,1)}
-@keyframes page-fade-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+/* --- Transición suave SOLO al cambiar de página real (no en cada click) ---
+   La animación se aplica vía JS con la clase .page-turn, añadida una sola
+   vez por cambio de página real (ver router.js), en vez de en la etiqueta
+   <main> global — así no "parpadea" en cada render() (que se llama en casi
+   cualquier interacción: abrir un modal, arrastrar una carta, escribir en
+   un buscador...). */
+.page-turn{animation:page-fade-in .4s cubic-bezier(.22,1,.36,1)}
+@keyframes page-fade-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
 /* --- Scrollbar de lujo --- */
 ::-webkit-scrollbar{width:8px;height:8px}
@@ -710,3 +719,167 @@ nav::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;ba
 @media (prefers-reduced-motion: reduce){
   #cosmic-fx *, main, .avatar-ring, .logo { animation: none !important; }
 }
+
+/* ============================================================================
+   TEMA CLARO — se activa con [data-theme="light"] en <html> (ver theme.js)
+   Redefine las mismas variables CSS que ya usa toda la app, así que no hace
+   falta tocar ni una sola clase más: todo lo que ya está pintado con
+   var(--bg), var(--text), etc. cambia de golpe.
+   ============================================================================ */
+:root[data-theme="light"]{
+  --bg:#f6f4fb;--bg2:#ffffff;--bg3:#f1edf9;--bg4:#e8e1f6;
+  --border:#e2d9f5;--border2:#cdbdec;
+  --text:#241f38;--text2:#5c5480;--text3:#9089b5;
+  --accent:#7c5cbf;--accent2:#6a3fc0;--accentbg:#7c5cbf14;--violet:#7c5cbf;
+  --red:#d8433f;--green:#1f9d5c;--gold:#c98a10;
+  --glass:rgba(255,255,255,0.85);
+}
+:root[data-theme="light"] body{color:var(--text)}
+:root[data-theme="light"] body.bg-main::before{background:#f6f4fb url('../resources/homebkg.png') center/cover;filter:blur(2px) brightness(1.35) saturate(.7);opacity:.35}
+:root[data-theme="light"] body.bg-main::after{opacity:.3}
+:root[data-theme="light"] .cosmic-stars,:root[data-theme="light"] .cosmic-stars-2{opacity:.25;filter:invert(1) brightness(.6)}
+:root[data-theme="light"] .cosmic-glow{opacity:.25;mix-blend-mode:multiply}
+:root[data-theme="light"] nav{background:linear-gradient(90deg,rgba(255,255,255,.92),rgba(246,244,251,.92));border-bottom:1px solid var(--border)}
+:root[data-theme="light"] .toast,:root[data-theme="light"] .modal,:root[data-theme="light"] .chat-modal{box-shadow:0 12px 40px rgba(80,60,140,.14)}
+:root[data-theme="light"] .drag-float{background:#fff}
+
+/* Botón de alternar tema */
+.theme-toggle{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:1px solid var(--border);background:var(--bg2);transition:.2s;margin-right:6px;flex-shrink:0}
+.theme-toggle:hover{transform:rotate(18deg) scale(1.08);border-color:var(--accent2);box-shadow:0 0 12px rgba(155,125,212,.4)}
+
+/* ============================================================================
+   CAMBIO RADICAL DE ESTÉTICA — "Grimorio Neón"
+   ----------------------------------------------------------------------------
+   Se deja INTACTO el editor/ranking (.trow, .tc, .pc, .pool, drag&drop...)
+   tal cual estaba, tal y como pediste. Todo lo demás (nav, home, tierlists,
+   usuarios, perfil/ajustes, modales) recibe una identidad nueva: paleta
+   magenta+cian+oro sobre negro casi puro, tarjetas con esquina cortada tipo
+   carta coleccionable, tipografía enorme y trazo holográfico.
+   Sigue siendo 100% aditivo: ninguna clase usada por el JS se ha tocado en
+   su comportamiento, solo se sobreescriben propiedades visuales.
+   ============================================================================ */
+
+:root{
+  --neon-magenta:#ff2ea6;--neon-cyan:#28e0ff;--neon-gold:#ffcb3d;--neon-void:#050308;
+}
+
+/* --- Cinta animada bajo el nav --- */
+#hype-ticker{position:sticky;top:52px;z-index:290;height:24px;overflow:hidden;
+  background:linear-gradient(90deg,#170a22,#2a0f38,#170a22);
+  border-bottom:1px solid rgba(255,203,61,.25);display:flex;align-items:center}
+.hype-ticker-track{display:inline-flex;white-space:nowrap;animation:hype-scroll 32s linear infinite;
+  font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2.5px;font-size:11px;
+  color:var(--neon-gold);text-shadow:0 0 10px rgba(255,203,61,.55)}
+@keyframes hype-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+:root[data-theme="light"] #hype-ticker{background:linear-gradient(90deg,#2a1240,#3d1a5c,#2a1240)}
+
+/* --- NAV: recorte diagonal + trazo holográfico --- */
+nav{
+  background:linear-gradient(100deg,#0b0410 0%,#1a0b28 45%,#0b0410 100%)!important;
+  border-bottom:none!important;
+  clip-path:polygon(0 0,100% 0,100% 100%,0 100%);
+  box-shadow:0 2px 0 var(--neon-magenta),0 4px 24px rgba(255,46,166,.25)!important;
+}
+nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var(--neon-magenta) 50%,var(--neon-gold) 75%,transparent)!important;height:2px!important;opacity:.9!important}
+.logo{font-family:'Cinzel',serif;font-weight:900;letter-spacing:3px;
+  background:linear-gradient(90deg,var(--neon-cyan),var(--neon-magenta) 55%,var(--neon-gold));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 14px rgba(255,46,166,.55))!important}
+.ntab.on{color:#fff!important}
+.ntab.on::after{background:linear-gradient(90deg,var(--neon-cyan),var(--neon-magenta))!important;box-shadow:0 0 12px var(--neon-magenta)!important}
+
+/* --- HERO de la home: tipografía gigante + efecto holográfico --- */
+.hh{padding-top:74px}
+.hh h1{
+  font-size:min(15vw,108px)!important;font-weight:900!important;letter-spacing:1px!important;
+  background:linear-gradient(100deg,var(--neon-cyan) 0%,#fff 20%,var(--neon-magenta) 45%,var(--neon-gold) 70%,var(--neon-cyan) 100%)!important;
+  background-size:250% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  animation:holo-sweep 6s linear infinite;
+  filter:drop-shadow(0 0 34px rgba(255,46,166,.35)) drop-shadow(0 0 14px rgba(40,224,255,.3))!important;
+  text-transform:uppercase;
+}
+@keyframes holo-sweep{to{background-position:250% center}}
+.hh p{font-family:'Cormorant Garamond',serif!important;font-style:italic;font-size:19px!important;color:var(--neon-gold)!important;opacity:.9}
+.hh .hh-sep,.hh-diamond-sep .diamond{background:var(--neon-magenta)!important;box-shadow:0 0 14px var(--neon-magenta)!important}
+
+/* --- Menú principal: tarjetas tipo "carta coleccionable" con esquina cortada --- */
+.menu-box{
+  border-radius:4px!important;
+  clip-path:polygon(0 18px,18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%);
+  border-width:1.5px!important;
+}
+.menu-box::after{mix-blend-mode:normal}
+.menu-box:hover{transform:translateY(-12px) scale(1.045) rotate(-.6deg)!important}
+.menu-box h2{font-family:'Cinzel',serif!important;letter-spacing:2px!important;text-transform:uppercase}
+.menu-box{isolation:isolate}
+
+/* --- Tarjetas de tierlists / usuarios: recorte de esquina + borde holográfico --- */
+.tlc{
+  border-radius:6px!important;
+  clip-path:polygon(0 14px,14px 0,100% 0,100% 100%,0 100%);
+}
+.tlc::before{background:linear-gradient(120deg,var(--neon-cyan),var(--neon-magenta) 50%,var(--neon-gold))!important}
+.tlc:hover{transform:translateY(-6px)}
+
+/* --- Títulos de sección: display gigante con contorno neón --- */
+.users-page-title,.page-title{
+  font-family:'Cinzel',serif!important;text-transform:uppercase;letter-spacing:2px!important;
+  background:linear-gradient(90deg,var(--neon-cyan),var(--neon-gold))!important;
+  -webkit-background-clip:text!important;-webkit-text-fill-color:transparent!important;
+  -webkit-text-stroke:1.5px rgba(255,46,166,.35)!important;
+  filter:drop-shadow(0 0 28px rgba(40,224,255,.4))!important;
+}
+
+/* --- Modales: esquina cortada + marco dorado fino --- */
+.modal{
+  border-radius:8px!important;
+  clip-path:polygon(0 22px,22px 0,100% 0,100% 100%,0 100%);
+  box-shadow:0 30px 90px rgba(0,0,0,.75),0 0 0 1px var(--neon-gold),0 0 40px rgba(255,203,61,.15)!important;
+}
+
+/* --- Botones primarios: gradiente neón de firma --- */
+.btn.bp{
+  background:linear-gradient(120deg,var(--neon-magenta) 0%,#a634c9 50%,var(--neon-cyan) 100%)!important;
+  box-shadow:0 4px 22px rgba(255,46,166,.35)!important;
+  text-transform:uppercase;letter-spacing:1px;font-family:'Rajdhani',sans-serif;font-weight:700;
+}
+.btn.bp:hover{box-shadow:0 8px 32px rgba(255,46,166,.55),0 0 0 1px var(--neon-gold)!important}
+
+/* --- Scrollbar a juego con la nueva paleta --- */
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,var(--neon-cyan),var(--neon-magenta))!important}
+
+/* En tema claro moderamos el neón para que siga siendo legible */
+:root[data-theme="light"] .hh h1{filter:drop-shadow(0 0 18px rgba(255,46,166,.25))!important}
+:root[data-theme="light"] .menu-box,:root[data-theme="light"] .tlc{filter:saturate(.9)}
+
+/* --- Comentarios (solo en modo Visor de una tierlist) --- */
+.comments-box{max-width:900px;margin:28px auto 60px;padding:20px;background:var(--bg2);border:1px solid var(--border);border-radius:14px}
+.comments-title{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;letter-spacing:.5px;margin-bottom:14px;color:var(--text)}
+.comments-empty{color:var(--text3);font-size:13px;padding:10px 2px}
+.comments-list{display:flex;flex-direction:column;gap:12px;margin-bottom:16px;max-height:420px;overflow-y:auto}
+.comment-item{display:flex;gap:10px;align-items:flex-start;position:relative}
+.comment-avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--border2)}
+.comment-body{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:8px 12px}
+.comment-head{display:flex;align-items:baseline;gap:8px;font-size:13px;margin-bottom:2px}
+.comment-time{color:var(--text3);font-size:11px}
+.comment-text{font-size:13px;color:var(--text2);line-height:1.4;white-space:pre-wrap;word-break:break-word}
+.comment-del{position:absolute;top:0;right:0;background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px;padding:4px 8px}
+.comment-del:hover{color:var(--red)}
+.comment-composer{display:flex;gap:10px;align-items:flex-end}
+.comment-input{flex:1;min-height:44px;max-height:120px;resize:vertical;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:13px}
+.comment-input:focus{outline:none;border-color:var(--accent2)}
+
+/* --- Logros (Ajustes / Perfil) --- */
+.ach-box{max-width:900px;margin:0 auto 10px}
+.ach-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.ach-count{font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--neon-gold,var(--gold));font-size:15px}
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.ach-badge{border:1px solid var(--border);border-radius:12px;padding:14px 10px;text-align:center;background:var(--bg2);transition:.2s}
+.ach-badge .ach-icon{font-size:28px;margin-bottom:6px;filter:grayscale(1) opacity(.35)}
+.ach-badge .ach-title{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12.5px;color:var(--text3);margin-bottom:3px}
+.ach-badge .ach-desc{font-size:10.5px;color:var(--text3);line-height:1.3;opacity:.75}
+.ach-badge.unlocked{border-color:var(--neon-gold,var(--gold));box-shadow:0 0 18px rgba(255,203,61,.18)}
+.ach-badge.unlocked .ach-icon{filter:none;text-shadow:0 0 12px rgba(255,203,61,.6)}
+.ach-badge.unlocked .ach-title{color:var(--text)}
+.ach-badge.locked{opacity:.55}
+.ach-badge:hover{transform:translateY(-3px)}

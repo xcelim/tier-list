@@ -228,6 +228,12 @@ function Viewer() {
     tw.appendChild(row);
   });
   w.appendChild(tw);
+
+  // Comentarios — SOLO aparecen en este modo (Visor), tal y como se pidió.
+  if(typeof CommentsSection==='function' && r.tierlist_id){
+    w.appendChild(CommentsSection(r.tierlist_id, r.user_id || (S.viewingUser && S.viewingUser.id)));
+  }
+
   return w;
 }
 
@@ -358,6 +364,14 @@ function ProfilePage() {
   content.appendChild(h('div', { class: 'divider-row' },
     h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
   ));
+
+  // Logros
+  if(typeof AchievementsSection==='function'){
+    content.appendChild(AchievementsSection());
+    content.appendChild(h('div', { class: 'divider-row' },
+      h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
+    ));
+  }
 
   // Amigos
   content.appendChild(h('h2', { class: 'friends-title' }, 'Amigos', h('span', { class: 'heart-icon' })));

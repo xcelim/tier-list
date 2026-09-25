@@ -22,18 +22,23 @@ function Nav(){
     }},'Editor'));
   }
   const nr=h('div',{class:'nav-right'});
+  nr.appendChild(h('button',{
+    class:'theme-toggle', title:'Cambiar tema claro/oscuro',
+    onclick:(e)=>{ e.stopPropagation(); toggleTheme(); }
+  }, currentTheme()==='dark' ? '☀️' : '🌙'));
   if(userSession) {
     const notifBtn = h('div', { 
       class: 'nav-notif', 
       onclick: (e) => { 
         e.stopPropagation(); 
         S.notifMenu = !S.notifMenu; S.profileMenu = null; 
-        if(S.notifMenu) fetchNotifications(); // Actualizar al abrir
+        if(S.notifMenu){ fetchNotifications(); if(typeof fetchAppNotifications==='function') fetchAppNotifications(); } // Actualizar al abrir
         render(); 
       } 
     },
       h('span', {style:{fontSize:'18px'}}, '🔔'),
-      S.pendingRequests.length > 0 ? h('div', { class: 'notif-badge' }, S.pendingRequests.length + '') : null
+      (S.pendingRequests.length + (typeof unreadAppNotifCount==='function'?unreadAppNotifCount():0)) > 0
+        ? h('div', { class: 'notif-badge' }, (S.pendingRequests.length + unreadAppNotifCount()) + '') : null
     );
     nr.appendChild(notifBtn);
     
@@ -91,6 +96,24 @@ function Nav(){
         item.appendChild(acts);
         nm.appendChild(item);
       });
+    }
+    // Notificaciones genéricas (comentarios en tus tierlists, etc.)
+    const appNotifs = S.appNotifications || [];
+    if(appNotifs.length){
+      nm.appendChild(h('div',{class:'notif-sep'},'Actividad'));
+      appNotifs.slice(0,12).forEach(nf=>{
+        const actorName = nf.actor?.name || 'Alguien';
+        const label = nf.type==='comment' ? ' ha comentado tu tierlist.'
+                    : nf.type==='friend_accept' ? ' ha aceptado tu solicitud de amistad.'
+                    : (nf.message || ' ha interactuado con tu contenido.');
+        nm.appendChild(h('div',{
+          class:'notif-item'+(nf.read?'':' notif-unread'),
+          onclick:()=>{ if(!nf.read) markNotificationRead(nf.id); if(nf.tierlist_id){ openEditor(nf.tierlist_id); render(); } }
+        }, h('div',{class:'notif-msg'}, h('strong',{},actorName), label)));
+      });
+      if(appNotifs.some(n=>!n.read)){
+        nm.appendChild(h('button',{class:'btn bg bsm',style:{width:'100%',marginTop:'6px'},onclick:(e)=>{e.stopPropagation();markAllNotificationsRead();}},'Marcar todo como leído'));
+      }
     }
     document.addEventListener('click',()=>{S.notifMenu=false;render();},{once:true});
     n.appendChild(nm);

@@ -160,60 +160,35 @@ initSupabase();
     }
   });
 
-// Nueva función para gestionar datos en directo sin interrumpir al usuario
+// Escucha en tiempo real las solicitudes de amistad entrantes para
+// refrescar la campanita de notificaciones sin que el usuario tenga que
+// recargar la página.
+// (Antes esto apuntaba a una tabla "friends" y a un elemento #notif-badge
+// que no existen en el proyecto — nunca llegó a funcionar. Se corrige aquí
+// para usar la tabla real, "friendships", y el sistema de notificaciones
+// que ya existe: fetchNotifications() + S.pendingRequests, en nav.js).
 function setupRealtimeListeners() {
   if (!sbClient || !userSession) return;
 
-  // 1. Escuchar solicitudes de amistad entrantes o actualizaciones de notificaciones
   sbClient
     .channel('cambios-sociales')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'friends' }, (payload) => {
-      // Si la solicitud es para el usuario actual, refrescamos el contador/lista discretamente
-      if (payload.new && (payload.new.friend_id === userSession.user.id || payload.new.user_id === userSession.user.id)) {
-        // Ejecuta tu función existente para buscar amigos/notificaciones del servidor de fondo
-        loadSocialDataSilently(); 
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, (payload) => {
+      const row = payload.new || payload.old;
+      if (row && (row.friend_id === userSession.user.id || row.user_id === userSession.user.id)) {
+        if (typeof fetchNotifications === 'function') fetchNotifications();
       }
     })
     .subscribe();
 
-  // 2. Escuchar cuando se agrega una nueva Waifu/Personaje al sistema global
+  // Notificaciones genéricas (comentarios en tus tierlists, etc. — ver
+  // js/core/notifications.js). Si la tabla "notifications" todavía no
+  // existe en tu proyecto de Supabase, esta suscripción simplemente no
+  // recibe nada; no rompe nada más.
   sbClient
-    .channel('cambios-waifus')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'waifus' }, (payload) => {
-      // Añadimos la waifu a los datos locales cargados en memoria de fondo
-      if (payload.new && window.ALL_CHARACTERS) {
-        // Evitar duplicados
-        if (!window.ALL_CHARACTERS.some(c => c.id === payload.new.id)) {
-          window.ALL_CHARACTERS.push(payload.new);
-          
-          // Si el usuario está en la vista home/pool, actualizamos la lista visual
-          // SIN tocar 'S.workingTL' (que es donde guarda lo que edita en su tier)
-          if (S.page === 'home' || S.page === 'pool') {
-            // Un renderizado parcial o actualización selectiva de la pool en el DOM
-            updatePoolVisualsSilently();
-          }
-        }
-      }
+    .channel('notificaciones-app')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userSession.user.id}` }, () => {
+      if (typeof fetchAppNotifications === 'function') fetchAppNotifications();
     })
     .subscribe();
-}
-
-// Funciones auxiliares para actualizar el DOM "sin romper nada"
-async function loadSocialDataSilently() {
-  // Aquí pones tu lógica actual de fetching de amigos (ej. sbClient.from('friends').select(...))
-  // Al terminar, solo actualizas la burbuja de notificaciones del menú, no toda la pantalla.
-  const { data } = await sbClient.from('friends').select('*').eq('friend_id', userSession.user.id).eq('status', 'pending');
-  const notifBadge = document.getElementById('notif-badge');
-  if (notifBadge) {
-    notifBadge.innerText = data ? data.length : 0;
-    notifBadge.style.display = data && data.length > 0 ? 'block' : 'none';
-  }
-}
-
-function updatePoolVisualsSilently() {
-  const poolEl = document.querySelector('.character-pool-content');
-  if (!poolEl) return;
-  // En vez de limpiar y redibujar todo rompiendo el drag, puedes inyectar solo las nuevas cartas que falten
-  // o hacer un render local enfocado únicamente en la pool.
 }
 render();
