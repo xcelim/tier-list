@@ -14,6 +14,11 @@ function Home(){
   hdr.appendChild(h('p',{},'Crea, compara y descubre los mejores rankings de anime'));
   w.appendChild(hdr);
 
+  if(typeof CharacterOfTheDay==='function'){
+    const cotd = CharacterOfTheDay();
+    if(cotd) w.appendChild(cotd);
+  }
+
   if(!userSession){
     w.appendChild(h('div',{class:'profile-notice'},
       h('h2',{},'Bienvenido'),
@@ -364,6 +369,14 @@ function ProfilePage() {
   content.appendChild(h('div', { class: 'divider-row' },
     h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
   ));
+
+  // Estadísticas
+  if(typeof StatsSection==='function'){
+    content.appendChild(StatsSection());
+    content.appendChild(h('div', { class: 'divider-row' },
+      h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
+    ));
+  }
 
   // Logros
   if(typeof AchievementsSection==='function'){

@@ -167,22 +167,62 @@ function MChat() {
 
   // Sidebar
   const sidebar = h('div', { class: 'chat-sidebar' });
-  const list = h('div', { class: 'chat-list' });
-  (S.chats || []).forEach(c => {
-    const name = getTitle(c);
-    const item = h('div', { 
-      class: 'chat-item' + (S.activeChat?.id === c.id ? ' active' : ''), 
-      onclick: () => openChat(c) 
+
+  // --- AMIGOS (chats privados) ---
+  // Un amigo aceptado siempre aparece aquí: si ya existe una conversación
+  // privada con él se abre esa; si no, se muestra igualmente (como "stub")
+  // y al pulsarlo se crea el chat en ese momento (openChat ya soportaba
+  // esto vía chat.is_temp, solo faltaba esta lista para poder pulsarlo).
+  const friendsAccepted = (S.allUsers || []).filter(u => u.relStatus === 'accepted');
+  const privateChats = (S.chats || []).filter(c => !c.is_group);
+  const groupChats = (S.chats || []).filter(c => c.is_group);
+
+  sidebar.appendChild(h('div', { class: 'chat-section-label' }, 'Amigos'));
+  const friendsList = h('div', { class: 'chat-list' });
+  if (friendsAccepted.length === 0) {
+    friendsList.appendChild(h('div', { class: 'chat-empty-hint' }, 'Todavía no tienes amigos aceptados.'));
+  }
+  friendsAccepted.forEach(f => {
+    const existing = privateChats.find(c =>
+      (c.chat_members || []).some(m => m.user_id === f.id)
+    );
+    const chatRef = existing || { is_temp: true, friend_id: f.id, friend_name: f.name, friend_avatar: f.avatar_url };
+    const item = h('div', {
+      class: 'chat-item' + (S.activeChat && existing && S.activeChat.id === existing.id ? ' active' : ''),
+      onclick: () => openChat(chatRef)
+    });
+    if (f.avatar_url) item.appendChild(h('img', { src: f.avatar_url, class: 'chat-avatar-single' }));
+    else item.appendChild(h('div', { class: 'chat-avatar-single', style: { background:'#1e2a5a', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'10px', fontWeight:'bold', color:'var(--accent2)' } }, (f.name||'?').charAt(0).toUpperCase()));
+    const info = h('div', { class: 'chat-item-info' });
+    info.appendChild(h('div', { class: 'chat-item-name' }, f.name));
+    if (existing && existing.last_message_at) info.appendChild(h('div', { class: 'chat-item-last-msg' }, new Date(existing.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})));
+    else if (!existing) info.appendChild(h('div', { class: 'chat-item-last-msg' }, 'Decir hola...'));
+    item.appendChild(info);
+    if (existing && existing.has_unread) item.appendChild(h('span', { class: 'chat-item-unread-badge' }, '●'));
+    friendsList.appendChild(item);
+  });
+  sidebar.appendChild(friendsList);
+
+  // --- GRUPOS ---
+  sidebar.appendChild(h('div', { class: 'chat-section-label' }, 'Grupos'));
+  const groupsList = h('div', { class: 'chat-list' });
+  if (groupChats.length === 0) {
+    groupsList.appendChild(h('div', { class: 'chat-empty-hint' }, 'Todavía no tienes grupos.'));
+  }
+  groupChats.forEach(c => {
+    const item = h('div', {
+      class: 'chat-item' + (S.activeChat?.id === c.id ? ' active' : ''),
+      onclick: () => openChat(c)
     });
     item.appendChild(renderChatAvatarItem(c));
     const info = h('div', { class: 'chat-item-info' });
-    info.appendChild(h('div', { class: 'chat-item-name' }, name));
+    info.appendChild(h('div', { class: 'chat-item-name' }, getTitle(c)));
     if (c.last_message_at) info.appendChild(h('div', { class: 'chat-item-last-msg' }, new Date(c.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})));
     item.appendChild(info);
     if (c.has_unread) item.appendChild(h('span', { class: 'chat-item-unread-badge' }, '●'));
-    list.appendChild(item);
+    groupsList.appendChild(item);
   });
-  sidebar.appendChild(list);
+  sidebar.appendChild(groupsList);
 
   const grpBtn = h('button', { class: 'create-group-btn', onclick: () => abrirModalCrearGrupoRef() }, '+ Grupo');
   sidebar.appendChild(grpBtn);

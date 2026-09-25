@@ -306,8 +306,10 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 /* Body */
 .chat-container-body { display: flex; flex: 1; min-height: 0; }
 /* Sidebar */
-.chat-sidebar { width: 120px; border-right: 1px solid rgba(120,80,230,0.2); display: flex; flex-direction: column; background: #0a1128; flex-shrink: 0; }
-.chat-list { flex: 1; overflow-y: auto; }
+.chat-sidebar { width: 120px; border-right: 1px solid rgba(120,80,230,0.2); display: flex; flex-direction: column; background: #0a1128; flex-shrink: 0; overflow-y:auto; }
+.chat-section-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.35);padding:8px 9px 4px;flex-shrink:0}
+.chat-empty-hint{padding:6px 9px;font-size:9px;color:rgba(255,255,255,.25);line-height:1.4}
+.chat-list { overflow-y: auto; flex-shrink:0; }
 .chat-item { padding: 7px 9px; display: flex; align-items: center; gap: 7px; cursor: pointer; transition: 0.15s; border-bottom: 1px solid rgba(255,255,255,0.02); }
 .chat-item:hover { background: rgba(120,80,230,0.1); }
 .chat-item.active { background: rgba(120,80,230,0.18); border-left: 3px solid var(--violet); }
@@ -760,18 +762,25 @@ nav::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;ba
    ============================================================================ */
 
 :root{
-  --neon-magenta:#ff2ea6;--neon-cyan:#28e0ff;--neon-gold:#ffcb3d;--neon-void:#050308;
+  /* Paleta "Persona": negro + blanco + carmesí + oro, mucho más gráfica y
+     de alto contraste que la anterior. Como todo el bloque de rediseño de
+     abajo usa estas 3 variables, cambiarlas aquí cambia TODA la app de
+     golpe sin tener que reescribir cada regla. */
+  --neon-magenta:#ff0a2e;--neon-cyan:#ffffff;--neon-gold:#ffcf40;--neon-void:#050308;
 }
 
-/* --- Cinta animada bajo el nav --- */
-#hype-ticker{position:sticky;top:52px;z-index:290;height:24px;overflow:hidden;
+/* --- Cinta animada: ahora ABAJO DEL TODO, pegada al borde, como cartel de
+   noticias --- */
+#hype-ticker{position:fixed;top:auto;bottom:0;left:0;right:0;z-index:500;height:28px;overflow:hidden;
   background:linear-gradient(90deg,#170a22,#2a0f38,#170a22);
-  border-bottom:1px solid rgba(255,203,61,.25);display:flex;align-items:center}
+  border-bottom:none;border-top:2px solid var(--neon-magenta);display:flex;align-items:center}
 .hype-ticker-track{display:inline-flex;white-space:nowrap;animation:hype-scroll 32s linear infinite;
   font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2.5px;font-size:11px;
   color:var(--neon-gold);text-shadow:0 0 10px rgba(255,203,61,.55)}
 @keyframes hype-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 :root[data-theme="light"] #hype-ticker{background:linear-gradient(90deg,#2a1240,#3d1a5c,#2a1240)}
+/* Deja hueco abajo para que la cinta fija no tape contenido */
+body{padding-bottom:28px}
 
 /* --- NAV: recorte diagonal + trazo holográfico --- */
 nav{
@@ -783,22 +792,33 @@ nav{
 nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var(--neon-magenta) 50%,var(--neon-gold) 75%,transparent)!important;height:2px!important;opacity:.9!important}
 .logo{font-family:'Cinzel',serif;font-weight:900;letter-spacing:3px;
   background:linear-gradient(90deg,var(--neon-cyan),var(--neon-magenta) 55%,var(--neon-gold));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  filter:drop-shadow(0 0 14px rgba(255,46,166,.55))!important}
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 0 14px rgba(255,10,46,.55))!important}
 .ntab.on{color:#fff!important}
 .ntab.on::after{background:linear-gradient(90deg,var(--neon-cyan),var(--neon-magenta))!important;box-shadow:0 0 12px var(--neon-magenta)!important}
 
-/* --- HERO de la home: tipografía gigante + efecto holográfico --- */
-.hh{padding-top:74px}
+/* --- HERO de la home: cartel gráfico tipo Persona, título 100% sólido y
+   garantizado de ver (nada de background-clip:text, que fue justo lo que
+   fallaba antes y mostraba el cuadro de color en vez del texto) --- */
+.hh{padding-top:74px;position:relative}
 .hh h1{
-  font-size:min(15vw,108px)!important;font-weight:900!important;letter-spacing:1px!important;
-  background:linear-gradient(100deg,var(--neon-cyan) 0%,#fff 20%,var(--neon-magenta) 45%,var(--neon-gold) 70%,var(--neon-cyan) 100%)!important;
-  background-size:250% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  animation:holo-sweep 6s linear infinite;
-  filter:drop-shadow(0 0 34px rgba(255,46,166,.35)) drop-shadow(0 0 14px rgba(40,224,255,.3))!important;
-  text-transform:uppercase;
+  font-size:min(14vw,100px)!important;font-weight:900!important;letter-spacing:1px!important;
+  font-family:'Cinzel',serif!important;text-transform:uppercase;
+  color:#fff!important;
+  background:none!important;background-image:none!important;
+  -webkit-background-clip:initial!important;background-clip:initial!important;
+  -webkit-text-fill-color:#fff!important;
+  animation:none!important;
+  filter:none!important;
+  text-shadow:
+    4px 4px 0 var(--neon-magenta),
+    7px 7px 0 rgba(0,0,0,.85),
+    0 0 46px rgba(255,10,46,.4)!important;
 }
-@keyframes holo-sweep{to{background-position:250% center}}
+:root[data-theme="light"] .hh h1{
+  color:#191018!important;-webkit-text-fill-color:#191018!important;
+  text-shadow:4px 4px 0 var(--neon-magenta),7px 7px 0 rgba(0,0,0,.15),0 0 30px rgba(255,10,46,.25)!important;
+}
 .hh p{font-family:'Cormorant Garamond',serif!important;font-style:italic;font-size:19px!important;color:var(--neon-gold)!important;opacity:.9}
 .hh .hh-sep,.hh-diamond-sep .diamond{background:var(--neon-magenta)!important;box-shadow:0 0 14px var(--neon-magenta)!important}
 
@@ -825,9 +845,9 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 .users-page-title,.page-title{
   font-family:'Cinzel',serif!important;text-transform:uppercase;letter-spacing:2px!important;
   background:linear-gradient(90deg,var(--neon-cyan),var(--neon-gold))!important;
-  -webkit-background-clip:text!important;-webkit-text-fill-color:transparent!important;
-  -webkit-text-stroke:1.5px rgba(255,46,166,.35)!important;
-  filter:drop-shadow(0 0 28px rgba(40,224,255,.4))!important;
+  -webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important;
+  -webkit-text-stroke:1.5px rgba(255,10,46,.35)!important;
+  filter:drop-shadow(0 0 28px rgba(255,207,64,.35))!important;
 }
 
 /* --- Modales: esquina cortada + marco dorado fino --- */
@@ -883,3 +903,63 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 .ach-badge.unlocked .ach-title{color:var(--text)}
 .ach-badge.locked{opacity:.55}
 .ach-badge:hover{transform:translateY(-3px)}
+
+/* ============================================================================
+   TOQUES FINALES "PERSONA" — tramas de puntos (halftone), franjas
+   diagonales y marcos tipo cómic. Todo con colores sólidos y sombras duras
+   (nada de background-clip:text), así que no hay riesgo de que "desaparezca".
+   ============================================================================ */
+
+/* Trama de puntos (halftone) de fondo, muy sutil, detrás del hero */
+.hh::before{
+  content:'';position:absolute;inset:-40px -10% auto -10%;height:340px;z-index:-1;
+  background-image:radial-gradient(rgba(255,255,255,.08) 1.4px, transparent 1.4px);
+  background-size:14px 14px;
+  mask-image:radial-gradient(ellipse 60% 60% at 50% 30%, #000 40%, transparent 80%);
+  -webkit-mask-image:radial-gradient(ellipse 60% 60% at 50% 30%, #000 40%, transparent 80%);
+}
+
+/* Franja diagonal roja de firma, detrás del título, estilo cartel de anime */
+.hh::after{
+  content:'';position:absolute;left:-10%;right:-10%;top:64px;height:46px;z-index:-1;
+  background:var(--neon-magenta);transform:skewY(-2.2deg);
+  box-shadow:0 10px 0 rgba(0,0,0,.6);
+  opacity:.92;
+}
+:root[data-theme="light"] .hh::after{opacity:.85}
+
+/* Tarjetas de menú: marco grueso tipo viñeta de cómic en vez del brillo sutil anterior */
+.menu-box{
+  border:2.5px solid rgba(255,255,255,.92)!important;
+  box-shadow:6px 6px 0 var(--neon-magenta), 6px 6px 0 3px rgba(0,0,0,.5)!important;
+}
+.menu-box:hover{
+  box-shadow:9px 9px 0 var(--neon-magenta), 9px 9px 0 3px rgba(0,0,0,.5)!important;
+}
+
+/* Tarjetas de tierlists: mismo lenguaje gráfico, más discreto */
+.tlc{border:2px solid rgba(255,255,255,.14)!important}
+.tlc:hover{border-color:var(--neon-magenta)!important;box-shadow:4px 4px 0 rgba(255,10,46,.35)!important}
+
+/* Modal: marco tipo viñeta también */
+.modal{border:2px solid var(--neon-gold)!important;box-shadow:8px 8px 0 rgba(0,0,0,.6),0 30px 90px rgba(0,0,0,.75)!important}
+
+/* Franja diagonal decorativa reutilizable (por si se quiere usar en otros sitios) */
+.slash-accent{position:relative;overflow:hidden}
+.slash-accent::before{content:'';position:absolute;top:0;bottom:0;left:-6%;width:14%;background:var(--neon-magenta);transform:skewX(-12deg);opacity:.9;z-index:0}
+
+/* --- Personaje del día (Home) --- */
+.cotd-box{max-width:420px;margin:28px auto 0;text-align:center}
+.cotd-label{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2px;font-size:11px;color:var(--neon-gold,var(--gold));text-transform:uppercase;margin-bottom:10px}
+.cotd-card{display:flex;align-items:center;gap:14px;background:var(--bg2);border:2px solid rgba(255,255,255,.14);border-radius:10px;padding:10px;text-align:left;box-shadow:4px 4px 0 rgba(255,10,46,.25)}
+.cotd-img{width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);flex-shrink:0}
+.cotd-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:var(--text)}
+.cotd-anime{font-size:11px;color:var(--text3)}
+
+/* --- Estadísticas (Ajustes) --- */
+.stats-box{max-width:900px;margin:0 auto 10px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:12px}
+.stat-item{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 10px;text-align:center}
+.stat-val{font-family:'Cinzel',serif;font-weight:900;font-size:28px;color:var(--neon-gold,var(--gold))}
+.stat-label{font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+.stats-highlight{font-size:12.5px;color:var(--text2);text-align:center;padding-top:4px}

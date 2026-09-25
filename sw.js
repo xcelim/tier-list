@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v3'; // v3: nuevas páginas (rutas), tema claro/oscuro, comentarios, logros, notificaciones
+const CACHE_NAME = 'at-v4'; // v4: chat arreglado, rediseño Persona, personaje del día, estadísticas
 const ASSETS = [
   './',
   './index.html',
@@ -40,6 +40,7 @@ const ASSETS = [
   './js/features/export-png.js',
   './js/features/comments.js',
   './js/features/achievements.js',
+  './js/features/extras.js',
   './js/core/notifications.js',
   './js/core/actions.js',
   './js/core/router.js',
