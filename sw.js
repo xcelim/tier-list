@@ -1,9 +1,52 @@
-const CACHE_NAME = 'at-v1';
+// ============================================================================
+// Service Worker de AnimeTier Maker
+// Misma estrategia que el original (network-first con fallback a caché),
+// solo se ha actualizado la lista ASSETS para incluir los nuevos archivos
+// css/js/data ahora que el proyecto está separado en varios ficheros en vez
+// de tenerlo todo inline dentro de index.html.
+// ============================================================================
+
+const CACHE_NAME = 'at-v2'; // v2 porque cambia la lista de assets precacheados
 const ASSETS = [
   './',
   './index.html',
   './favicon.ico',
-  './manifest.json'
+  './manifest.json',
+
+  './css/style.css',
+
+  './js/data/characters.js',
+  './js/data/tierlists-seed.js',
+  './js/data/aliases.js',
+
+  './js/core/storage.js',
+  './js/core/state.js',
+  './js/core/profile-helpers.js',
+  './js/core/save.js',
+  './js/core/editor-working-copy.js',
+
+  './js/ui/toast.js',
+  './js/core/char-helpers.js',
+  './js/services/anilist.js',
+  './js/ui/h-helper.js',
+  './js/ui/drag.js',
+
+  './js/views/nav.js',
+  './js/views/home.js',
+  './js/views/editor.js',
+  './js/views/modals.js',
+
+  './js/features/export-png.js',
+  './js/core/actions.js',
+  './js/core/router.js',
+  './js/core/render.js',
+  './js/core/supabase-auth.js',
+
+  './resources/homebkg.png',
+  './resources/tierlistlogo.png',
+  './resources/userslogo.png',
+  './resources/profilelogo.png',
+  './resources/userbkg.png'
 ];
 
 self.addEventListener('install', e => {

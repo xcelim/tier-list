@@ -1,0 +1,10 @@
+Esta carpeta debe contener todas las imágenes de personajes referenciadas
+en js/data/characters.js (el campo "file" de cada personaje).
+
+No se ha subido su contenido en esta reestructuración porque tú ya tienes
+esa carpeta "resources/waifus" en tu proyecto local con todas las fotos.
+
+Simplemente copia/pega aquí dentro TODO el contenido que ya tenías en tu
+carpeta resources/waifus original (las miles de imágenes de personajes).
+La ruta y el nombre de archivo de cada imagen deben quedar EXACTAMENTE
+igual que antes para que el catálogo siga funcionando sin cambios.
