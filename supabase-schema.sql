@@ -216,10 +216,18 @@ create index if not exists idx_reactions_tierlist on tierlist_reactions(tierlist
 
 -- ============================================================================
 -- 5) Realtime — para que el chat y las notificaciones lleguen al instante.
---    Puede fallar con "already member of publication" si ya estaba
---    activado; en ese caso ignora ese error concreto y sigue con el resto
---    a mano, línea por línea, si hace falta.
 -- ============================================================================
-alter publication supabase_realtime add table messages;
-alter publication supabase_realtime add table notifications;
-alter publication supabase_realtime add table friendships;
+DO $$
+BEGIN
+  alter publication supabase_realtime add table messages;
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$
+BEGIN
+  alter publication supabase_realtime add table notifications;
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$
+BEGIN
+  alter publication supabase_realtime add table friendships;
+EXCEPTION WHEN duplicate_object THEN null; END $$;
