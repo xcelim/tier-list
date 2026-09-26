@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v5'; // v5: chat arreglado de verdad (RLS recursiva), menú diagonal, niveles, marcos, reacciones
+const CACHE_NAME = 'at-v6'; // v6: comentarios/reacciones por ranking (no por plantilla), chat con limpieza total de políticas, marcos/menú avatar arreglados
 const ASSETS = [
   './',
   './index.html',

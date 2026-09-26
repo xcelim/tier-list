@@ -62,15 +62,35 @@ alter table chat_members enable row level security;
 alter table messages enable row level security;
 
 -- ----------------------------------------------------------------------------
+-- LIMPIEZA TOTAL — si sigues viendo "infinite recursion detected in policy
+-- for relation chat_members" después de la corrección anterior, es casi
+-- seguro que queda alguna política vieja con OTRO nombre que no se borró
+-- (drop policy if exists solo borra por nombre exacto). Esto borra
+-- ABSOLUTAMENTE TODAS las políticas de estas 3 tablas, sea cual sea su
+-- nombre u origen, antes de crear las correctas desde cero.
+-- ----------------------------------------------------------------------------
+do $$
+declare pol record;
+begin
+  for pol in select policyname from pg_policies where tablename='chat_members' and schemaname='public' loop
+    execute format('drop policy if exists %I on public.chat_members', pol.policyname);
+  end loop;
+  for pol in select policyname from pg_policies where tablename='chats' and schemaname='public' loop
+    execute format('drop policy if exists %I on public.chats', pol.policyname);
+  end loop;
+  for pol in select policyname from pg_policies where tablename='messages' and schemaname='public' loop
+    execute format('drop policy if exists %I on public.messages', pol.policyname);
+  end loop;
+end $$;
+
+-- ----------------------------------------------------------------------------
 -- FUNCIÓN AUXILIAR — evita el bug de "recursión infinita" en las políticas.
 -- Una política de SELECT en chat_members que vuelve a consultar chat_members
 -- dentro de su propia condición hace que Postgres tenga que re-evaluar esa
 -- misma política para poder evaluarla → recursión infinita → Supabase
 -- rechaza la consulta con "infinite recursion detected in policy for
--- relation chat_members". Esto es casi seguro por lo que ni los chats
--- privados ni los grupos cargaban nunca. Al marcar la función como
--- SECURITY DEFINER, la consulta interna se ejecuta sin pasar otra vez por
--- RLS, rompiendo el bucle.
+-- relation chat_members". Al marcar la función como SECURITY DEFINER, la
+-- consulta interna se ejecuta sin pasar otra vez por RLS, rompiendo el bucle.
 -- ----------------------------------------------------------------------------
 create or replace function is_chat_member(p_chat_id uuid, p_user_id uuid)
 returns boolean
@@ -152,12 +172,22 @@ create index if not exists idx_notifications_user on notifications(user_id, crea
 
 -- ============================================================================
 -- 3) COMENTARIOS en tierlists (solo visibles en el modo Visor de la app)
---    tierlist_id también es TEXT, igual que arriba.
+-- ----------------------------------------------------------------------------
+-- IMPORTANTE — corregido: "tierlists" es la plantilla COMPARTIDA (p.ej. la
+-- "Waifus" que usa todo el mundo por defecto), así que dos personas
+-- distintas rankeando la MISMA plantilla tienen el MISMO tierlist_id. Si
+-- los comentarios se guardaran por tierlist_id, tu comentario en la
+-- tierlist de tu amigo aparecería también en la tuya (justo el bug que
+-- viste). Lo correcto es guardarlos por ranking_id: el ID único de CADA
+-- ranking personal (tabla user_rankings), que sí es distinto para cada
+-- persona aunque compartan la misma plantilla.
 -- ============================================================================
 
-create table if not exists tierlist_comments (
+drop table if exists tierlist_comments cascade;
+
+create table tierlist_comments (
   id uuid primary key default gen_random_uuid(),
-  tierlist_id text references tierlists(id) on delete cascade not null,
+  ranking_id uuid references user_rankings(id) on delete cascade not null,
   user_id uuid references profiles(id) on delete cascade not null,
   content text not null check (char_length(content) <= 500),
   created_at timestamptz default now()
@@ -165,69 +195,57 @@ create table if not exists tierlist_comments (
 
 alter table tierlist_comments enable row level security;
 
-drop policy if exists "cualquiera logueado puede leer comentarios" on tierlist_comments;
 create policy "cualquiera logueado puede leer comentarios" on tierlist_comments for select
   using (true);
 
-drop policy if exists "cualquiera logueado puede comentar" on tierlist_comments;
 create policy "cualquiera logueado puede comentar" on tierlist_comments for insert
   with check (auth.uid() = user_id);
 
-drop policy if exists "solo borras tus propios comentarios" on tierlist_comments;
 create policy "solo borras tus propios comentarios" on tierlist_comments for delete
   using (auth.uid() = user_id);
 
-create index if not exists idx_comments_tierlist on tierlist_comments(tierlist_id, created_at);
+create index idx_comments_ranking on tierlist_comments(ranking_id, created_at);
 
 
 -- ============================================================================
 -- 4) REACCIONES con emoji en tierlists (modo Visor)
+--    Mismo arreglo que los comentarios: por ranking_id, no por tierlist_id.
 -- ============================================================================
 
-create table if not exists tierlist_reactions (
+drop table if exists tierlist_reactions cascade;
+
+create table tierlist_reactions (
   id uuid primary key default gen_random_uuid(),
-  tierlist_id text references tierlists(id) on delete cascade not null,
+  ranking_id uuid references user_rankings(id) on delete cascade not null,
   user_id uuid references profiles(id) on delete cascade not null,
   emoji text not null,
   created_at timestamptz default now(),
-  unique(tierlist_id, user_id) -- una reacción por usuario y tierlist (se puede cambiar)
+  unique(ranking_id, user_id) -- una reacción por usuario y ranking (se puede cambiar)
 );
 
 alter table tierlist_reactions enable row level security;
 
-drop policy if exists "cualquiera logueado puede leer reacciones" on tierlist_reactions;
 create policy "cualquiera logueado puede leer reacciones" on tierlist_reactions for select
   using (true);
 
-drop policy if exists "cualquiera logueado puede reaccionar" on tierlist_reactions;
 create policy "cualquiera logueado puede reaccionar" on tierlist_reactions for insert
   with check (auth.uid() = user_id);
 
-drop policy if exists "actualizas tu propia reacción" on tierlist_reactions;
 create policy "actualizas tu propia reacción" on tierlist_reactions for update
   using (auth.uid() = user_id);
 
-drop policy if exists "borras tu propia reacción" on tierlist_reactions;
 create policy "borras tu propia reacción" on tierlist_reactions for delete
   using (auth.uid() = user_id);
 
-create index if not exists idx_reactions_tierlist on tierlist_reactions(tierlist_id);
+create index idx_reactions_ranking on tierlist_reactions(ranking_id);
 
 
 -- ============================================================================
 -- 5) Realtime — para que el chat y las notificaciones lleguen al instante.
+--    Puede fallar con "already member of publication" si ya estaba
+--    activado; en ese caso ignora ese error concreto y sigue con el resto
+--    a mano, línea por línea, si hace falta.
 -- ============================================================================
-DO $$
-BEGIN
-  alter publication supabase_realtime add table messages;
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$
-BEGIN
-  alter publication supabase_realtime add table notifications;
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$
-BEGIN
-  alter publication supabase_realtime add table friendships;
-EXCEPTION WHEN duplicate_object THEN null; END $$;
+alter publication supabase_realtime add table messages;
+alter publication supabase_realtime add table notifications;
+alter publication supabase_realtime add table friendships;

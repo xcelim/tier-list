@@ -88,9 +88,10 @@ function _updatePlaceholder(zone){
  const ce=document.getElementById('t'+zone.tid)?.querySelector('.tchars');
  if(!ce){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
  
- // Evitar calcular si estamos exactamente sobre la misma posición original
- if(DS===zone.tid && zone.idx===DGidx){
- const ph=document.getElementById('drop-ph');if(ph)ph.remove();
+ // Evitar recalcular si ya hay un hueco puesto exactamente en la posición
+ // original (pero SÍ crearlo la primera vez, aunque sea la posición
+ // original — si no, el hueco nunca aparece al agarrar la carta).
+ if(DS===zone.tid && zone.idx===DGidx && document.getElementById('drop-ph')){
  return;
  }
  
@@ -185,6 +186,15 @@ document.addEventListener('pointermove',e=>{
  document.querySelectorAll('.tc,.pc').forEach(el=>{
  if(el.dataset.cid===DG)el.classList.add('is-dragging');
  });
+ // FIX: insertar el hueco (placeholder) en la posición original en el
+ // MISMO instante en que la carta se saca del flujo (.is-dragging la
+ // convierte en width:0/position:absolute). Antes esto no pasaba hasta el
+ // siguiente pointermove, así que durante un frame las cartas de detrás
+ // ocupaban el hueco de golpe y luego "saltaban" otra vez al insertar el
+ // placeholder — el movimiento brusco al agarrar que se veía fatal.
+ const initialZone = DS==='pool' ? {type:'pool'} : {type:'tier', tid:DS, idx:DGidx};
+ _lastZoneKey = initialZone.type+(initialZone.tid||'')+(initialZone.idx??'');
+ _updatePlaceholder(initialZone);
  }
  _posFloat(e.clientX,e.clientY);
  const zone=_getDropZone(e.clientX,e.clientY);

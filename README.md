@@ -214,6 +214,52 @@ Esta versión añade la función `is_chat_member` (arregla el chat de raíz),
 la columna `avatar_frame` en `profiles`, y la tabla `tierlist_reactions`.
 Es seguro volver a ejecutarlo entero.
 
+## 🆕 Ronda 4 — bugs reales encontrados y arreglados
+
+- **Comentarios/reacciones "cruzados" (el bug más grave de esta ronda)**:
+  `tierlists` es la plantilla COMPARTIDA — tú y tu amigo rankeando la misma
+  "Waifus" por defecto tenéis el MISMO `tierlist_id`. Guardar comentarios
+  por ese id hacía que tu comentario en la tierlist de tu amigo apareciera
+  también en la tuya. Arreglado: ahora se guardan por `ranking_id` (el id
+  único de CADA ranking personal, tabla `user_rankings`), que sí es
+  distinto para cada persona. **Hace falta volver a ejecutar el SQL**: esta
+  vez recrea esas dos tablas desde cero (`drop table` + `create table`),
+  así que cualquier comentario/reacción de prueba que hubieras metido se
+  perderá — es una tabla nueva de hace minutos, no debería haber nada que
+  perder.
+- **Chat con recursión infinita, otra vez**: si te seguía dando ese error
+  después del arreglo anterior, era casi seguro una política vieja con otro
+  nombre que no se borraba. El SQL ahora borra TODAS las políticas de esas
+  3 tablas (sea cual sea su nombre) antes de crear las correctas.
+- **Reacciones "bloqueadas" en tierlists de amigos**: bug real en mi propio
+  código — le pasaba `disabled: false` al helper de UI, y en HTML
+  `disabled="false"` sigue deshabilitando el botón (es un atributo
+  booleano, cuenta su sola presencia). Arreglado.
+- **Marco de avatar no se marcaba al pulsar**: `updateProfileField`
+  esperaba la respuesta del servidor antes de actualizar la pantalla, y si
+  fallaba (columna nueva sin crear, etc.) no pasaba nada visible. Ahora se
+  actualiza al instante y avisa si falla de verdad.
+- **Avatar de la esquina sin reacción al pulsar**: añadido un respaldo por
+  si el perfil local no se encontraba por el id exacto.
+- **Arrastrar: salto feo al agarrar una carta**: la carta se sacaba del
+  flujo (`width:0`) antes de que el hueco la sustituyera, así que las
+  cartas de detrás ocupaban su sitio de golpe durante un frame y luego
+  "saltaban" otra vez. Ahora el hueco se coloca en el mismo instante.
+- Botón "Editor" del header eliminado (llevaba siempre a la misma tierlist).
+- Perfil de otro usuario ahora muestra nivel, logros y estadísticas reales
+  suyas (solo lectura).
+- Barra de nivel más pequeña, paleta de la interfaz centrada.
+
+### ⚠️ Pendiente para la próxima ronda
+- Rediseño a fondo de la página "Mis Tierlists" (la pediste "con mucha más
+  interfaz" — es un cambio grande, mejor hacerlo con calma en su propio
+  mensaje que meterlo con prisa aquí).
+- El "salto raro" al cruzar varias cartas rápido puede que mejore mucho
+  con el arreglo de esta ronda, pero avísame si todavía se nota raro en
+  algún caso concreto.
+
+### ⚠️ Vuelve a ejecutar `supabase-schema.sql` (completo, de arriba a abajo)
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

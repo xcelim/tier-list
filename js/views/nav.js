@@ -17,9 +17,6 @@ function Nav(){
       if(S.hasUnsaved&&!confirm('¿Descartar cambios?'))return;
       S.workingTL=null;S.hasUnsaved=false;S.page='home';setRoute('home');render();
     }},'Mis Tierlists'));
-    if(S.cid) n.appendChild(h('button',{class:'ntab'+(S.page==='editor'?' on':''),onclick:()=>{
-      if(S.page!=='editor'){openEditor(S.cid);render();}
-    }},'Editor'));
   }
   const nr=h('div',{class:'nav-right'});
   nr.appendChild(h('button',{
@@ -70,10 +67,13 @@ function Nav(){
   n.appendChild(nr);
 
   if(S.profileMenu){
-    const p=getProfile(S.profileMenu);
+    // FIX: antes, si getProfile() no encontraba el perfil local por
+    // cualquier motivo, el menú no se pintaba y no pasaba NADA visible al
+    // pulsar el avatar. Ahora hay un respaldo con currentUserProfile.
+    const p=getProfile(S.profileMenu) || currentUserProfile;
     if(p){
       const pm=h('div',{class:'profile-menu'});
-      pm.appendChild(h('div',{class:'pm-header'},h('div',{class:'pm-name'},p.name),h('div',{class:'pm-sub'},(p.tls||[]).length+' tierlists')));
+      pm.appendChild(h('div',{class:'pm-header'},h('div',{class:'pm-name'},p.name),h('div',{class:'pm-sub'},((p.tls||[]).length)+' tierlists')));
       pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.page='profile'; S.profileMenu=null; render();}},'\u270F Editar perfil'));
       pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.profileMenu=null;handleLogout();}},'🚪 Cerrar sesión'));
       document.addEventListener('click',()=>{S.profileMenu=null;render();},{once:true});

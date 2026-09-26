@@ -24,9 +24,9 @@ const ACHIEVEMENT_DEFS = [
   { id:'complete_seven', icon:'🔥', title:'Racha de fuego',   desc:'Ten 7 tierlists distintas con al menos un personaje rankeado.',
     check:(p)=> (p.tls||[]).filter(tl => (tl.tiers||[]).some(t=>(t.chars||[]).length>0)).length >= 7 },
   { id:'social_butterfly', icon:'🦋', title:'Mariposa social', desc:'Ten al menos 3 amigos aceptados.',
-    check:(p)=> (S.allUsers||[]).find(u=>u.id===userSession?.user?.id)?.friend_count >= 3 },
+    check:(p)=> (p._friendCount ?? (S.allUsers||[]).find(u=>u.id===userSession?.user?.id)?.friend_count ?? 0) >= 3 },
   { id:'commentator', icon:'💬', title:'Voz de la comunidad', desc:'Publica tu primer comentario en una tierlist.',
-    check:(p)=> !!S._hasCommented },
+    check:(p)=> p._hasCommented !== undefined ? p._hasCommented : !!S._hasCommented },
 ];
 
 // Datos que los logros necesitan pero que no siempre están cargados todavía
@@ -55,16 +55,17 @@ function totalCharsRanked(p){
   return (p.tls||[]).reduce((sum,tl)=> sum + (tl.tiers||[]).reduce((a,t)=>a+(t.chars||[]).length,0), 0);
 }
 
-function computeAchievements(){
-  const p = activeProfile();
+function computeAchievements(profile){
+  const p = profile || activeProfile();
   if(!p) return ACHIEVEMENT_DEFS.map(def=>({def, unlocked:false}));
   return ACHIEVEMENT_DEFS.map(def => ({ def, unlocked: !!def.check(p) }));
 }
 
-// Construye la rejilla de logros para pegar en Ajustes (ProfilePage).
-function AchievementsSection(){
-  if(typeof refreshAchievementData==='function' && !S._achRef){ S._achRef=true; refreshAchievementData().finally(()=>setTimeout(()=>S._achRef=false,4000)); }
-  const list = computeAchievements();
+// Construye la rejilla de logros para pegar en Ajustes (ProfilePage), o en
+// modo lectura al ver el perfil de otro usuario (profile, readOnly=true).
+function AchievementsSection(profile, readOnly){
+  if(!readOnly && typeof refreshAchievementData==='function' && !S._achRef){ S._achRef=true; refreshAchievementData().finally(()=>setTimeout(()=>S._achRef=false,4000)); }
+  const list = computeAchievements(profile);
   const unlockedCount = list.filter(a=>a.unlocked).length;
 
   const box = h('div', { class:'ach-box' });

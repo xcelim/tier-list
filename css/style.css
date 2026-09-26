@@ -1026,11 +1026,11 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 }
 
 /* --- Nivel de cuenta (Ajustes) --- */
-.level-badge{margin-top:10px;width:150px;text-align:center}
-.level-num{font-family:'Cinzel',serif;font-weight:900;font-size:13px;color:var(--neon-gold,var(--gold));letter-spacing:1px;margin-bottom:4px}
-.level-bar{height:6px;border-radius:3px;background:var(--bg3);overflow:hidden;border:1px solid var(--border)}
+.level-badge{margin-top:8px;width:100px;text-align:center}
+.level-num{font-family:'Cinzel',serif;font-weight:900;font-size:10px;color:var(--neon-gold,var(--gold));letter-spacing:.5px;margin-bottom:3px}
+.level-bar{height:4px;border-radius:2px;background:var(--bg3);overflow:hidden;border:1px solid var(--border)}
 .level-bar-fill{height:100%;background:linear-gradient(90deg,var(--neon-magenta,var(--accent)),var(--neon-gold,var(--gold)));transition:width .4s}
-.level-xp{font-size:9px;color:var(--text3);margin-top:4px}
+.level-xp{font-size:7.5px;color:var(--text3);margin-top:3px;line-height:1.3}
 
 /* --- Marcos de avatar (Ajustes) --- */
 .frame-picker{max-width:900px;margin:0 auto 10px}
@@ -1065,7 +1065,7 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 .reaction-count{font-size:11px;font-weight:700;color:var(--text2)}
 
 /* --- Selector de paleta de la app (Ajustes) --- */
-.accent-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.accent-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;justify-content:center}
 .accent-swatch{width:38px;height:38px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:.2s}
 .accent-swatch:hover{transform:scale(1.1)}
 .accent-swatch.active{border-color:#fff;box-shadow:0 0 0 2px var(--neon-gold,var(--gold)),0 0 14px rgba(255,255,255,.4)}

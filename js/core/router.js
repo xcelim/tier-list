@@ -149,11 +149,20 @@ async function fetchAllUsers() {
 
 async function updateProfileField(field, value) {
   if (!userSession || !sbClient) return;
+
+  // FIX: antes esto esperaba la respuesta del servidor para actualizar la
+  // pantalla, y si fallaba (por ejemplo si la columna todavía no existe en
+  // Supabase) no pasaba NADA — ni error ni cambio visual, parecía que el
+  // clic no hacía nada. Ahora se actualiza al instante y se avisa si falla.
+  if (currentUserProfile) currentUserProfile[field] = value;
+  const localP = activeProfile();
+  if (localP) localP[field] = value;
+  render();
+
   const { error } = await sbClient.from('profiles').update({ [field]: value }).eq('id', userSession.user.id);
   if (!error) {
-    if (currentUserProfile) currentUserProfile[field] = value;
-    const localP = activeProfile();
-    if (localP) localP[field] = value;
-    saveProfiles(); toast("Perfil actualizado"); render();
+    saveProfiles(); toast("Perfil actualizado");
+  } else {
+    toast("No se pudo guardar: " + error.message, "err");
   }
 }

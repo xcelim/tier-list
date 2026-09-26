@@ -165,16 +165,56 @@ function UsersPage() {
 function UserViewPage() {
   const u = S.viewingUser;
   if(!u) return h('div', {}, 'Usuario no encontrado');
-  
+
   const w = h('div', { class: 'users-page' });
   const hdr = h('div', { class: 'users-page-header' });
-  hdr.appendChild(h('img', { 
+
+  const avWrap = h('div', { class:'avatar-wrap', style:{display:'inline-block'} });
+  const ring = h('div', { class: 'avatar-ring' + (typeof frameClassFor==='function' ? ' '+frameClassFor(u) : '') });
+  ring.appendChild(h('img', {
     src: u.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${u.name}`,
-    style: {width:'100px', height:'100px', borderRadius:'50%', border:'3px solid var(--accent)', marginBottom:'15px'}
+    style: {width:'100px', height:'100px', borderRadius:'50%', objectFit:'cover'}
   }));
+  avWrap.appendChild(ring);
+  hdr.appendChild(avWrap);
   hdr.appendChild(h('h1', { class: 'users-page-title' }, u.name));
-  hdr.appendChild(h('p', { class: 'users-page-sub' }, `Viendo los rankings de tu amigo`));
+  hdr.appendChild(h('p', { class: 'users-page-sub' }, `Perfil de ${u.name}`));
+
+  // Pseudo-perfil de solo lectura para reutilizar los mismos cálculos de
+  // nivel/logros que en tu propio Ajustes, pero con los datos de esta otra
+  // persona (misma forma de datos: tiers_data tiene la misma estructura
+  // que tl.tiers).
+  const pseudoProfile = {
+    tls: (u.rankings || []).map(r => ({ tiers: r.tiers_data || [] })),
+    _friendCount: u.friend_count,
+    _hasCommented: undefined // desconocido para otra persona, no se penaliza ni se acierta de más
+  };
+
+  if(typeof computeXP==='function' && typeof LevelBadge==='function'){
+    const xp = computeXP(pseudoProfile); const lvl = computeLevel(xp);
+    const centered = h('div', { style:{display:'flex', justifyContent:'center'} }, LevelBadge(lvl, xp));
+    hdr.appendChild(centered);
+  }
   w.appendChild(hdr);
+
+  // Mini-estadísticas reales de esta persona
+  const totalChars = (u.rankings||[]).reduce((s,r)=>s+((r.tiers_data||[]).reduce((a,t)=>a+(t.chars||[]).length,0)),0);
+  const statsRow = h('div', { class:'stats-grid', style:{maxWidth:'600px', margin:'20px auto'} });
+  const stat = (val, label) => h('div', { class: 'stat-item' }, h('div', { class: 'stat-val' }, val + ''), h('div', { class: 'stat-label' }, label));
+  statsRow.appendChild(stat(u.tl_count ?? (u.rankings||[]).length, 'Tierlists'));
+  statsRow.appendChild(stat(totalChars, 'Personajes rankeados'));
+  statsRow.appendChild(stat(u.friend_count ?? 0, 'Amigos'));
+  w.appendChild(statsRow);
+
+  if(typeof AchievementsSection==='function'){
+    const achWrap = h('div', { style:{maxWidth:'900px', margin:'0 auto 30px'} });
+    achWrap.appendChild(AchievementsSection(pseudoProfile, true));
+    w.appendChild(achWrap);
+  }
+
+  w.appendChild(h('div', { class: 'divider-row', style:{maxWidth:'900px', margin:'0 auto 24px'} },
+    h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
+  ));
 
   const grid = h('div', { class: 'tlg' });
   if(u.rankings.length === 0) {
@@ -182,9 +222,10 @@ function UserViewPage() {
   } else {
     u.rankings.forEach(r => {
       const tl = r.tierlists || { title: 'Tierlist desconocida' };
+      const n = (r.tiers_data||[]).reduce((a,t)=>a+(t.chars||[]).length,0);
       const card = h('div', { class: 'tlc', onclick: () => openViewer(r) });
       card.appendChild(h('h3', {}, tl.title));
-      card.appendChild(h('div', { class: 'meta' }, h('span', {}, 'Ver ranking →')));
+      card.appendChild(h('div', { class: 'meta' }, h('span', {}, `${n} personajes`), h('span', {}, 'Ver ranking →')));
       grid.appendChild(card);
     });
   }
@@ -230,12 +271,14 @@ function Viewer() {
   w.appendChild(tw);
 
   // Reacciones + Comentarios — SOLO en este modo (Visor), tal y como se pidió.
+  // OJO: se usan por r.id (el ranking personal, único), NO por
+  // r.tierlist_id (la plantilla compartida) — ver nota en reactions.js/comments.js.
   const ownerId = r.user_id || (S.viewingUser && S.viewingUser.id);
-  if(typeof ReactionsBar==='function' && r.tierlist_id){
-    w.appendChild(ReactionsBar(r.tierlist_id, ownerId));
+  if(typeof ReactionsBar==='function' && r.id){
+    w.appendChild(ReactionsBar(r.id, ownerId));
   }
-  if(typeof CommentsSection==='function' && r.tierlist_id){
-    w.appendChild(CommentsSection(r.tierlist_id, ownerId));
+  if(typeof CommentsSection==='function' && r.id){
+    w.appendChild(CommentsSection(r.id, ownerId));
   }
 
   return w;

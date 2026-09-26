@@ -1,50 +1,56 @@
 // Comentarios en una tierlist — SOLO se muestran en modo Visor (Viewer),
 // tal y como se pidió. Requiere la tabla "tierlist_comments" (incluida en
-// supabase-schema.sql, en la raíz del proyecto). Si la tabla no existe
-// todavía, se muestra un mensaje amistoso en vez de romper la pantalla.
+// supabase-schema.sql, en la raíz del proyecto).
+//
+// IMPORTANTE — se guardan por "ranking_id" (el ranking personal de cada
+// usuario, id único de la tabla user_rankings), NO por "tierlist_id" (la
+// plantilla compartida, que es la MISMA para todo el mundo que use, por
+// ejemplo, la tierlist "Waifus" por defecto). Guardarlos por tierlist_id
+// hacía que un comentario en la tierlist de un amigo apareciera también en
+// la tuya, porque ambos comparten la misma plantilla — ese era el bug.
 
-async function fetchComments(tierlistId) {
-  if (!sbClient || !tierlistId) return;
+async function fetchComments(rankingId) {
+  if (!sbClient || !rankingId) return;
   try {
     const { data, error } = await sbClient.from('tierlist_comments')
       .select('*, author:profiles!user_id(name, avatar_url)')
-      .eq('tierlist_id', tierlistId)
+      .eq('ranking_id', rankingId)
       .order('created_at', { ascending: true });
     if (error) throw error;
-    S.comments[tierlistId] = data || [];
+    S.comments[rankingId] = data || [];
   } catch (e) {
-    S.comments[tierlistId] = null; // null = "no disponible" (distinto de [] = "sin comentarios todavía")
+    S.comments[rankingId] = null; // null = "no disponible" (distinto de [] = "sin comentarios todavía")
     console.warn('[comments] no disponibles todavía:', e.message || e);
   }
   render();
 }
 
-async function postComment(tierlistId, ownerUserId) {
+async function postComment(rankingId, ownerUserId) {
   const text = (S.commentDraft || '').trim();
   if (!text || !userSession || !sbClient) return;
   if (text.length > 500) { toast('Máximo 500 caracteres', 'err'); return; }
 
   const { data, error } = await sbClient.from('tierlist_comments')
-    .insert({ tierlist_id: tierlistId, user_id: userSession.user.id, content: text })
+    .insert({ ranking_id: rankingId, user_id: userSession.user.id, content: text })
     .select('*, author:profiles!user_id(name, avatar_url)')
     .single();
 
-  if (error) { toast('No se pudo publicar el comentario', 'err'); return; }
+  if (error) { toast('No se pudo publicar el comentario: ' + error.message, 'err'); return; }
 
-  if (!Array.isArray(S.comments[tierlistId])) S.comments[tierlistId] = [];
-  S.comments[tierlistId].push(data);
+  if (!Array.isArray(S.comments[rankingId])) S.comments[rankingId] = [];
+  S.comments[rankingId].push(data);
   S.commentDraft = '';
   render();
 
   if (ownerUserId) {
-    createNotification(ownerUserId, 'comment', { tierlistId, message: 'ha comentado tu tierlist.' });
+    createNotification(ownerUserId, 'comment', { message: 'ha comentado tu tierlist.' });
   }
 }
 
-async function deleteComment(commentId, tierlistId) {
+async function deleteComment(commentId, rankingId) {
   if (!sbClient) return;
-  if (Array.isArray(S.comments[tierlistId])) {
-    S.comments[tierlistId] = S.comments[tierlistId].filter(c => c.id !== commentId);
+  if (Array.isArray(S.comments[rankingId])) {
+    S.comments[rankingId] = S.comments[rankingId].filter(c => c.id !== commentId);
     render();
   }
   await sbClient.from('tierlist_comments').delete().eq('id', commentId);
@@ -52,15 +58,15 @@ async function deleteComment(commentId, tierlistId) {
 
 // Construye el bloque de comentarios (lista + caja de texto) para pegar al
 // final de Viewer(). No se usa en ningún otro sitio de la app.
-function CommentsSection(tierlistId, ownerUserId) {
+function CommentsSection(rankingId, ownerUserId) {
   const box = h('div', { class: 'comments-box' });
   box.appendChild(h('div', { class: 'comments-title' }, '💬 Comentarios'));
 
-  const list = S.comments[tierlistId];
+  const list = S.comments[rankingId];
 
   if (list === undefined) {
     // Todavía no se ha pedido — la disparamos una vez y mostramos "cargando"
-    fetchComments(tierlistId);
+    fetchComments(rankingId);
     box.appendChild(h('div', { class: 'comments-empty' }, 'Cargando comentarios...'));
   } else if (list === null) {
     box.appendChild(h('div', { class: 'comments-empty' }, 'Los comentarios no están disponibles todavía en este proyecto.'));
@@ -85,7 +91,7 @@ function CommentsSection(tierlistId, ownerUserId) {
       if (mine) {
         item.appendChild(h('button', {
           class: 'comment-del', title: 'Eliminar',
-          onclick: () => deleteComment(c.id, tierlistId)
+          onclick: () => deleteComment(c.id, rankingId)
         }, '✕'));
       }
       listEl.appendChild(item);
@@ -101,7 +107,7 @@ function CommentsSection(tierlistId, ownerUserId) {
       oninput: (e) => { S.commentDraft = e.target.value; }
     }));
     composer.appendChild(h('button', {
-      class: 'btn bp bsm', onclick: () => postComment(tierlistId, ownerUserId)
+      class: 'btn bp bsm', onclick: () => postComment(rankingId, ownerUserId)
     }, 'Comentar'));
     box.appendChild(composer);
   } else {
