@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v4'; // v4: chat arreglado, rediseño Persona, personaje del día, estadísticas
+const CACHE_NAME = 'at-v5'; // v5: chat arreglado de verdad (RLS recursiva), menú diagonal, niveles, marcos, reacciones
 const ASSETS = [
   './',
   './index.html',
@@ -41,6 +41,8 @@ const ASSETS = [
   './js/features/comments.js',
   './js/features/achievements.js',
   './js/features/extras.js',
+  './js/features/levels.js',
+  './js/features/reactions.js',
   './js/core/notifications.js',
   './js/core/actions.js',
   './js/core/router.js',

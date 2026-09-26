@@ -1,30 +1,7 @@
-// Dos mejoras rápidas de la lista de 20 ideas:
-//  - "Personaje del día": destacado en la Home, cambia una vez al día
-//    (semilla determinista por fecha, así todo el mundo ve el mismo).
-//  - "Estadísticas personales": resumen calculado a partir de tus propias
-//    tierlists, sin depender de ninguna tabla nueva.
-// Ninguna de las dos toca el editor/ranking.
-
-function CharacterOfTheDay() {
-  const ids = Object.keys(AC || {});
-  if (!ids.length) return null;
-  // Semilla determinista por día (AAAA-MM-DD) para que sea "el mismo" todo el día
-  const seed = new Date().toISOString().slice(0, 10).split('-').reduce((a, n) => a + parseInt(n, 10), 0);
-  const pick = AC[ids[seed % ids.length]];
-  if (!pick) return null;
-
-  const box = h('div', { class: 'cotd-box' });
-  box.appendChild(h('div', { class: 'cotd-label' }, '✦ Personaje del día ✦'));
-  const card = h('div', { class: 'cotd-card' });
-  card.appendChild(h('img', { class: 'cotd-img', src: charImg(ids[seed % ids.length]) }));
-  const info = h('div', { class: 'cotd-info' });
-  info.appendChild(h('div', { class: 'cotd-name' }, pick.name || 'Desconocido'));
-  if (pick.anime) info.appendChild(h('div', { class: 'cotd-anime' }, pick.anime));
-  card.appendChild(info);
-  box.appendChild(card);
-  return box;
-}
-
+// Mejora rápida de la lista de ideas: "Estadísticas personales", calculadas
+// a partir de tus propias tierlists, sin depender de ninguna tabla nueva.
+// (El "Personaje del día" que había aquí se quitó a petición del usuario.)
+// No toca el editor/ranking.
 function StatsSection() {
   const p = activeProfile();
   if (!p) return h('div', {});
@@ -40,6 +17,14 @@ function StatsSection() {
   })));
   const topAnime = Object.entries(animeCount).sort((a, b) => b[1] - a[1])[0];
 
+  // Tier más usado (por etiqueta, ej. "S", "A"...) en todas tus tierlists
+  const tierLabelCount = {};
+  tls.forEach(tl => (tl.tiers || []).forEach(t => {
+    const n = (t.chars || []).length;
+    if (n > 0) tierLabelCount[t.label || '?'] = (tierLabelCount[t.label || '?'] || 0) + n;
+  }));
+  const topTier = Object.entries(tierLabelCount).sort((a, b) => b[1] - a[1])[0];
+
   const box = h('div', { class: 'stats-box' });
   box.appendChild(h('div', { class: 'comments-title' }, '📊 Estadísticas'));
   const grid = h('div', { class: 'stats-grid' });
@@ -51,6 +36,12 @@ function StatsSection() {
   box.appendChild(grid);
   if (topAnime) {
     box.appendChild(h('div', { class: 'stats-highlight' }, `Tu anime más rankeado: `, h('strong', {}, topAnime[0]), ` (${topAnime[1]} personajes)`));
+  }
+  if (topTier) {
+    box.appendChild(h('div', { class: 'stats-highlight' }, `Tu tier favorito: `, h('strong', {}, topTier[0]), ` (${topTier[1]} personajes ahí)`));
+  }
+  if (p.created_at) {
+    box.appendChild(h('div', { class: 'stats-highlight' }, `Miembro desde: `, h('strong', {}, new Date(p.created_at).toLocaleDateString())));
   }
   return box;
 }

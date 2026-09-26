@@ -12,6 +12,19 @@
   try{
     var t = JSON.parse(localStorage.getItem('at4_theme')||'null') || 'dark';
     document.documentElement.setAttribute('data-theme', t);
+    var ACCENTS = {
+      persona:  { magenta:'#ff0a2e', cyan:'#ffffff', gold:'#ffcf40' },
+      genshin:  { magenta:'#d4af37', cyan:'#8ec9ff', gold:'#fff2c8' },
+      cyber:    { magenta:'#00e5ff', cyan:'#ff2ea6', gold:'#f0f0f0' },
+      sakura:   { magenta:'#ff6fae', cyan:'#ffffff', gold:'#ffd166' },
+      toxic:    { magenta:'#39ff14', cyan:'#0affef', gold:'#e8ff59' },
+    };
+    var a = JSON.parse(localStorage.getItem('at4_accent')||'null') || 'persona';
+    var p = ACCENTS[a] || ACCENTS.persona;
+    document.documentElement.setAttribute('data-accent', a);
+    document.documentElement.style.setProperty('--neon-magenta', p.magenta);
+    document.documentElement.style.setProperty('--neon-cyan', p.cyan);
+    document.documentElement.style.setProperty('--neon-gold', p.gold);
   }catch(e){}
 })();
 </script>
@@ -106,8 +119,10 @@
 <!-- 5) Funcionalidades y lógica de aplicación -->
 <script src="js/features/export-png.js"></script>
 <script src="js/features/comments.js"></script>
+<script src="js/features/reactions.js"></script>
 <script src="js/features/achievements.js"></script>
 <script src="js/features/extras.js"></script>
+<script src="js/features/levels.js"></script>
 <script src="js/core/actions.js"></script>
 <script src="js/core/router.js"></script>
 

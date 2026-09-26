@@ -15,15 +15,41 @@ const ACHIEVEMENT_DEFS = [
     check:(p)=> totalCharsRanked(p) >= 1000 },
   { id:'s_tier_full', icon:'🏆', title:'El podio de oro',     desc:'Llena un tier S (o el primero de la lista) con al menos 5 personajes.',
     check:(p)=> (p.tls||[]).some(tl => (tl.tiers||[])[0] && (tl.tiers[0].chars||[]).length >= 5) },
-  { id:'custom_char', icon:'🎨', title:'Creador de mundos',   desc:'Añade un personaje personalizado (fuera del catálogo).',
-    check:(p)=> Object.keys(AC||{}).some(id => AC[id]?.custom) },
+  { id:'custom_char', icon:'🎨', title:'Creador de mundos',   desc:'Añade un personaje personalizado (imagen propia o del catálogo global).',
+    // FIX: antes comprobaba AC[id]?.custom, una propiedad que no existe en
+    // ningún sitio del código — nunca se podía desbloquear. Los campos
+    // reales que marcan un personaje "no base" son imageData (imagen
+    // subida por ti) o isRemote (sincronizado desde el catálogo global).
+    check:(p)=> Object.values(AC||{}).some(c => c && (c.imageData || c.isRemote)) },
   { id:'complete_seven', icon:'🔥', title:'Racha de fuego',   desc:'Ten 7 tierlists distintas con al menos un personaje rankeado.',
     check:(p)=> (p.tls||[]).filter(tl => (tl.tiers||[]).some(t=>(t.chars||[]).length>0)).length >= 7 },
   { id:'social_butterfly', icon:'🦋', title:'Mariposa social', desc:'Ten al menos 3 amigos aceptados.',
     check:(p)=> (S.allUsers||[]).find(u=>u.id===userSession?.user?.id)?.friend_count >= 3 },
   { id:'commentator', icon:'💬', title:'Voz de la comunidad', desc:'Publica tu primer comentario en una tierlist.',
-    check:(p)=> Object.values(S.comments||{}).some(list => Array.isArray(list) && list.some(c=>c.user_id===userSession?.user?.id)) },
+    check:(p)=> !!S._hasCommented },
 ];
+
+// Datos que los logros necesitan pero que no siempre están cargados todavía
+// (por ejemplo si nunca has abierto la pantalla de Usuarios). Se llama al
+// entrar en Ajustes para que los logros sean fiables desde el primer
+// vistazo, no solo después de haber pasado por otras pantallas.
+async function refreshAchievementData(){
+  if(!userSession || !sbClient) return;
+  let changed = false;
+  if(!S.allUsers || !S.allUsers.length){
+    if(typeof fetchAllUsers==='function'){ await fetchAllUsers(); changed = true; } // fetchAllUsers ya llama a render()
+  }
+  if(S._hasCommented === undefined){
+    try{
+      const { count } = await sbClient.from('tierlist_comments')
+        .select('id', { count:'exact', head:true })
+        .eq('user_id', userSession.user.id);
+      S._hasCommented = (count || 0) > 0;
+      changed = true;
+    }catch(e){ S._hasCommented = false; }
+  }
+  if(changed) render();
+}
 
 function totalCharsRanked(p){
   return (p.tls||[]).reduce((sum,tl)=> sum + (tl.tiers||[]).reduce((a,t)=>a+(t.chars||[]).length,0), 0);
@@ -37,6 +63,7 @@ function computeAchievements(){
 
 // Construye la rejilla de logros para pegar en Ajustes (ProfilePage).
 function AchievementsSection(){
+  if(typeof refreshAchievementData==='function' && !S._achRef){ S._achRef=true; refreshAchievementData().finally(()=>setTimeout(()=>S._achRef=false,4000)); }
   const list = computeAchievements();
   const unlockedCount = list.filter(a=>a.unlocked).length;
 

@@ -20,6 +20,7 @@ let S={
   pendingRequests: [],
   appNotifications: [], // notificaciones genéricas (comentarios, etc.) — ver js/core/notifications.js
   comments: {}, // caché de comentarios por tierlist_id — ver js/features/comments.js
+  reactions: {}, // caché de reacciones por tierlist_id — ver js/features/reactions.js
   commentDraft: '',
   modal:null,md:{},
   q:'',poolPage:0,

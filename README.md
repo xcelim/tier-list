@@ -165,6 +165,55 @@ deja enviar mensajes. El script añade esas políticas.
 
 Cópialo en Supabase → SQL Editor → pégalo → Run.
 
+## 🆕 Ronda 3 — bugs de verdad arreglados + niveles, marcos, reacciones, menú diagonal
+
+### Bugs encontrados y arreglados
+- **Chat (el bug gordo)**: tu política de seguridad en `chat_members` se
+  consultaba a sí misma dentro de su propia condición → "recursión
+  infinita" → Postgres rechazaba la consulta → ni los chats privados ni
+  los grupos cargaban nunca, sin ningún error visible. Se arregló con una
+  función `security definer` (`is_chat_member`) que rompe el bucle. Ejecuta
+  el `supabase-schema.sql` actualizado.
+- **Chat (mensajes mudos)**: `sendChatMessage` insertaba el mensaje en la
+  base de datos pero nunca lo mostraba en pantalla — dependía 100% de que
+  Realtime estuviera activado en Supabase. Ahora se añade al instante,
+  sin depender de nada más.
+- **Arrastrar y soltar**: al mover una carta rápido y cruzar varias en
+  menos de 250ms, se medía la posición de una carta a mitad de una
+  animación anterior → cálculo mal → dos cartas superpuestas un instante.
+  Arreglado asentando instantáneamente cualquier transformación a medias
+  antes de medir de nuevo.
+- **Logro "Creador de mundos"**: comprobaba una propiedad (`custom`) que
+  no existía en ningún sitio del código — no se podía desbloquear nunca.
+  Ahora comprueba los campos reales (`imageData` / `isRemote`).
+- **Logros "Mariposa social" / "Voz de la comunidad"**: dependían de datos
+  que solo se cargaban si ya habías visitado otra pantalla antes. Ahora se
+  piden en cuanto entras en Ajustes.
+
+### Nuevo
+- **Menú diagonal a pantalla completa**: las 3 opciones (Tierlists,
+  Usuarios, Perfil) ahora son franjas diagonales que ocupan toda la
+  pantalla, estilo selección de videojuego japonés. En móvil se apilan
+  horizontalmente para seguir siendo legibles. El editor/ranking sigue
+  intacto.
+- **Niveles de cuenta**: calculados de verdad a partir de tu actividad
+  (tierlists, personajes rankeados, logros), con barra de progreso.
+- **Marcos de avatar**: 6 marcos que se desbloquean por nivel (bronce →
+  legendario), seleccionables en Ajustes.
+- **Reacciones con emoji**: en modo Visor, junto a los comentarios — una
+  reacción por persona, se puede cambiar. Requiere la tabla
+  `tierlist_reactions` (en el SQL).
+- **Paleta de la interfaz**: 5 esquemas de color (Persona, Genshin, Cyber,
+  Sakura, Tóxico) seleccionables en Ajustes — cambian toda la app de golpe.
+- **Estadísticas ampliadas**: ahora incluyen tier favorito y fecha de
+  registro, todo calculado de datos reales tuyos.
+- Se quitó "Personaje del día" a petición tuya.
+
+### ⚠️ Vuelve a ejecutar `supabase-schema.sql`
+Esta versión añade la función `is_chat_member` (arregla el chat de raíz),
+la columna `avatar_frame` en `profiles`, y la tabla `tierlist_reactions`.
+Es seguro volver a ejecutarlo entero.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

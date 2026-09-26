@@ -200,23 +200,26 @@ async function fetchChats() {
     });
     S.totalUnread = globalUnread;
     render();
+  } else {
+    console.warn('[chat] fetchChats:', error.message);
   }
 }
 
 async function openChat(chat) {
   if (chat.is_temp) {
     // Crear el chat real en la base de datos al primer contacto
-    const { data: nc } = await sbClient.from('chats').insert({ is_group: false }).select().single();
-    if (nc) {
-      const m = [
-        { chat_id: nc.id, user_id: userSession.user.id, last_read_at: new Date().toISOString() },
-        { chat_id: nc.id, user_id: chat.friend_id }
-      ];
-      await sbClient.from('chat_members').insert(m);
-      await fetchChats();
-      const real = S.chats.find(c => c.id === nc.id);
-      if (real) return openChat(real);
-    }
+    const { data: nc, error: chatErr } = await sbClient.from('chats').insert({ is_group: false }).select().single();
+    if (chatErr || !nc) { toast("No se pudo abrir el chat: " + (chatErr?.message || 'error desconocido'), "err"); return; }
+    const m = [
+      { chat_id: nc.id, user_id: userSession.user.id, last_read_at: new Date().toISOString() },
+      { chat_id: nc.id, user_id: chat.friend_id }
+    ];
+    const { error: memErr } = await sbClient.from('chat_members').insert(m);
+    if (memErr) { toast("No se pudo abrir el chat: " + memErr.message, "err"); return; }
+    await fetchChats();
+    const real = S.chats.find(c => c.id === nc.id);
+    if (real) return openChat(real);
+    toast("El chat se creó pero no se pudo abrir, inténtalo de nuevo", "err");
     return;
   }
 
@@ -266,34 +269,47 @@ async function sendChatMessage(content) {
     content: content.trim()
   };
   const { data: newMsg, error } = await sbClient.from('messages').insert(msg).select().single();
-  if (error) toast("Error al enviar", "err");
-  else {
-    // Actualizar last_message_at en el chat
-    await sbClient.from('chats').update({ last_message_at: new Date().toISOString() }).eq('id', S.activeChat.id);
+  if (error) { toast("Error al enviar: " + (error.message || 'inténtalo de nuevo'), "err"); return; }
+
+  // FIX: antes esto dependía 100% de que Realtime estuviera activado en
+  // Supabase para que el mensaje apareciera en pantalla (si no lo estaba,
+  // el mensaje se guardaba en la base de datos pero el chat se quedaba
+  // "mudo" — parecía que no funcionaba). Ahora lo añadimos aquí mismo,
+  // al instante, sin depender de nada más.
+  if (!S.messages.find(m => m.id === newMsg.id)) {
+    S.messages.push({ ...newMsg, profiles: { name: currentUserProfile?.name || 'Tú' } });
+    render();
+    const container = document.querySelector('.chat-messages');
+    if (container) setTimeout(() => container.scrollTop = container.scrollHeight, 30);
   }
+
+  // Actualizar last_message_at en el chat (para ordenar/mostrar hora, no crítico)
+  await sbClient.from('chats').update({ last_message_at: new Date().toISOString() }).eq('id', S.activeChat.id);
 }
 
 async function createGroup(name, friendIds) {
   if (!name || friendIds.length === 0) return;
-  
+
   const { data: chat, error: cErr } = await sbClient.from('chats')
     .insert({ name, is_group: true }).select().single();
-    
-  if (chat) {
-    const members = [...friendIds, userSession.user.id].map(uid => ({
-      chat_id: chat.id,
-      user_id: uid,
-      last_read_at: new Date().toISOString()
-    }));
-    await sbClient.from('chat_members').insert(members);
-    toast("Grupo creado ✓");
-    
-    // Refrescar lista y abrir el nuevo chat
-    await fetchChats();
-    const newChat = S.chats.find(c => c.id === chat.id);
-    if (newChat) openChat(newChat);
-    else S.activeChat = chat;
-  }
+
+  if (cErr || !chat) { toast("No se pudo crear el grupo: " + (cErr?.message || 'error desconocido'), "err"); return; }
+
+  const members = [...friendIds, userSession.user.id].map(uid => ({
+    chat_id: chat.id,
+    user_id: uid,
+    last_read_at: new Date().toISOString()
+  }));
+  const { error: memErr } = await sbClient.from('chat_members').insert(members);
+  if (memErr) { toast("Grupo creado pero no se pudieron añadir los miembros: " + memErr.message, "err"); return; }
+
+  toast("Grupo creado ✓");
+
+  // Refrescar lista y abrir el nuevo chat
+  await fetchChats();
+  const newChat = S.chats.find(c => c.id === chat.id);
+  if (newChat) openChat(newChat);
+  else S.activeChat = chat;
 }
 
 function renderChatAvatars(chat) {

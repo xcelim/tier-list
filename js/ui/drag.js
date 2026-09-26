@@ -94,8 +94,21 @@ function _updatePlaceholder(zone){
  return;
  }
  
- // 1. Capturar posiciones reales exclusivamente de las cartas visibles (no la que arrastramos)
- const freshCards=Array.from(ce.querySelectorAll('.tc')).filter(c => c.dataset.cid !== DG && !c.classList.contains('is-dragging'));
+ // 1. Asentar instantáneamente cualquier carta que todavía tuviera una
+ // animación anterior a medias (pasa cuando se arrastra rápido y se
+ // cruzan varias cartas en menos de lo que dura la animación, 250ms).
+ // Sin esto, la siguiente medición se hace sobre una posición intermedia
+ // y el cálculo de movimiento sale mal: dos cartas pueden acabar
+ // superpuestas un instante — es justo el bug visto en el vídeo.
+ const allCards=Array.from(ce.querySelectorAll('.tc'));
+ let neededReflow=false;
+ allCards.forEach(c=>{
+ if(c.style.transform){ c.style.transition='none'; c.style.transform=''; neededReflow=true; }
+ });
+ if(neededReflow && allCards.length) allCards[0].offsetHeight; // forzar reflow una sola vez
+
+ // 2. Capturar posiciones reales exclusivamente de las cartas visibles (no la que arrastramos)
+ const freshCards=allCards.filter(c => c.dataset.cid !== DG && !c.classList.contains('is-dragging'));
  const snapshots=freshCards.map(c=>({el:c,rect:c.getBoundingClientRect()}));
  
  // 2. Quitar placeholder viejo

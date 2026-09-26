@@ -14,11 +14,6 @@ function Home(){
   hdr.appendChild(h('p',{},'Crea, compara y descubre los mejores rankings de anime'));
   w.appendChild(hdr);
 
-  if(typeof CharacterOfTheDay==='function'){
-    const cotd = CharacterOfTheDay();
-    if(cotd) w.appendChild(cotd);
-  }
-
   if(!userSession){
     w.appendChild(h('div',{class:'profile-notice'},
       h('h2',{},'Bienvenido'),
@@ -234,9 +229,13 @@ function Viewer() {
   });
   w.appendChild(tw);
 
-  // Comentarios — SOLO aparecen en este modo (Visor), tal y como se pidió.
+  // Reacciones + Comentarios — SOLO en este modo (Visor), tal y como se pidió.
+  const ownerId = r.user_id || (S.viewingUser && S.viewingUser.id);
+  if(typeof ReactionsBar==='function' && r.tierlist_id){
+    w.appendChild(ReactionsBar(r.tierlist_id, ownerId));
+  }
   if(typeof CommentsSection==='function' && r.tierlist_id){
-    w.appendChild(CommentsSection(r.tierlist_id, r.user_id || (S.viewingUser && S.viewingUser.id)));
+    w.appendChild(CommentsSection(r.tierlist_id, ownerId));
   }
 
   return w;
@@ -305,7 +304,7 @@ function ProfilePage() {
 
   // Avatar
   const avWrap = h('div', { class: 'avatar-wrap' });
-  const ring = h('div', { class: 'avatar-ring' });
+  const ring = h('div', { class: 'avatar-ring' + (typeof frameClassFor==='function' ? ' '+frameClassFor(p) : '') });
   const inner = h('div', { class: 'avatar-inner' });
   inner.appendChild(h('img', {
     src: p.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${p.name}`,
@@ -321,6 +320,10 @@ function ProfilePage() {
     reader.readAsDataURL(file);
   }});
   avWrap.appendChild(h('label', { class: 'camera-btn', title: 'Cambiar foto' }, h('i', { class: 'ti ti-camera' }), cameraInput));
+  if(typeof computeXP==='function' && typeof LevelBadge==='function'){
+    const xp = computeXP(p); const lvl = computeLevel(xp);
+    avWrap.appendChild(LevelBadge(lvl, xp));
+  }
   top.appendChild(avWrap);
 
   // Campos
@@ -357,6 +360,25 @@ function ProfilePage() {
   });
   colorsSection.appendChild(colorsRow);
   card.appendChild(colorsSection);
+
+  // Paleta de la app (personalización general) — cambia el look completo
+  if(typeof ACCENT_PRESETS==='object'){
+    const accentSection = h('div', { class: 'colors-section' });
+    accentSection.appendChild(h('div', { class: 'colors-label' }, '🎨 Paleta de la interfaz'));
+    const accentRow = h('div', { class: 'accent-row' });
+    Object.entries(ACCENT_PRESETS).forEach(([id, preset]) => {
+      const active = currentAccent() === id;
+      accentRow.appendChild(h('button', {
+        class: 'accent-swatch' + (active ? ' active' : ''),
+        style: { background: `linear-gradient(135deg, ${preset.magenta}, ${preset.gold})` },
+        title: preset.name,
+        onclick: () => setAccent(id)
+      }));
+    });
+    accentSection.appendChild(accentRow);
+    card.appendChild(accentSection);
+  }
+
   content.appendChild(card);
 
   // Acciones
@@ -381,6 +403,15 @@ function ProfilePage() {
   // Logros
   if(typeof AchievementsSection==='function'){
     content.appendChild(AchievementsSection());
+    content.appendChild(h('div', { class: 'divider-row' },
+      h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
+    ));
+  }
+
+  // Marcos de avatar (desbloqueables por nivel)
+  if(typeof AvatarFramePicker==='function' && typeof computeXP==='function'){
+    const xp = computeXP(p); const lvl = computeLevel(xp);
+    content.appendChild(AvatarFramePicker(p, lvl));
     content.appendChild(h('div', { class: 'divider-row' },
       h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
     ));

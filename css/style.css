@@ -948,14 +948,6 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 .slash-accent{position:relative;overflow:hidden}
 .slash-accent::before{content:'';position:absolute;top:0;bottom:0;left:-6%;width:14%;background:var(--neon-magenta);transform:skewX(-12deg);opacity:.9;z-index:0}
 
-/* --- Personaje del día (Home) --- */
-.cotd-box{max-width:420px;margin:28px auto 0;text-align:center}
-.cotd-label{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2px;font-size:11px;color:var(--neon-gold,var(--gold));text-transform:uppercase;margin-bottom:10px}
-.cotd-card{display:flex;align-items:center;gap:14px;background:var(--bg2);border:2px solid rgba(255,255,255,.14);border-radius:10px;padding:10px;text-align:left;box-shadow:4px 4px 0 rgba(255,10,46,.25)}
-.cotd-img{width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);flex-shrink:0}
-.cotd-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:var(--text)}
-.cotd-anime{font-size:11px;color:var(--text3)}
-
 /* --- Estadísticas (Ajustes) --- */
 .stats-box{max-width:900px;margin:0 auto 10px}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:12px}
@@ -963,3 +955,117 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 .stat-val{font-family:'Cinzel',serif;font-weight:900;font-size:28px;color:var(--neon-gold,var(--gold))}
 .stat-label{font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
 .stats-highlight{font-size:12.5px;color:var(--text2);text-align:center;padding-top:4px}
+
+/* ============================================================================
+   MENÚ PRINCIPAL — 3 franjas diagonales a pantalla completa, estilo
+   "videojuego japonés" (Persona 5 / interfaz de selección). Reutiliza las
+   mismas 3 cajas (.menu-box) y el mismo onclick que ya existían — SOLO se
+   cambia la forma y disposición, cero riesgo para la lógica de clics.
+   ============================================================================ */
+
+.menu-grid{
+  display:flex!important;flex-wrap:nowrap!important;gap:0!important;
+  justify-content:stretch!important;
+  height:64vh;min-height:440px;max-height:640px;
+  margin:44px -20px 0!important;
+  position:relative;overflow:visible;
+}
+.menu-box{
+  width:auto!important;height:100%!important;flex:1 1 0;
+  border-radius:0!important;border:none!important;
+  margin:0 -46px;position:relative;
+  clip-path:polygon(32% 0, 100% 0, 68% 100%, 0% 100%);
+  box-shadow:none!important;
+  transition:flex .4s cubic-bezier(.22,1,.36,1), filter .3s;
+}
+.menu-box:nth-child(1){z-index:3;clip-path:polygon(0 0,100% 0,68% 100%,0 100%)}
+.menu-box:nth-child(2){z-index:2}
+.menu-box:nth-child(3){z-index:1;clip-path:polygon(32% 0,100% 0,100% 100%,0 100%)}
+.menu-box:hover{flex:1.35 1 0;filter:brightness(1.2) saturate(1.15)}
+.menu-box::before{opacity:.4!important}
+.menu-box:hover::before{opacity:.55!important}
+/* Borde de neón en el filo diagonal, vía un segundo capa detrás */
+.menu-box .mb-content{transform:translateX(0);padding:0 30px}
+.menu-box:nth-child(1) .mb-content{padding-right:60px}
+.menu-box:nth-child(3) .mb-content{padding-left:60px}
+.menu-box h2{font-size:26px!important;letter-spacing:3px!important;text-shadow:0 0 18px rgba(0,0,0,.6),2px 2px 0 rgba(0,0,0,.5)}
+.menu-box .mb-icon{width:64px!important;height:64px!important;background:rgba(0,0,0,.25);backdrop-filter:blur(4px)}
+
+/* Paleta reforzada: mismo esquema (tierlists/usuarios/perfil) pero con más
+   contraste neón, a juego con el resto del rediseño "Persona". */
+.mb-tierlists{
+  --card-gradient:linear-gradient(160deg,#c0285a 0%,#3a0f1e 100%);
+  --card-border:var(--neon-magenta);--sep-color:#ffd7e6;--icon-border:var(--neon-magenta);
+  --card-glow-base:none;--card-glow-hover:none;
+}
+.mb-users{
+  --card-gradient:linear-gradient(160deg,#5a28b4 0%,#150a2e 100%);
+  --card-border:var(--neon-cyan);--sep-color:#e6ddff;--icon-border:var(--neon-cyan);
+  --card-glow-base:none;--card-glow-hover:none;
+}
+.mb-profile{
+  --card-gradient:linear-gradient(160deg,#8a6a1e 0%,#241a08 100%);
+  --card-border:var(--neon-gold);--sep-color:#ffe9b3;--icon-border:var(--neon-gold);
+  --card-glow-base:none;--card-glow-hover:none;
+}
+/* Filo de luz entre franjas, simulado con sombras en el propio contenido */
+.menu-box:nth-child(1){box-shadow:inset -3px 0 0 0 transparent!important}
+.menu-box h2{filter:drop-shadow(0 0 10px var(--sep-color))}
+
+/* En pantallas estrechas: franjas apiladas horizontalmente en vez de
+   verticales lado a lado, para que siga siendo legible en el móvil */
+@media (max-width:760px){
+  .menu-grid{flex-direction:column;height:auto;min-height:0;max-height:none;margin:28px 0 0;gap:14px}
+  .menu-box{flex:none!important;width:100%!important;height:150px!important;margin:0;
+    clip-path:polygon(0 14%, 100% 0, 100% 86%, 0 100%)!important}
+  .menu-box:hover{flex:none!important;transform:scale(1.02)}
+  .menu-box .mb-content{padding:0 24px!important;flex-direction:row!important;gap:16px!important;justify-content:flex-start!important}
+  .menu-box .mb-sep{display:none}
+  .menu-box .mb-icon{width:48px!important;height:48px!important;flex-shrink:0}
+  .menu-box h2{font-size:19px!important}
+}
+
+/* --- Nivel de cuenta (Ajustes) --- */
+.level-badge{margin-top:10px;width:150px;text-align:center}
+.level-num{font-family:'Cinzel',serif;font-weight:900;font-size:13px;color:var(--neon-gold,var(--gold));letter-spacing:1px;margin-bottom:4px}
+.level-bar{height:6px;border-radius:3px;background:var(--bg3);overflow:hidden;border:1px solid var(--border)}
+.level-bar-fill{height:100%;background:linear-gradient(90deg,var(--neon-magenta,var(--accent)),var(--neon-gold,var(--gold)));transition:width .4s}
+.level-xp{font-size:9px;color:var(--text3);margin-top:4px}
+
+/* --- Marcos de avatar (Ajustes) --- */
+.frame-picker{max-width:900px;margin:0 auto 10px}
+.frame-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:14px}
+.frame-option{text-align:center;cursor:pointer;padding:10px 6px;border-radius:10px;border:1px solid transparent;transition:.2s}
+.frame-option:hover{background:var(--bg3)}
+.frame-option.frame-equipped{border-color:var(--neon-gold,var(--gold));background:var(--bg3)}
+.frame-option.frame-locked{cursor:not-allowed;opacity:.4}
+.frame-preview{width:56px;height:56px;border-radius:50%;margin:0 auto 6px;padding:3px}
+.frame-preview img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
+.frame-name{font-size:11px;font-weight:700;color:var(--text)}
+.frame-req{font-size:9px;color:var(--text3)}
+
+/* Estilos de marco reales — se aplican a .avatar-ring / .profile-btn / .frame-preview */
+.frame-bronze{box-shadow:0 0 0 3px #a9713f, 0 0 14px rgba(169,113,63,.5)}
+.frame-silver{box-shadow:0 0 0 3px #cfd6de, 0 0 16px rgba(207,214,222,.55)}
+.frame-gold{box-shadow:0 0 0 3px var(--neon-gold,#ffcf40), 0 0 20px rgba(255,207,64,.6)}
+.frame-neon{box-shadow:0 0 0 3px var(--neon-magenta,#ff0a2e), 0 0 24px rgba(255,10,46,.65), 0 0 40px rgba(255,10,46,.3)}
+.frame-legendary{
+  box-shadow:0 0 0 3px transparent, 0 0 28px rgba(255,207,64,.5);
+  animation:frame-legendary-spin 3s linear infinite;
+  background:conic-gradient(var(--neon-magenta,#ff0a2e),var(--neon-gold,#ffcf40),var(--neon-cyan,#fff),var(--neon-magenta,#ff0a2e));
+}
+@keyframes frame-legendary-spin{from{filter:hue-rotate(0deg)}to{filter:hue-rotate(360deg)}}
+
+/* --- Reacciones con emoji (modo Visor) --- */
+.reactions-bar{max-width:900px;margin:24px auto 0;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.reaction-pill{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1.5px solid var(--border);border-radius:20px;padding:6px 14px;font-size:15px;cursor:pointer;transition:.15s}
+.reaction-pill:hover{border-color:var(--neon-magenta,var(--accent2));transform:translateY(-2px)}
+.reaction-pill:disabled{cursor:not-allowed;opacity:.5}
+.reaction-pill.reaction-active{background:rgba(255,10,46,.12);border-color:var(--neon-magenta,var(--accent2));box-shadow:0 0 10px rgba(255,10,46,.25)}
+.reaction-count{font-size:11px;font-weight:700;color:var(--text2)}
+
+/* --- Selector de paleta de la app (Ajustes) --- */
+.accent-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.accent-swatch{width:38px;height:38px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:.2s}
+.accent-swatch:hover{transform:scale(1.1)}
+.accent-swatch.active{border-color:#fff;box-shadow:0 0 0 2px var(--neon-gold,var(--gold)),0 0 14px rgba(255,255,255,.4)}
