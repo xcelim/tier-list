@@ -24,6 +24,30 @@ async function fetchGlobalTemplates() {
 
   const remoteIds = new Set(allTemplates.map(t => t.id));
 
+  // De paso, traemos TU propio progreso en cada una de estas tierlists (tu
+  // ranking personal, o el conjunto si es colaborativa y estás dentro) —
+  // así las tarjetas pueden mostrar el número de tiers/personajes REAL (el
+  // tuyo) en vez del genérico de la plantilla vacía, y un distintivo de
+  // "colaborativa" cuando corresponda. Esto es solo para lo que se
+  // MUESTRA en la tarjeta (campos con "_" delante): nunca tocamos
+  // tl.tiers/tl.pool aquí, así que no hay riesgo de pisar cambios sin
+  // guardar en el editor.
+  const myRankByTlId = new Map();
+  if (userSession) {
+    const uid = userSession.user.id;
+    try {
+      const { data: myRankRows } = await sbClient.from('user_rankings')
+        .select('id, tierlist_id, tiers_data, pool_data, is_collaborative, collaborators, user_id')
+        .or(`user_id.eq.${uid},collaborators.cs.{${uid}}`);
+      (myRankRows || []).forEach(r => {
+        // Si hay dos filas para la misma tierlist (no debería pasar), nos
+        // quedamos con la tuya propia antes que con una ajena.
+        const existing = myRankByTlId.get(r.tierlist_id);
+        if (!existing || r.user_id === uid) myRankByTlId.set(r.tierlist_id, r);
+      });
+    } catch (e) { console.warn('[fetchGlobalTemplates] user_rankings:', e); }
+  }
+
   allTemplates.forEach(t => {
     // Si dupTL está en curso para este ID, no tocar — lo añadirá él mismo al terminar
     if (S._dupInProgress === t.id) return;
@@ -35,6 +59,13 @@ async function fetchGlobalTemplates() {
       isRemoteTemplate: true,
       updatedAt: new Date(t.updated_at || t.created_at).getTime()
     };
+    const myRank = myRankByTlId.get(t.id);
+    if (myRank) {
+      tlData._rankingId = myRank.id;
+      tlData._isCollaborative = !!myRank.is_collaborative;
+      tlData._myTierCount = (myRank.tiers_data || t.tiers_config || []).length;
+      tlData._myCharCount = (myRank.tiers_data || []).reduce((a, tr) => a + (tr.chars || []).length, 0) + (myRank.pool_data || []).length;
+    }
     if (localIdx === -1) {
       p.tls.push(tlData);
     } else {
@@ -45,6 +76,10 @@ async function fetchGlobalTemplates() {
       p.tls[localIdx].cover_url = t.cover_url;
       p.tls[localIdx].updatedAt = tlData.updatedAt;
       p.tls[localIdx].isRemoteTemplate = true;
+      p.tls[localIdx]._rankingId = tlData._rankingId ?? p.tls[localIdx]._rankingId ?? null;
+      p.tls[localIdx]._isCollaborative = tlData._isCollaborative ?? false;
+      p.tls[localIdx]._myTierCount = tlData._myTierCount;
+      p.tls[localIdx]._myCharCount = tlData._myCharCount;
     }
   });
 
@@ -248,11 +283,39 @@ async function fetchChats() {
   }
 }
 
+// Antes de un insert que depende de RLS (auth.uid() = ... / to authenticated),
+// nos aseguramos de que el token de sesión sigue siendo válido. Si ha
+// caducado (o casi), lo refrescamos primero — si no, Supabase puede tratar
+// la petición como si NO estuvieras autenticado y el INSERT se rechaza por
+// RLS con el mismo mensaje genérico de "row-level security policy",
+// aunque la política en sí esté perfectamente bien escrita.
+async function ensureFreshSession() {
+  try {
+    const { data: { session } } = await sbClient.auth.getSession();
+    if (!session) return false;
+    const expiresAt = (session.expires_at || 0) * 1000;
+    if (expiresAt - Date.now() < 60000) {
+      const { data, error } = await sbClient.auth.refreshSession();
+      if (error || !data?.session) return false;
+    }
+    return true;
+  } catch (e) { console.error('[ensureFreshSession]', e); return false; }
+}
+
 async function openChat(chat) {
   if (chat.is_temp) {
+    if (!(await ensureFreshSession())) {
+      toast('Tu sesión ha caducado — cierra sesión y vuelve a entrar para poder chatear', 'err');
+      return;
+    }
     // Crear el chat real en la base de datos al primer contacto
     const { data: nc, error: chatErr } = await sbClient.from('chats').insert({ is_group: false }).select().single();
-    if (chatErr || !nc) { toast("No se pudo abrir el chat: " + (chatErr?.message || 'error desconocido'), "err"); return; }
+    if (chatErr || !nc) {
+      const detail = [chatErr?.message, chatErr?.details, chatErr?.hint].filter(Boolean).join(' — ');
+      toast("No se pudo abrir el chat: " + (detail || 'error desconocido'), "err");
+      console.error('[openChat] insert chats:', chatErr);
+      return;
+    }
     const m = [
       { chat_id: nc.id, user_id: userSession.user.id, last_read_at: new Date().toISOString() },
       { chat_id: nc.id, user_id: chat.friend_id }
@@ -332,11 +395,20 @@ async function sendChatMessage(content) {
 
 async function createGroup(name, friendIds) {
   if (!name || friendIds.length === 0) return;
+  if (!(await ensureFreshSession())) {
+    toast('Tu sesión ha caducado — cierra sesión y vuelve a entrar para poder crear el grupo', 'err');
+    return;
+  }
 
   const { data: chat, error: cErr } = await sbClient.from('chats')
     .insert({ name, is_group: true }).select().single();
 
-  if (cErr || !chat) { toast("No se pudo crear el grupo: " + (cErr?.message || 'error desconocido'), "err"); return; }
+  if (cErr || !chat) {
+    const detail = [cErr?.message, cErr?.details, cErr?.hint].filter(Boolean).join(' — ');
+    toast("No se pudo crear el grupo: " + (detail || 'error desconocido'), "err");
+    console.error('[createGroup] insert chats:', cErr);
+    return;
+  }
 
   const members = [...friendIds, userSession.user.id].map(uid => ({
     chat_id: chat.id,

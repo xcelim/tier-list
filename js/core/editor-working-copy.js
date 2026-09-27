@@ -6,6 +6,7 @@ function openEditor(tlid){
   const tl=getTLfromProfile(tlid);
   if(!tl)return;
   unsubscribeCollab();
+  S._viewerOwnTlId=null;
   S.cid=tlid;
   S.workingTL=JSON.parse(JSON.stringify(tl)); // deep copy
   S.hasUnsaved=false;

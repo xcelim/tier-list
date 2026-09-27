@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v11'; // v11: tarjetas de tierlist ahora son la foto entera con degradado y texto encima, marco de avatar arreglado de verdad (ya no se salía del anillo) y sale también en comentarios/chat (faltaba pedir avatar_frame en esas consultas), arreglado que el perfil decía "sin tierlists" (usaba el perfil equivocado), botón para añadir varias waifus de golpe, drag mucho más fluido sin perder el arreglo del hueco
+const CACHE_NAME = 'at-v12'; // v12: tarjetas de tierlist más estrechas/altas con borde degradado, distintivo de colaborativa + contador real de tiers/personajes, botón de modo observador en tarjetas y editor con botón de vuelta a edición, seleccionar varias waifus para poner nombre/anime a todas de golpe al añadir varias, refresco de plantillas también en el perfil (para que una colaborativa recién compartida aparezca sin pasar por Mis Tierlists), reintento de sesión caducada antes de crear un chat
 const ASSETS = [
   './',
   './index.html',

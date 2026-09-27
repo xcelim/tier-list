@@ -50,6 +50,7 @@ function Editor(){
   },title: S.workingIsCollaborative && !neverSaved ? 'Guardar los cambios (compartidos con tus colaboradores)' : 'Compartir esta tierlist con amigos para editarla en conjunto'}, S.workingIsCollaborative && !neverSaved ? '\u2713 Guardar' : '\u{1F465} Colaborativa'));
   if(S.workingIsCollaborative && !neverSaved) ea.appendChild(h('button',{class:'btn bg bsm',title:'A\u00f1adir o quitar colaboradores',onclick:openManageCollaboratorsPicker},'+'));
   if(S.workingIsCollaborative) badges.appendChild(h('span',{class:'saved-badge',style:{background:'var(--neon-cyan,#3ec6ff)'}},'\u{1F465} Colaborativa'));
+  ea.appendChild(h('button',{class:'btn bg',title:'Ver esta tierlist en modo observador',onclick:viewCurrentEditorAsViewer},h('i',{class:'ti ti-eye'})));
   ea.appendChild(h('button',{class:'btn bd',onclick:resetRank},'Reset Rank'));
   ea.appendChild(h('button',{class:'btn bg',onclick:()=>{S.modal='addchar';S.md={};render();}},'+ Waifu'));
   ea.appendChild(h('button',{class:'btn bg',onclick:()=>{S.modal='pick';S.md={};render();}},'+ Cat\xe1logo'));

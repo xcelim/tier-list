@@ -255,10 +255,14 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 
 /* "Añadir varias" — lista de imágenes cargadas con su nombre/anime */
 .bulk-add-list{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;margin:10px 0}
-.bulk-add-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:9px;background:var(--bg2);border:1px solid var(--border)}
+.bulk-add-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:9px;background:var(--bg2);border:1px solid var(--border);transition:.15s}
+.bulk-add-row.selected{border-color:var(--neon-magenta,var(--accent2));background:var(--accentbg,var(--bg3))}
+.bulk-add-row input[type=checkbox]{flex-shrink:0;cursor:pointer}
 .bulk-add-thumb{width:46px;height:46px;border-radius:8px;object-fit:cover;flex-shrink:0}
 .bulk-add-fields{flex:1;display:flex;gap:8px;min-width:0}
 .bulk-add-fields input{flex:1;min-width:0}
+.bulk-batch-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px;margin-bottom:8px;border-radius:9px;background:var(--accentbg,rgba(155,125,212,.12));border:1px dashed var(--accent2,var(--neon-magenta))}
+.bulk-batch-bar input{flex:1;min-width:140px}
 @keyframes slideUp{from{transform:translateY(24px) scale(.97);opacity:0}to{transform:none;opacity:1}}
 .modal h2{font-size:19px;font-weight:700;margin-bottom:16px;font-family:'Rajdhani',sans-serif}
 .fg{margin-bottom:13px}
@@ -1125,9 +1129,22 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
    foto de fondo) y la info (nombre, tiers, personajes...) va superpuesta
    abajo sobre un degradado semitransparente que sale del borde inferior
    hacia arriba — se ve la foto pero el texto sigue siendo legible. */
-.tlg-wide{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
-.tlc-wide{height:172px;position:relative;display:block!important}
-.tlg-wide .nc{min-height:172px}
+.tlg-wide{grid-template-columns:repeat(auto-fill,minmax(266px,1fr))}
+.tlc-wide{height:190px;position:relative;display:block!important;border-color:transparent}
+.tlg-wide .nc{min-height:190px}
+
+/* Borde colorido de verdad (anillo con degradado), con la misma técnica de
+   "doble máscara" que ya se usa en otras tarjetas (funciona perfecto aquí
+   porque es un simple rectángulo redondeado, no un recorte diagonal). */
+.tlc-wide::after{
+  content:'';position:absolute;inset:0;border-radius:inherit;z-index:3;
+  padding:2px;pointer-events:none;
+  background:linear-gradient(135deg,var(--neon-magenta,#ff0a2e),var(--neon-gold,#ffcf40) 50%,var(--neon-cyan,#3ec6ff));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  opacity:.85;transition:opacity .2s;
+}
+.tlc-wide:hover::after{opacity:1}
 
 .tlc-wide .tlc-cover{position:absolute;inset:0;width:100%;height:100%}
 .tlc-cover{height:108px;background-size:cover;background-position:center 20%;position:relative;flex-shrink:0}
@@ -1153,6 +1170,7 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
   background:linear-gradient(to top, rgba(7,10,24,.94) 0%, rgba(7,10,24,.72) 45%, rgba(7,10,24,0) 100%);
 }
 .tlc-wide h3{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.5)}
+.tlc-collab-badge{flex-shrink:0;font-size:12px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))}
 .tlc-wide .meta{color:rgba(255,255,255,.88)}
 .tlc-wide .tlc-updated{color:rgba(255,255,255,.65)}
 .tlc-body{padding:12px 14px 14px;position:relative}

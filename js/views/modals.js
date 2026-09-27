@@ -642,9 +642,49 @@ function buildBulkAddUI(tl){
   wrap.appendChild(uarea);
 
   if(items.length){
+    const selectedCount = items.filter(it=>it._selected).length;
+
+    // Fila de acciones para EDITAR VARIAS A LA VEZ: selecciona unas cuantas
+    // (con la casilla de cada fila) y aquí pones el nombre y/o el anime que
+    // quieres ponerles a TODAS las seleccionadas de golpe — útil cuando
+    // subes 10 y 5 son del mismo anime. Solo aparece si hay algo marcado,
+    // así que editar una sola sin más sigue siendo tan cómodo como antes
+    // (no estorba si no seleccionas nada).
+    const selHeader=h('div',{style:{display:'flex',alignItems:'center',gap:'10px',margin:'4px 0 8px',flexWrap:'wrap'}});
+    selHeader.appendChild(h('label',{style:{display:'flex',alignItems:'center',gap:'6px',fontSize:'11px',color:'var(--text3)',cursor:'pointer'}},
+      h('input',{type:'checkbox',checked: items.length>0 && selectedCount===items.length,
+        onchange:(e)=>{ items.forEach(it=>it._selected=e.target.checked); render(); }}),
+      'Seleccionar todas'
+    ));
+    if(selectedCount>0){
+      selHeader.appendChild(h('span',{style:{fontSize:'11px',color:'var(--text3)'}}, `${selectedCount} seleccionada${selectedCount===1?'':'s'}`));
+      selHeader.appendChild(h('button',{class:'btn bg bsm',onclick:()=>{ items.forEach(it=>it._selected=false); render(); }},'Deseleccionar'));
+    }
+    wrap.appendChild(selHeader);
+
+    if(selectedCount>0){
+      const batchBar=h('div',{class:'bulk-batch-bar'});
+      const batchName=h('input',{type:'text',placeholder:`Nombre para las ${selectedCount} (opcional)`,onmousedown:e=>e.stopPropagation()});
+      const batchAnime=h('input',{type:'text',placeholder:`Anime para las ${selectedCount} (opcional)`,onmousedown:e=>e.stopPropagation()});
+      batchBar.appendChild(batchName);
+      batchBar.appendChild(batchAnime);
+      batchBar.appendChild(h('button',{class:'btn bp bsm',onclick:()=>{
+        const nv=batchName.value.trim(), av=batchAnime.value.trim();
+        if(!nv && !av){ toast('Escribe un nombre y/o un anime para aplicar','err'); return; }
+        items.forEach(it=>{ if(it._selected){ if(nv) it.name=nv; if(av) it.anime=av; } });
+        toast(`Aplicado a ${selectedCount} imagen${selectedCount===1?'':'es'} ✓`);
+        render();
+      }},'Aplicar a las seleccionadas'));
+      wrap.appendChild(batchBar);
+    }
+
     const list=h('div',{class:'bulk-add-list'});
     items.forEach((item, idx) => {
-      const row=h('div',{class:'bulk-add-row'});
+      const row=h('div',{class:'bulk-add-row'+(item._selected?' selected':'')});
+      const chk=h('input',{type:'checkbox',checked:!!item._selected,
+        onclick:e=>e.stopPropagation(),
+        onchange:(e)=>{ item._selected=e.target.checked; render(); }});
+      row.appendChild(chk);
       row.appendChild(h('img',{class:'bulk-add-thumb',src:item.imgData}));
 
       const fields=h('div',{class:'bulk-add-fields'});

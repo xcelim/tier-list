@@ -95,9 +95,14 @@ function buildTlWideCard(tl, opts) {
   }
   card.appendChild(cover);
 
-  // Botones flotantes arriba a la derecha, sobre la foto (portada / admin)
+  // Botones flotantes arriba a la derecha, sobre la foto (portada / admin /
+  // modo observador de tu propia tierlist)
   const topActions = h('div', { class: 'tlc-top-actions' });
   if (opts.editable) {
+    topActions.appendChild(h('button', {
+      class: 'tlc-cover-btn', title: 'Ver en modo observador',
+      onclick: (e) => { e.stopPropagation(); openOwnViewer(tl); }
+    }, h('i', { class: 'ti ti-eye' })));
     topActions.appendChild(h('button', {
       class: 'tlc-cover-btn', title: 'Cambiar portada',
       onclick: (e) => { e.stopPropagation(); pickTierlistCover(tl.id); }
@@ -110,10 +115,18 @@ function buildTlWideCard(tl, opts) {
   if (topActions.children.length) card.appendChild(topActions);
 
   const body = h('div', { class: 'tlc-body' });
-  body.appendChild(h('h3', {}, tl.title || 'Sin título'));
-  const tot = (tl.tiers || []).reduce((a, t) => a + (t.chars || []).length, 0) + (tl.pool || []).length;
+  const titleRow = h('div', { style:{display:'flex',alignItems:'center',gap:'6px',minWidth:0} });
+  titleRow.appendChild(h('h3', {}, tl.title || 'Sin título'));
+  if (tl._isCollaborative) {
+    titleRow.appendChild(h('span', { class:'tlc-collab-badge', title:'Tierlist colaborativa: todos los que estén en ella pueden editarla' }, '👥'));
+  }
+  body.appendChild(titleRow);
+  // Si tenemos el conteo REAL de tu propio ranking (o del conjunto, si es
+  // colaborativa) lo usamos; si no, caemos al de la plantilla genérica.
+  const tierCount = tl._myTierCount != null ? tl._myTierCount : (tl.tiers || []).length;
+  const tot = tl._myCharCount != null ? tl._myCharCount : (tl.tiers || []).reduce((a, t) => a + (t.chars || []).length, 0) + (tl.pool || []).length;
   body.appendChild(h('div', { class: 'meta' },
-    h('span', {}, h('i', { class: 'ti ti-layout-rows' }), ' ' + (tl.tiers || []).length + ' tiers'),
+    h('span', {}, h('i', { class: 'ti ti-layout-rows' }), ' ' + tierCount + ' tiers'),
     h('span', {}, h('i', { class: 'ti ti-users' }), ' ' + tot + ' chars')
   ));
   if (tl.updatedAt) {
@@ -406,7 +419,7 @@ function UserViewPage() {
       const tlMeta = r.tierlists || { title: 'Tierlist desconocida' };
       // Mismo objeto "tl-like" que usan las tarjetas de "Mis Tierlists",
       // para que salgan exactamente iguales (misma portada, mismo tamaño).
-      const tlLike = { title: tlMeta.title, cover_url: tlMeta.cover_url, tiers: r.tiers_data || [], pool: [], updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : null, folder: tlMeta.folder };
+      const tlLike = { title: tlMeta.title, cover_url: tlMeta.cover_url, tiers: r.tiers_data || [], pool: [], updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : null, folder: tlMeta.folder, _isCollaborative: !!r.is_collaborative };
       grid.appendChild(buildTlWideCard(tlLike, { editable:false, onclick:()=>openViewer(r) }));
     });
     w.appendChild(grid);
@@ -423,7 +436,17 @@ function Viewer() {
   
   const tb = h('div', { class: 'etbar' });
   tb.appendChild(h('div', { class: 'etitle hf' }, `Observando: ${tlMeta.title || 'Ranking'}`));
-  tb.appendChild(h('div', { style:{marginLeft:'auto', color:'var(--text3)', fontSize:'12px'} }, `Ranking de ${S.viewingUser?.name}`));
+  // Si estás viendo TU PROPIA tierlist en modo observador (viniste desde el
+  // botón del ojo en una tarjeta, o desde el editor), aquí sale el botón
+  // para volver a entrar en modo edición.
+  if(S._viewerOwnTlId){
+    tb.appendChild(h('button', {
+      class:'btn bp bsm', style:{marginLeft:'auto'},
+      onclick:()=>{ const id=S._viewerOwnTlId; S._viewerOwnTlId=null; openEditor(id); }
+    }, h('i',{class:'ti ti-pencil'}), ' Editar'));
+  } else {
+    tb.appendChild(h('div', { style:{marginLeft:'auto', color:'var(--text3)', fontSize:'12px'} }, `Ranking de ${S.viewingUser?.name}`));
+  }
   w.appendChild(tb);
 
   const tw = h('div', { class: 'twrap' });
@@ -470,6 +493,12 @@ function Viewer() {
 function ProfilePage() {
   if (!userSession) return Home();
   if(typeof refreshAchievementData==='function' && !S._achRef){ S._achRef=true; refreshAchievementData().finally(()=>setTimeout(()=>S._achRef=false,4000)); }
+  // Igual que en "Mis Tierlists": refresca las plantillas (y tu progreso en
+  // cada una) al entrar al perfil, para que una tierlist colaborativa que
+  // te acaban de compartir aparezca aquí sin tener que pasar antes por
+  // "Mis Tierlists". Comparte el mismo cooldown de 5s (S._ref) para no
+  // duplicar peticiones si ya se acaba de refrescar.
+  if (!S._ref) { S._ref = true; fetchGlobalTemplates().finally(() => setTimeout(() => S._ref = false, 5000)); }
 
   // Inicializar borrador si no existe
   if (!S.profileDraft) {

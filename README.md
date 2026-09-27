@@ -595,6 +595,68 @@ darte la política exacta a corregir en vez de una lista de sospechosos.
   Un botón "Guardar las N" las sube y registra todas de golpe, cada una
   exactamente igual que si la hubieras subido una a una.
 
+## 🆕 Ronda 10 — colaborativas visibles de verdad, modo observador desde cualquier tarjeta, edición en lote al añadir varias
+
+### Sobre el chat: ahora el error salía en "chats", no en "chat_members" — probable sesión caducada
+
+Si el error apunta a la tabla `chats` (el primer insert de todos, antes de
+tocar `chat_members`), lo más probable ya no es una política mal escrita
+sino que tu sesión (el token JWT) había caducado en el navegador en ese
+momento — con un token caducado, Supabase trata la petición como si NO
+estuvieras autenticado, y la política `to authenticated` la rechaza con
+este mismo mensaje genérico de RLS, aunque la política esté perfectamente
+bien. Se ha añadido `ensureFreshSession()`: antes de crear un chat o un
+grupo, se comprueba la sesión y, si está a punto de caducar, se refresca
+sola; si el refresco falla, ahora sale un aviso claro pidiendo cerrar
+sesión y volver a entrar, en vez del error críptico de Supabase. Además el
+toast de error ahora incluye el `details`/`hint` que manda Postgres, no
+solo el mensaje corto, así que si sigue fallando el próximo mensaje de
+error dará más pistas.
+
+### Arreglado: las tierlists colaborativas ya se ven y se cuentan bien
+
+- **"A mi amigo solo le sale la suya"**: el perfil y "Mis Tierlists" solo
+  se refrescaban (`fetchGlobalTemplates`) al entrar en la pantalla de
+  "Mis Tierlists" — si tu amigo entraba directo a su Perfil después de que
+  le compartieras una colaborativa, esa pantalla nunca pedía la lista
+  actualizada. Ahora el Perfil también la pide (con el mismo límite de una
+  vez cada 5s para no saturar).
+- **Los contadores de tiers/personajes de la tarjeta eran genéricos**: las
+  tarjetas mostraban el número de tiers/personajes de la plantilla vacía,
+  no tu progreso real (ni el conjunto, si es colaborativa). Ahora se trae
+  tu ranking real (el tuyo, o el compartido si eres colaborador) solo para
+  estos contadores — sin tocar `tiers`/`pool` internos, así que no hay
+  riesgo de pisar cambios sin guardar.
+- **Sin distintivo de "colaborativa"**: ahora la tarjeta lleva un 👥 junto
+  al título cuando la tierlist es colaborativa, tanto en tu perfil como en
+  el de un amigo.
+- La lista de rankings de un amigo (`viewUser`) ahora también incluye las
+  tierlists colaborativas en las que es colaborador (antes solo traía las
+  suyas propias), y ya pide `cover_url` (antes se le olvidaba, así que la
+  portada nunca salía al ver el perfil de otra persona).
+
+Recuerda: los cambios de una colaborativa YA se aplicaban a todos los que
+estén dentro en tiempo real (esto viene de rondas anteriores) — lo que
+faltaba era que la tierlist se viera y se contara bien en las listas.
+
+### Nuevo
+
+- **Modo observador desde cualquier sitio**: en cada tarjeta de tierlist
+  (tuya) hay ahora un botón con un ojo para verla en modo observador (como
+  la ve un amigo, de solo lectura) sin necesidad de entrar a editarla.
+  Dentro del editor hay un botón de ojo igual para lo mismo (usa los
+  cambios que tengas sin guardar). Y en modo observador, si es tu propia
+  tierlist, sale un botón "Editar" para volver directo a modo edición.
+- **Editar varias waifus a la vez al "Añadir varias"**: cada imagen de la
+  lista tiene ahora una casilla; marca las que quieras (o "Seleccionar
+  todas") y aparece una barra para ponerles el mismo nombre y/o anime a
+  todas las marcadas de golpe. Puedes seguir editando una sola tranquilamente
+  sin que la selección estorbe — no hace falta deseleccionar para tocar un
+  campo individual.
+- **Tarjetas de tierlist**: un poco más estrechas y más altas, y con un
+  borde con degradado de colores (magenta → oro → cian) a juego con el
+  resto de la interfaz.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

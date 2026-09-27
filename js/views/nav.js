@@ -213,10 +213,14 @@ async function viewUser(userId) {
 
   toast("Cargando rankings de " + u.name + "...", "info");
   // Traer los rankings del usuario junto con el título de la tierlist
+  // OR incluye también las tierlists colaborativas en las que este usuario
+  // es colaborador (no dueño) — antes solo se traían las suyas propias, así
+  // que una tierlist compartida con él no aparecía aquí aunque sí pudiera
+  // editarla.
   const { data, error } = await sbClient
     .from('user_rankings')
-    .select('*, tierlists(title, folder)')
-    .eq('user_id', userId);
+    .select('*, tierlists(title, folder, cover_url)')
+    .or(`user_id.eq.${userId},collaborators.cs.{${userId}}`);
 
   if(!error && data) {
     S.viewingUser.rankings = data;
@@ -227,11 +231,59 @@ async function viewUser(userId) {
 async function openViewer(rankData) {
   toast("Cargando modo observador...", "info");
   S.viewingRank = rankData;
+  S._viewerOwnTlId = null; // esto es el ranking de OTRA persona, no el tuyo
   // Cargamos los personajes necesarios para esa tierlist
   const { data: chars } = await sbClient.from('characters').select('*').eq('tierlist_id', rankData.tierlist_id);
   if (chars) {
     chars.forEach(c => AC[c.id] = { id: c.id, name: c.name, anime: c.anime, file: c.image_url });
   }
+  S.page = 'viewer';
+  render();
+}
+
+// Modo observador de TU PROPIA tierlist — desde la tarjeta (botón del ojo)
+// o desde dentro del editor. Trae tu ranking real (el tuyo, o el conjunto
+// si es colaborativa) para que el modo observador no muestre la plantilla
+// vacía.
+async function openOwnViewer(tl){
+  if(!userSession){ toast('Inicia sesión para usar el modo observador','err'); return; }
+  toast('Cargando modo observador...', 'info');
+  const uid = userSession.user.id;
+  let tiersData = tl.tiers || [];
+  let rankingId = tl._rankingId || null;
+  try{
+    const { data } = await sbClient.from('user_rankings').select('*')
+      .eq('tierlist_id', tl.id)
+      .or(`user_id.eq.${uid},collaborators.cs.{${uid}}`)
+      .limit(1).maybeSingle();
+    if(data){ tiersData = data.tiers_data || tiersData; rankingId = data.id; }
+  }catch(e){ console.error(e); }
+
+  const { data: chars } = await sbClient.from('characters').select('*').eq('tierlist_id', tl.id);
+  if (chars) chars.forEach(c => AC[c.id] = { id: c.id, name: c.name, anime: c.anime, file: c.image_url });
+
+  const p = activeProfile();
+  S.viewingUser = { id: uid, name: (p && p.name) || currentUserProfile?.name };
+  S.viewingRank = { id: rankingId, user_id: uid, tiers_data: tiersData, tierlists: { title: tl.title, folder: tl.folder, cover_url: tl.cover_url } };
+  S._viewerOwnTlId = tl.id;
+  S.page = 'viewer';
+  setRoute && setRoute('viewer', tl.id);
+  render();
+}
+
+// Igual, pero desde DENTRO del editor: usa los datos que hay en memoria
+// (S.workingTL) en vez de volver a pedirlos a Supabase, así el modo
+// observador refleja también los cambios que aún no has guardado.
+function viewCurrentEditorAsViewer(){
+  if(!S.workingTL || !S.cid) return;
+  const uid = userSession?.user?.id;
+  S.viewingUser = { id: uid, name: currentUserProfile?.name };
+  S.viewingRank = {
+    id: S.workingRankingId || null, user_id: uid,
+    tiers_data: S.workingTL.tiers,
+    tierlists: { title: S.workingTL.title, folder: S.workingTL.folder, cover_url: S.workingTL.cover_url }
+  };
+  S._viewerOwnTlId = S.cid;
   S.page = 'viewer';
   render();
 }
