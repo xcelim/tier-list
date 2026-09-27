@@ -54,7 +54,13 @@ function Home(){
       h('h2', {}, item.title),
       sepEl
     );
-    menu.appendChild(h('div', { class: `menu-box ${item.cls}`, onclick: () => { S.page = item.id; render(); } }, content));
+    // El borde cromático va en su propio elemento (mb-aura), NO en ::before
+    // ni ::after, porque esas dos capas ya están usadas por el icono de
+    // fondo y por el degradado de color propio de cada panel
+    // (--card-gradient) — reutilizarlas para el borde las pisaba y rompía
+    // el color de fondo de las 3 tarjetas.
+    const aura = h('div', { class: 'mb-aura' });
+    menu.appendChild(h('div', { class: `menu-box ${item.cls}`, onclick: () => { S.page = item.id; render(); } }, aura, content));
   });
 
   w.appendChild(menu);
@@ -262,6 +268,7 @@ function UserViewPage() {
   // que tl.tiers).
   const pseudoProfile = {
     tls: (u.rankings || []).map(r => ({ tiers: r.tiers_data || [] })),
+    created_at: u.created_at,
     _friendCount: u.friend_count,
     _hasCommented: undefined // desconocido para otra persona, no se penaliza ni se acierta de más
   };
@@ -273,17 +280,17 @@ function UserViewPage() {
   }
   w.appendChild(hdr);
 
-  // Mini-estadísticas reales de esta persona
-  const totalChars = (u.rankings||[]).reduce((s,r)=>s+((r.tiers_data||[]).reduce((a,t)=>a+(t.chars||[]).length,0)),0);
-  const statsRow = h('div', { class:'stats-grid', style:{maxWidth:'600px', margin:'20px auto'} });
-  const stat = (val, label) => h('div', { class: 'stat-item' }, h('div', { class: 'stat-val' }, val + ''), h('div', { class: 'stat-label' }, label));
-  statsRow.appendChild(stat(u.tl_count ?? (u.rankings||[]).length, 'Tierlists'));
-  statsRow.appendChild(stat(totalChars, 'Personajes rankeados'));
-  statsRow.appendChild(stat(u.friend_count ?? 0, 'Amigos'));
-  w.appendChild(statsRow);
-
-  if(u.created_at){
-    w.appendChild(h('div', { class:'stats-highlight', style:{textAlign:'center', marginBottom:'20px'} }, `Miembro desde: `, h('strong', {}, new Date(u.created_at).toLocaleDateString())));
+  // Estadísticas reales de esta persona — se reutiliza StatsSection, la
+  // misma función que usa tu propio Ajustes, para que salgan exactamente
+  // los mismos datos (anime más rankeado, tier favorito, miembro desde...)
+  // también al ver el perfil de un amigo, no solo el tuyo.
+  if(typeof StatsSection==='function'){
+    const statsWrap = h('div', { style:{maxWidth:'600px', margin:'0 auto'} });
+    statsWrap.appendChild(StatsSection(pseudoProfile));
+    // Amigos no lo calcula StatsSection (es un dato social, no de tierlists),
+    // así que se añade aparte, igual que antes.
+    statsWrap.appendChild(h('div', { class:'stats-highlight', style:{textAlign:'center'} }, `Amigos: `, h('strong', {}, u.friend_count ?? 0)));
+    w.appendChild(statsWrap);
   }
 
   if(typeof AchievementsSection==='function'){

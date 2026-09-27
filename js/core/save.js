@@ -102,9 +102,26 @@ async function syncFromSupabase() {
   });
   // Catálogo base integrado globalmente
 
-  // 3. Cargar el ranking personal del usuario (donde ha puesto cada uno)
-  const { data: myRank } = await sbClient.from('user_rankings').select('*').eq('user_id', userSession.user.id).eq('tierlist_id', S.cid).maybeSingle();
-  
+  // 3. Cargar el ranking de esta tierlist: puede ser el TUYO propio, o —
+  // si un amigo te ha compartido esta misma tierlist como colaborativa —
+  // la fila COMPARTIDA de tu amigo (una sola fila, editada entre varios).
+  // Por eso ya no filtramos solo por "user_id = tú": traemos también
+  // cualquier fila colaborativa en la que aparezcas en "collaborators".
+  const uid = userSession.user.id;
+  const { data: rankRows } = await sbClient.from('user_rankings').select('*')
+    .eq('tierlist_id', S.cid)
+    .or(`user_id.eq.${uid},collaborators.cs.{${uid}}`);
+  const myRank = (rankRows || []).find(r => r.user_id === uid)
+    || (rankRows || []).find(r => r.is_collaborative && (r.collaborators || []).includes(uid))
+    || null;
+
+  // Guardamos qué fila es esta y si la editas como colaborador "ajeno"
+  // (no eres el dueño), para que saveEditorChanges sepa si tiene que
+  // hacer UPDATE por id en vez de upsert por user_id+tierlist_id.
+  S.workingRankingId = myRank ? myRank.id : null;
+  S.workingIsForeignCollab = !!(myRank && myRank.user_id !== uid);
+  S.workingIsCollaborative = !!(myRank && myRank.is_collaborative);
+
   if (S.workingTL) {
     const placedIds = new Set();
     if (myRank) {
@@ -127,8 +144,9 @@ async function syncFromSupabase() {
     S.workingTL.pool = Array.from(sharedIds).filter(id => !placedIds.has(id));
     
     // Ordenamos para que los últimos añadidos por la comunidad salgan primero
-    S.workingTL.pool.reverse(); 
+    S.workingTL.pool.reverse();
 
+    if(typeof subscribeCollabIfNeeded==='function') subscribeCollabIfNeeded();
     render();
   }
 }

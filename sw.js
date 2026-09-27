@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v7'; // v7: chat RLS con roles explícitos, drag sin salto al agarrar, stats reales unificadas, rediseño Mis Tierlists
+const CACHE_NAME = 'at-v8'; // v8: borde cromático del home con mask-composite (ya no tapa el color de cada panel), home sin scroll, drag "medir antes de ocultar" reaplicado, chat sin parpadeo reaplicado, stats de "ver perfil de amigo" iguales a las tuyas, tierlists colaborativas en tiempo real
 const ASSETS = [
   './',
   './index.html',

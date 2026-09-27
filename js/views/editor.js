@@ -10,6 +10,7 @@ function Editor(){
     const cb=h('div',{class:'confirm-bar'});
     cb.appendChild(h('span',{},'\u26A0\uFE0F Cambios sin guardar'));
     cb.appendChild(h('button',{class:'btn btn-save',onclick:saveEditorChanges},'\u2713 Guardar'));
+    cb.appendChild(h('button',{class:'btn bg bsm',onclick:openCollabPicker,title:'Compartir esta tierlist con amigos para editarla en conjunto'},'\u{1F465} Guardar colaborativa'));
     cb.appendChild(h('button',{class:'btn bd bsm',onclick:()=>{if(confirm('\xBFDescartar todos los cambios?'))discardChanges();}},'Descartar'));
     w.appendChild(cb);
   }
@@ -30,6 +31,8 @@ function Editor(){
   tb.appendChild(badges);
   const ea=h('div',{class:'eacts'});
   ea.appendChild(h('button',{class:'btn btn-save',onclick:saveEditorChanges},'\u2713 Guardar'));
+  ea.appendChild(h('button',{class:'btn bg',onclick:openCollabPicker,title:'Compartir esta tierlist con amigos para editarla en conjunto'},'\u{1F465} Colaborativa'));
+  if(S.workingIsCollaborative) badges.appendChild(h('span',{class:'saved-badge',style:{background:'var(--neon-cyan,#3ec6ff)'}},'\u{1F465} Colaborativa'));
   ea.appendChild(h('button',{class:'btn bd',onclick:resetRank},'Reset Rank'));
   ea.appendChild(h('button',{class:'btn bg',onclick:()=>{S.modal='addchar';S.md={};render();}},'+ Waifu'));
   ea.appendChild(h('button',{class:'btn bg',onclick:()=>{S.modal='pick';S.md={};render();}},'+ Cat\xe1logo'));

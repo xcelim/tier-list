@@ -244,11 +244,82 @@ create index idx_reactions_ranking on tierlist_reactions(ranking_id);
 
 
 -- ============================================================================
--- 5) Realtime — para que el chat y las notificaciones lleguen al instante.
---    Puede fallar con "already member of publication" si ya estaba
---    activado; en ese caso ignora ese error concreto y sigue con el resto
---    a mano, línea por línea, si hace falta.
+-- 5) TIERLISTS COLABORATIVAS
+-- ----------------------------------------------------------------------------
+-- Hasta ahora cada "user_rankings" es SOLO tuyo (fila única por
+-- user_id+tierlist_id). Para que una tierlist pueda editarse en conjunto con
+-- amigos, se añaden dos columnas: "is_collaborative" (marca esa fila como
+-- compartida) y "collaborators" (la lista de user_id de tus amigos con
+-- permiso para verla y editarla). La fila sigue siendo UNA sola — la tuya —
+-- y tus amigos leen/escriben esa MISMA fila (no crean la suya propia para
+-- esa tierlist), así que los cambios de cualquiera son "conjuntos" de
+-- verdad y llegan a todos en tiempo real vía Realtime (sección 6).
 -- ============================================================================
-alter publication supabase_realtime add table messages;
-alter publication supabase_realtime add table notifications;
-alter publication supabase_realtime add table friendships;
+alter table user_rankings add column if not exists is_collaborative boolean default false;
+alter table user_rankings add column if not exists collaborators uuid[] default '{}';
+
+create index if not exists idx_user_rankings_collaborators on user_rankings using gin(collaborators);
+
+alter table user_rankings enable row level security;
+
+-- Limpieza total de políticas viejas de user_rankings, por si ya existían
+-- unas más restrictivas de antes de que existiera este archivo (mismo
+-- problema que tuvimos con chat_members: una política vieja con otro
+-- nombre puede seguir bloqueando aunque creemos las nuevas).
+do $$
+declare pol record;
+begin
+  for pol in select policyname from pg_policies where tablename='user_rankings' and schemaname='public' loop
+    execute format('drop policy if exists %I on public.user_rankings', pol.policyname);
+  end loop;
+end $$;
+
+-- Cualquiera logueado puede LEER cualquier ranking (hace falta para ver el
+-- perfil/tierlists de otros usuarios y para el modo Visor, que ya
+-- funcionaban antes de este script).
+create policy "cualquiera logueado lee rankings" on user_rankings for select
+  to authenticated
+  using (true);
+
+-- Insertas o actualizas tu propia fila, O actualizas una fila ajena en la
+-- que te han añadido como colaborador de una tierlist colaborativa.
+create policy "creas tu propio ranking" on user_rankings for insert
+  to authenticated
+  with check (auth.uid() = user_id);
+
+create policy "actualizas tu ranking o uno colaborativo compartido contigo" on user_rankings for update
+  to authenticated
+  using (auth.uid() = user_id or (is_collaborative = true and auth.uid() = any(collaborators)))
+  with check (auth.uid() = user_id or (is_collaborative = true and auth.uid() = any(collaborators)));
+
+create policy "borras tu propio ranking" on user_rankings for delete
+  to authenticated
+  using (auth.uid() = user_id);
+
+
+-- ============================================================================
+-- 6) Realtime — para que el chat y las notificaciones lleguen al instante.
+--    Envuelto en bloques DO con manejo de excepción porque si la tabla ya
+--    estaba añadida a la publicación (como te pasó), Postgres da error en
+--    vez de ignorarlo silenciosamente. Así es seguro re-ejecutar esto
+--    las veces que haga falta.
+-- ============================================================================
+do $$ begin
+  alter publication supabase_realtime add table messages;
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  alter publication supabase_realtime add table notifications;
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  alter publication supabase_realtime add table friendships;
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  alter publication supabase_realtime add table user_rankings;
+exception when duplicate_object then null;
+end $$;

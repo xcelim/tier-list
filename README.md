@@ -305,6 +305,59 @@ ronda ya lo tienes corregido (nos pasaste exactamente lo que ejecutaste).
 Solo hace falta volver a ejecutar la parte de arriba (política de `chats`)
 si te sigue dando el error de "violates row-level security policy".
 
+## 🆕 Ronda 6 — borde cromático de verdad, home sin scroll, stats de amigos y tierlists colaborativas
+
+### Bugs arreglados
+
+- **Borde cromático del home invisible / tapando el color de cada panel**:
+  el intento de la ronda anterior ponía el aro cromático en `.mb-aura::after`
+  con un fondo sólido simulando "recortar el centro". El problema es que
+  `.menu-box::after` (el degradado de color propio de cada tarjeta —
+  magenta/morado/dorado) se pinta SIEMPRE después, por orden de apilamiento,
+  así que tapaba el aro entero y encima el color de fondo real de las 3
+  tarjetas se veía sustituido por un tono plano falso. Arreglado usando la
+  misma técnica que ya usan `.user-avatar-border` y `.tlc::before` en este
+  mismo proyecto: `padding` + `mask-composite: exclude`, que deja transparente
+  el centro de verdad (no un color inventado) y solo pinta el aro — así da
+  igual el orden de las capas de al lado, nunca se tapan entre sí.
+- **Drag & drop — "medir antes de ocultar"**: al agarrar un personaje, ahora
+  se mide la posición de las cartas vecinas ANTES de aplicar la clase que
+  colapsa la carta arrastrada, no después — si se mide después, el navegador
+  ya aplicó el cambio de layout y "antes"/"después" salen iguales, así que
+  el hueco aparecía de golpe sin animación (la sensación de bug que
+  reportaste). Reaplicado tras el corte de contexto que perdió este arreglo.
+- **Parpadeo del chat al abrir/interactuar**: reaplicado el flag que evita
+  que la animación de apertura se repita en cada re-render mientras el chat
+  ya está abierto (antes se abría dos veces seguidas y se "cerraba" al
+  tocar cualquier cosa dentro).
+- **Home con scroll**: cabecera, título y menú reducidos (padding superior,
+  tamaño de letra del título, altura del menú diagonal y pie de página) para
+  que quepa todo en una pantalla normal sin tener que hacer scroll.
+
+### Nuevo
+
+- **Perfil de un amigo con tus mismas estadísticas**: al ver el perfil de
+  otra persona ahora salen también "Tu anime más rankeado", "Tu tier
+  favorito" y "Miembro desde" — antes solo aparecían en tu propio Ajustes.
+  Se reutiliza la misma función (`StatsSection`) en los dos sitios para
+  garantizar que los números sean siempre los mismos.
+- **Tierlists colaborativas**: al guardar una tierlist tienes dos botones,
+  "Guardar" (como siempre, solo tuya) y "Guardar colaborativa" (elige con
+  qué amigos compartirla). A partir de ese momento, esa tierlist deja de
+  tener una fila por persona: pasa a ser UNA sola fila que edita cualquiera
+  de los colaboradores, y cada vez que alguien la guarda, Supabase Realtime
+  empuja el cambio a todos los que la tengan abierta en ese momento (con un
+  aviso si tienes cambios sin guardar tuyos, para no pisártelos). Requiere
+  ejecutar la sección nueva del SQL (ver más abajo).
+
+### ⚠️ Vuelve a ejecutar `supabase-schema.sql` (completo, de arriba a abajo)
+
+Esta ronda añade las columnas `is_collaborative` y `collaborators` a
+`user_rankings`, sus políticas RLS (incluida la limpieza total de políticas
+viejas de esa tabla, por si ya tenías alguna más restrictiva de antes), y
+añade `user_rankings` a la publicación de Realtime. Sin volver a ejecutar
+esto, el botón "Guardar colaborativa" dará un error de permisos.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

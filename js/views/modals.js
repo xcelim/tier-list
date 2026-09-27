@@ -1,15 +1,26 @@
 // Todas las ventanas modales de la aplicación (crear tierlist, ajustes, login, etc).
 
 // ============ MODALS ============
+// Controla si el chat acaba de abrirse de VERDAD (para animar solo esa
+// vez) o si ya estaba abierto y esto es solo un re-render normal (no debe
+// volver a animarse — si no, la ventana "parpadea"/se abre dos veces cada
+// vez que llega un mensaje o se pulsa cualquier cosa dentro).
+let __chatModalIsOpen = false;
+
 function ModalEl(){
   if(!S.modal)return null;
-  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'chat': MChat};
+  const fns={'new-profile':MNewProfile,'edit-profile':MEditProfile,'new-tl':MNewTL,'color':MColor,'pick':MPick,'addchar':MAddChar,'editchar':MEditChar, 'crop-avatar':MCropAvatar, 'chat': MChat, 'collab-save': MCollabSave};
   const fn=fns[S.modal];
   if(!fn) return null;
 
   if(S.modal === 'chat') {
-     return fn();
+     const isFreshOpen = !__chatModalIsOpen;
+     __chatModalIsOpen = true;
+     const el = fn();
+     if(isFreshOpen) el.classList.add('chat-modal-entering');
+     return el;
   }
+  __chatModalIsOpen = false;
   let _ovDown = false;
   const ov=h('div',{
     class:'ov',
@@ -389,6 +400,42 @@ function MNewTL(){
   }},'Crear');
   row.appendChild(createBtn);
   m.appendChild(row);setTimeout(()=>inp.focus(),40);return m;
+}
+
+// Selector de amigos para compartir la tierlist abierta como colaborativa
+// (ver openCollabPicker/saveEditorChangesCollab en editor-working-copy.js).
+function MCollabSave(){
+  const m=h('div',{class:'modal'});
+  m.appendChild(h('h2',{},'\u{1F465} Guardar como colaborativa'));
+  m.appendChild(h('p',{style:{fontSize:'13px',color:'var(--text2)',marginBottom:'12px'}},
+    'Elige con qué amigos quieres compartir "'+(S.workingTL?.title||'')+'". A partir de ahora, cada vez que cualquiera de vosotros la guarde, se actualizará para todos en tiempo real.'));
+
+  const myFriends = (S.allUsers||[]).filter(u => u.relStatus==='accepted');
+  const selected = S.md?.selected instanceof Set ? S.md.selected : new Set();
+  S.md = { selected };
+
+  if(myFriends.length===0){
+    m.appendChild(h('div',{style:{color:'var(--text3)',fontSize:'13px',padding:'10px 0'}},'Todavía no tienes amigos aceptados. Añade amigos desde Usuarios para poder compartir tierlists.'));
+  } else {
+    const list=h('div',{class:'friend-pick-list',style:{maxHeight:'260px',overflowY:'auto',display:'flex',flexDirection:'column',gap:'6px'}});
+    myFriends.forEach(f=>{
+      const row=h('label',{style:{display:'flex',alignItems:'center',gap:'10px',padding:'8px 10px',borderRadius:'8px',background:'var(--bg3)',cursor:'pointer'}});
+      const chk=h('input',{type:'checkbox'});
+      chk.checked = selected.has(f.id);
+      chk.onchange=()=>{ if(chk.checked) selected.add(f.id); else selected.delete(f.id); };
+      row.appendChild(chk);
+      row.appendChild(h('img',{src:f.avatar_url||`https://api.dicebear.com/7.x/initials/svg?seed=${f.name}`,style:{width:'28px',height:'28px',borderRadius:'50%',objectFit:'cover'}}));
+      row.appendChild(h('span',{},f.name));
+      list.appendChild(row);
+    });
+    m.appendChild(list);
+  }
+
+  const row=h('div',{style:{display:'flex',gap:'8px',marginTop:'14px'}});
+  row.appendChild(h('button',{class:'btn bg',style:{flex:'1'},onclick:()=>{S.modal=null;render();}},'Cancelar'));
+  row.appendChild(h('button',{class:'btn bp',style:{flex:'1'},onclick:()=>{saveEditorChangesCollab(Array.from(selected));}},'Compartir y guardar'));
+  m.appendChild(row);
+  return m;
 }
 
 // COLOR

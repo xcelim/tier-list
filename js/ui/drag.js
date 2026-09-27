@@ -72,11 +72,11 @@ function _getDropZone(cx,cy){
  }
  return null;
 }
-function _updatePlaceholder(zone){
+function _updatePlaceholder(zone, preSnapshots){
  // Limpiar highlights
  document.querySelectorAll('.trow.dov').forEach(e=>e.classList.remove('dov'));
  document.getElementById('pdrop')?.classList.remove('dov');
- 
+
  if(!zone){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
  if(zone.type==='pool'){
  const ph=document.getElementById('drop-ph');if(ph)ph.remove();
@@ -87,20 +87,31 @@ function _updatePlaceholder(zone){
  document.getElementById('t'+zone.tid)?.classList.add('dov');
  const ce=document.getElementById('t'+zone.tid)?.querySelector('.tchars');
  if(!ce){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
- 
+
  // Evitar recalcular si ya hay un hueco puesto exactamente en la posición
  // original (pero SÍ crearlo la primera vez, aunque sea la posición
  // original — si no, el hueco nunca aparece al agarrar la carta).
  if(DS===zone.tid && zone.idx===DGidx && document.getElementById('drop-ph')){
  return;
  }
- 
+
+ let snapshots, freshCards;
+
+ if(preSnapshots){
+ // EL FIX DE VERDAD: estas posiciones se midieron ANTES de que la carta
+ // arrastrada se ocultara (.is-dragging la colapsa a width:0). Si en vez
+ // de esto medimos aquí (después de ocultarla), el navegador ya habría
+ // aplicado ese cambio de layout en el momento de leer
+ // getBoundingClientRect() más abajo — así que "antes" y "después"
+ // saldrían iguales, no habría nada que animar, y el salto ya habría
+ // ocurrido sin animación. Por eso hay que medir ANTES de tocar nada y
+ // pasar el resultado aquí.
+ snapshots = preSnapshots;
+ freshCards = preSnapshots.map(s=>s.el);
+ } else {
  // 1. Asentar instantáneamente cualquier carta que todavía tuviera una
  // animación anterior a medias (pasa cuando se arrastra rápido y se
  // cruzan varias cartas en menos de lo que dura la animación, 250ms).
- // Sin esto, la siguiente medición se hace sobre una posición intermedia
- // y el cálculo de movimiento sale mal: dos cartas pueden acabar
- // superpuestas un instante — es justo el bug visto en el vídeo.
  const allCards=Array.from(ce.querySelectorAll('.tc'));
  let neededReflow=false;
  allCards.forEach(c=>{
@@ -109,19 +120,20 @@ function _updatePlaceholder(zone){
  if(neededReflow && allCards.length) allCards[0].offsetHeight; // forzar reflow una sola vez
 
  // 2. Capturar posiciones reales exclusivamente de las cartas visibles (no la que arrastramos)
- const freshCards=allCards.filter(c => c.dataset.cid !== DG && !c.classList.contains('is-dragging'));
- const snapshots=freshCards.map(c=>({el:c,rect:c.getBoundingClientRect()}));
- 
+ freshCards=allCards.filter(c => c.dataset.cid !== DG && !c.classList.contains('is-dragging'));
+ snapshots=freshCards.map(c=>({el:c,rect:c.getBoundingClientRect()}));
+ }
+
  // 2. Quitar placeholder viejo
  const oldph=document.getElementById('drop-ph');if(oldph)oldph.remove();
- 
+
  // 3. Insertar nuevo placeholder
  const newph=document.createElement('div');
  newph.id='drop-ph';newph.className='drop-placeholder';
- 
+
  if(zone.idx>=freshCards.length) ce.appendChild(newph);
  else ce.insertBefore(newph,freshCards[zone.idx]);
- 
+
  // 4. FLIP: Animación suave sin saltos dobles
  snapshots.forEach(({el,rect:oldRect})=>{
  const newRect=el.getBoundingClientRect();
@@ -181,25 +193,36 @@ document.addEventListener('pointermove',e=>{
  if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)<5)return;
  _mdMoved=true;
  document.body.style.userSelect='none';
+
+ // EL FIX DE VERDAD (por fin): medimos la posición de las cartas vecinas
+ // ANTES de tocar nada. Si medimos después de añadir "is-dragging" (que
+ // colapsa la carta arrastrada a width:0 al instante), el navegador ya
+ // habrá aplicado ese cambio de layout en cuanto se lea
+ // getBoundingClientRect() — así que "antes" y "después" saldrían
+ // iguales y el salto ya habría pasado sin ninguna animación que lo
+ // suavizara. Por eso el orden aquí importa: medir → luego ocultar.
+ let preSnapshots = null;
+ if(DS !== 'pool'){
+ const ceForInitial = document.getElementById('t'+DS)?.querySelector('.tchars');
+ if(ceForInitial){
+ preSnapshots = Array.from(ceForInitial.querySelectorAll('.tc'))
+ .filter(c => c.dataset.cid !== DG)
+ .map(c => ({ el:c, rect:c.getBoundingClientRect() }));
+ }
+ }
+
  createFloat(_mdImg);
  _posFloat(e.clientX,e.clientY);
  document.querySelectorAll('.tc,.pc').forEach(el=>{
  if(el.dataset.cid===DG)el.classList.add('is-dragging');
  });
- // FIX: insertar el hueco (placeholder) en la posición original en el
- // MISMO instante en que la carta se saca del flujo (.is-dragging la
- // convierte en width:0/position:absolute). Antes esto no pasaba hasta el
- // siguiente pointermove, así que durante un frame las cartas de detrás
- // ocupaban el hueco de golpe y luego "saltaban" otra vez al insertar el
- // placeholder — el movimiento brusco al agarrar que se veía fatal.
  const initialZone = DS==='pool' ? {type:'pool'} : {type:'tier', tid:DS, idx:DGidx};
  _lastZoneKey = initialZone.type+(initialZone.tid||'')+(initialZone.idx??'');
- _updatePlaceholder(initialZone);
- // FIX: sin este "return", el mismo evento seguía ejecutándose y volvía a
- // calcular la zona con la posición ACTUAL del cursor (que ya se había
- // movido esos 5px del umbral), deshaciendo el fix de arriba al instante y
- // moviendo una carta vecina justo al agarrar. Esperamos al siguiente
- // pointermove de verdad para volver a comprobar la zona.
+ _updatePlaceholder(initialZone, preSnapshots);
+ // Sin este "return", el mismo evento seguía ejecutándose y volvía a
+ // calcular la zona con la posición YA MOVIDA del cursor (la que cruzó el
+ // umbral de 5px), deshaciendo el hueco recién puesto al instante.
+ // Esperamos al siguiente movimiento real del ratón.
  return;
  }
  _posFloat(e.clientX,e.clientY);

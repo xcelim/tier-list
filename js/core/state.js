@@ -38,6 +38,12 @@ let S={
   messages: [],
   hasUnsaved:false,
   saveT:null,
+  // Tierlists colaborativas: a qué fila real de user_rankings corresponde
+  // la tierlist abierta ahora mismo, y si es una fila ajena compartida
+  // contigo (colaborador) o una que sea colaborativa (aunque sea tuya).
+  workingRankingId: null,
+  workingIsForeignCollab: false,
+  workingIsCollaborative: false,
 };
 
 if (!S.profiles) S.profiles = [];
