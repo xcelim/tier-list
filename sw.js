@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v10'; // v10: perfil propio se ve como el de un amigo (nombre arriba, foto debajo, con tus tierlists) con botón "Editar perfil" para la personalización, tarjetas de tierlist idénticas y con paginación en Mis Tierlists/perfiles, buscador de tierlists ya no pierde el foco al escribir, arreglado que el hueco del drag no reaparecía al volver a la posición original, marco de avatar ya no se ve roto y ahora sale en Usuarios/comentarios/chat, botón de "Colaborativa" ya guarda directo tras la primera vez + botón "+" para añadir/quitar colaboradores, menos parpadeo del botón de guardado al abrir una tierlist colaborativa
+const CACHE_NAME = 'at-v11'; // v11: tarjetas de tierlist ahora son la foto entera con degradado y texto encima, marco de avatar arreglado de verdad (ya no se salía del anillo) y sale también en comentarios/chat (faltaba pedir avatar_frame en esas consultas), arreglado que el perfil decía "sin tierlists" (usaba el perfil equivocado), botón para añadir varias waifus de golpe, drag mucho más fluido sin perder el arreglo del hueco
 const ASSETS = [
   './',
   './index.html',

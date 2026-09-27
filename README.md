@@ -533,6 +533,68 @@ Solo si sigues viendo el error de RLS en el chat — pega de nuevo, entero y
 de una vez, el bloque de políticas de `chats`/`chat_members`/`messages`
 (ver el apartado de arriba). Esta ronda no añade columnas nuevas.
 
+## 🆕 Ronda 9 — tarjetas con foto de fondo, marco de verdad arreglado, añadir varias de golpe
+
+### Sobre el chat: sigue exactamente igual porque no es un bug de código
+
+El código de `openChat`/`createGroup` (`js/core/save.js`) no se ha tocado
+esta ronda porque no hay nada que cambiarle: hace exactamente lo mismo que
+el SQL espera. Si el error persiste, es 100% una política de Supabase que
+no coincide con lo que hay en `supabase-schema.sql` en tu proyecto. Antes
+de descartarlo, mira el toast de error con atención — dice el nombre EXACTO
+de la tabla que lo rechaza ("No se pudo abrir el chat: new row violates
+row-level security policy for table **chat_members**", por ejemplo). Con
+ese nombre puedes ir directo a Database → Policies → esa tabla y comparar
+con lo que trae el SQL. Si me dices exactamente qué tabla sale ahí, puedo
+darte la política exacta a corregir en vez de una lista de sospechosos.
+
+### Bugs arreglados (de verdad esta vez)
+
+- **El marco de avatar seguía saliendo mal en "Ver perfil"**: la causa real
+  no era solo el degradado duplicado (ronda pasada) — el círculo grande de
+  avatar (`.avatar-ring`) tiene un tamaño FIJO por CSS (92×92 + su propio
+  padding, para que el marco encaje justo alrededor), pero la foto que se
+  metía dentro se forzaba a 100×100 sin cambiar el tamaño del círculo, así
+  que la imagen se salía del anillo y el marco quedaba descuadrado. Ahora
+  el círculo y la foto crecen juntos (mismo tamaño, la foto va dentro con
+  un contenedor interior que ocupa el 100%), igual que ya funcionaba bien
+  en el modo edición del perfil.
+- **El marco no salía en los comentarios (ni en el chat)**: no era un bug
+  de la interfaz — las consultas a Supabase de comentarios, chats y
+  mensajes solo pedían `name` y `avatar_url` del perfil del autor, nunca
+  `avatar_frame`, así que aunque el código sí intentaba aplicar el marco,
+  el dato ni siquiera llegaba del servidor. Añadido `avatar_frame` a esas
+  tres consultas.
+- **El perfil decía "Todavía no has creado ninguna tierlist" con 2
+  tierlists reales**: `S.profileDraft` (con el que se pinta el perfil) es
+  una copia de `currentUserProfile`, la fila de la tabla `profiles` de
+  Supabase — ahí NO viven las tierlists (`.tls`), esas viven en el perfil
+  local que devuelve `activeProfile()`. El perfil miraba `.tls` en el sitio
+  equivocado y por eso salía siempre vacío. Ahora usa `activeProfile()`
+  para la lista de tierlists (que además ya sale con el mismo formato de
+  tarjeta que "Mis Tierlists", como se pidió).
+- **Drag & drop menos fluido que antes**: el arreglo de la ronda pasada
+  (mover el hueco de una posición en una, no de golpe) usaba un intervalo
+  de 90ms por paso, que se notaba lento al arrastrar rápido. Bajado a
+  35ms (y la animación de cada paso de .25s a .16s) — se sigue moviendo de
+  una en una (no se rompe el arreglo del hueco), pero encadenado mucho más
+  rápido, así que vuelve a sentirse tan ágil como antes.
+
+### Nuevo
+
+- **Tarjetas de tierlist con la foto de fondo entera**: en vez de portada +
+  panel de info por separado, ahora la portada ocupa TODA la tarjeta y la
+  info (nombre, tiers, personajes, fecha) va superpuesta abajo sobre un
+  degradado semitransparente que sube desde el borde inferior — se sigue
+  viendo la foto pero el texto queda perfectamente legible encima.
+- **Añadir varias waifus de golpe**: en el modal de "+ Waifu" hay un botón
+  "+ Añadir varias" que cambia a un selector de archivos múltiple. Se
+  suben todas, salen en una lista con su miniatura, y al lado un campo
+  para el nombre (con el nombre del archivo puesto por defecto, como en el
+  modo de una en una) y otro para el anime (con sugerencias de AniList).
+  Un botón "Guardar las N" las sube y registra todas de golpe, cada una
+  exactamente igual que si la hubieras subido una a una.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

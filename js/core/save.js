@@ -223,7 +223,7 @@ async function fetchChats() {
   if (!userSession) return;
   // Traemos los chats donde el usuario es miembro, incluyendo la info del chat y de los otros miembros
   const { data, error } = await sbClient.from('chat_members')
-    .select('last_read_at, chats(*, chat_members(user_id, profiles(name, avatar_url)))')
+    .select('last_read_at, chats(*, chat_members(user_id, profiles(name, avatar_url, avatar_frame)))')
     .eq('user_id', userSession.user.id);
   
   if (!error) {
@@ -271,7 +271,7 @@ async function openChat(chat) {
   render();
   
   const { data, error } = await sbClient.from('messages')
-    .select('*, profiles(name)')
+    .select('*, profiles(name, avatar_url, avatar_frame)')
     .eq('chat_id', chat.id)
     .order('created_at', { ascending: true });
     

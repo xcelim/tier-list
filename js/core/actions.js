@@ -1,6 +1,53 @@
 // Acciones de usuario: crear, editar, eliminar, duplicar tierlists/personajes, etc.
 
 // ============ ACTIONS ============
+
+// Guarda UN personaje personalizado (imagen + nombre + anime) en la
+// tierlist: sube la imagen al Storage, la registra en "characters" y la
+// mete en tl.customChars/tl.pool. Usada tanto por "Añadir waifu" (una a
+// una) como por "Añadir varias" (en bucle, una llamada por imagen) — así
+// las dos vías hacen EXACTAMENTE lo mismo, sin duplicar lógica.
+async function saveOneCustomChar(tl, opts){
+  const charName = (opts.name || '').trim();
+  const animeName = (opts.anime || '').trim();
+  const imgData = opts.imgData;
+  const fileName = opts.fileName || '';
+  if (!charName || !imgData) return false;
+
+  const cid = 'custom_' + uid();
+  let cloudUrl = null;
+
+  if (userSession) {
+    try {
+      const blob = await (await fetch(imgData)).blob();
+      const fileExt = fileName.split('.').pop() || 'png';
+      const filePath = `${tl.folder}/${cid}.${fileExt}`;
+
+      const { error: uploadErr } = await sbClient.storage.from('tierlists').upload(filePath, blob);
+      if (uploadErr) throw uploadErr;
+
+      const { data: { publicUrl } } = sbClient.storage.from('tierlists').getPublicUrl(filePath);
+      cloudUrl = publicUrl;
+
+      await sbClient.from('characters').insert({
+        id: cid, tierlist_id: tl.id, name: charName, anime: animeName || 'Custom', image_url: cloudUrl, created_by: userSession.user.id, added_at: new Date().toISOString()
+      });
+      try {
+        await sbClient.rpc('insert_char_in_tierlist_table', { tierlist_id: tl.id, char_id: cid, char_name: charName, anime_name: animeName || 'Custom', img_url: cloudUrl });
+      } catch (e) {}
+    } catch (e) {
+      console.error('Error en Storage:', e);
+      toast('Error en la nube con "' + charName + '", se guardó solo local', 'err');
+    }
+  }
+
+  const cc = { id: cid, name: charName, anime: animeName || 'Custom', fileName, imageData: cloudUrl ? null : imgData, file: cloudUrl, isCustom: true, added_at: new Date().toISOString() };
+  if (!tl.customChars) tl.customChars = [];
+  tl.customChars.push(cc);
+  tl.pool.unshift(cid);
+  return true;
+}
+
 function resetRank(){
   if(!S.workingTL) return;
   if(!confirm('\xBFSeguro que quieres resetear tu ranking? Todos los personajes volver\xe1n a la pool.')) return;

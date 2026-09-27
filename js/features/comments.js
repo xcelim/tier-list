@@ -13,7 +13,7 @@ async function fetchComments(rankingId) {
   if (!sbClient || !rankingId) return;
   try {
     const { data, error } = await sbClient.from('tierlist_comments')
-      .select('*, author:profiles!user_id(name, avatar_url)')
+      .select('*, author:profiles!user_id(name, avatar_url, avatar_frame)')
       .eq('ranking_id', rankingId)
       .order('created_at', { ascending: true });
     if (error) throw error;
@@ -32,7 +32,7 @@ async function postComment(rankingId, ownerUserId) {
 
   const { data, error } = await sbClient.from('tierlist_comments')
     .insert({ ranking_id: rankingId, user_id: userSession.user.id, content: text })
-    .select('*, author:profiles!user_id(name, avatar_url)')
+    .select('*, author:profiles!user_id(name, avatar_url, avatar_frame)')
     .single();
 
   if (error) { toast('No se pudo publicar el comentario: ' + error.message, 'err'); return; }

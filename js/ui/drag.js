@@ -158,7 +158,7 @@ function _updatePlaceholder(zone, preSnapshots){
  el.style.transition='none';
  el.style.transform=`translate(${dx}px,${dy}px)`;
  el.offsetHeight; // Forzar reflow
- el.style.transition='transform .25s cubic-bezier(0.2, 0, 0.2, 1)';
+ el.style.transition='transform .16s cubic-bezier(0.2, 0, 0.2, 1)';
  el.style.transform='';
  }
  });
@@ -174,7 +174,14 @@ function _startStepper(){
  const z={type:'tier',tid:_curTid,idx:_curIdx};
  _lastZoneKey='tier'+_curTid+_curIdx;
  _updatePlaceholder(z);
- },90);
+ // FIX (fluidez): a 90ms por paso, recorrer varias posiciones se sentía
+ // lento/con retraso respecto a como se movía el ratón (antes saltaba
+ // directo, pero eso era lo que hacía que 2+ cartas se movieran "en
+ // bloque"). Bajar el intervalo mantiene el arreglo (el hueco se sigue
+ // moviendo de una en una, nunca salta) pero encadena los pasos mucho
+ // más rápido, así que para el ojo vuelve a sentirse tan fluido como
+ // antes.
+ },35);
 }
 // Punto de entrada único para "pedir" que el hueco vaya a una zona nueva.
 // En vez de saltar directo al índice calculado por la posición del cursor

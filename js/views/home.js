@@ -93,21 +93,23 @@ function buildTlWideCard(tl, opts) {
     cover.classList.add('tlc-cover-empty');
     cover.appendChild(h('i', { class: 'ti ti-stack-2' }));
   }
+  card.appendChild(cover);
+
+  // Botones flotantes arriba a la derecha, sobre la foto (portada / admin)
+  const topActions = h('div', { class: 'tlc-top-actions' });
   if (opts.editable) {
-    cover.appendChild(h('button', {
+    topActions.appendChild(h('button', {
       class: 'tlc-cover-btn', title: 'Cambiar portada',
       onclick: (e) => { e.stopPropagation(); pickTierlistCover(tl.id); }
     }, h('i', { class: 'ti ti-camera' })));
   }
-  card.appendChild(cover);
+  if (opts.editable && opts.profile && opts.profile.is_admin) {
+    topActions.appendChild(h('button', { class: 'btn bg bsm', onclick: (e) => { e.stopPropagation(); dupTL(tl.id); }, title: 'Duplicar' }, '⧇'));
+    topActions.appendChild(h('button', { class: 'btn bd bsm', onclick: (e) => { e.stopPropagation(); delTL(tl.id); }, title: 'Eliminar' }, '✕'));
+  }
+  if (topActions.children.length) card.appendChild(topActions);
 
   const body = h('div', { class: 'tlc-body' });
-  if (opts.editable && opts.profile && opts.profile.is_admin) {
-    const ca = h('div', { class: 'tlca' });
-    ca.appendChild(h('button', { class: 'btn bg bsm', onclick: (e) => { e.stopPropagation(); dupTL(tl.id); }, title: 'Duplicar' }, '⧇'));
-    ca.appendChild(h('button', { class: 'btn bd bsm', onclick: (e) => { e.stopPropagation(); delTL(tl.id); }, title: 'Eliminar' }, '✕'));
-    body.appendChild(ca);
-  }
   body.appendChild(h('h3', {}, tl.title || 'Sin título'));
   const tot = (tl.tiers || []).reduce((a, t) => a + (t.chars || []).length, 0) + (tl.pool || []).length;
   body.appendChild(h('div', { class: 'meta' },
@@ -126,11 +128,24 @@ function buildTlWideCard(tl, opts) {
 // se vean exactamente igual.
 function avatarRingBig(person, sizePx) {
   sizePx = sizePx || 100;
-  const ring = h('div', { class: 'avatar-ring' + (typeof frameClassFor === 'function' ? ' ' + frameClassFor(person) : '') });
-  ring.appendChild(h('img', {
+  // FIX: el anillo (.avatar-ring) tiene un tamaño fijo por CSS (92x92 +
+  // padding de 3px) para que el marco (borde/box-shadow) encaje justo a su
+  // alrededor. Antes se metía una imagen de 100x100 DENTRO de un anillo de
+  // 92x92 sin tocar su tamaño, así que la foto se salía del círculo y
+  // rompía el ajuste del marco ("no se ajusta bien"). Ahora se fuerza el
+  // tamaño del propio anillo por estilo en línea, y la imagen va en un
+  // div interior que ocupa el 100% de ESE anillo (igual que en el modo
+  // edición del perfil), así que ambos crecen o encogen juntos.
+  const ring = h('div', {
+    class: 'avatar-ring' + (typeof frameClassFor === 'function' ? ' ' + frameClassFor(person) : ''),
+    style: { width: sizePx + 'px', height: sizePx + 'px' }
+  });
+  const inner = h('div', { class: 'avatar-inner' });
+  inner.appendChild(h('img', {
     src: (person && person.avatar_url) || `https://api.dicebear.com/7.x/initials/svg?seed=${(person && person.name) || '?'}`,
-    style: { width: sizePx + 'px', height: sizePx + 'px', borderRadius: '50%', objectFit: 'cover' }
+    style: { width: '100%', height: '100%', objectFit: 'cover' }
   }));
+  ring.appendChild(inner);
   return ring;
 }
 
@@ -644,7 +659,15 @@ function ProfilePage() {
   // Mis tierlists — mismas tarjetas anchas (con portada) que en "Mis
   // Tierlists", con paginación si hace falta.
   content.appendChild(h('h2', { class: 'friends-title', style:{textAlign:'center'} }, 'Mis Tierlists', h('span', { class: 'heart-icon' })));
-  const allTls = p.tls || [];
+  // FIX: "p" es S.profileDraft, una copia de currentUserProfile — la fila
+  // de la tabla "profiles" de Supabase (id, name, avatar_url, color...).
+  // Las tierlists NO viven ahí, viven en el perfil LOCAL (S.profiles, el
+  // mismo que usa activeProfile()), así que "p.tls" siempre era undefined
+  // aquí y por eso el perfil decía "no tienes tierlists" aunque sí las
+  // hubiera (se veían bien en la pantalla "Mis Tierlists", que sí usa
+  // activeProfile()).
+  const realP = (typeof activeProfile === 'function' ? activeProfile() : null) || p;
+  const allTls = realP.tls || [];
   const tlGrid = h('div', { class: 'tlg tlg-wide' });
   if(allTls.length === 0){
     tlGrid.appendChild(h('div', { style:{gridColumn:'1/-1', textAlign:'center', padding:'30px', color:'var(--text3)'} }, 'Todavía no has creado ninguna tierlist.'));
@@ -655,7 +678,7 @@ function ProfilePage() {
     if(S._profTlPage >= totalPages) S._profTlPage = totalPages - 1;
     const start = S._profTlPage * TL_PAGE_SIZE;
     allTls.slice(start, start + TL_PAGE_SIZE).forEach(tl => {
-      tlGrid.appendChild(buildTlWideCard(tl, { editable:true, profile:p, onclick:()=>{openEditor(tl.id);render();} }));
+      tlGrid.appendChild(buildTlWideCard(tl, { editable:true, profile:realP, onclick:()=>{openEditor(tl.id);render();} }));
     });
     content.appendChild(tlGrid);
     const pager = buildPagination(allTls.length, TL_PAGE_SIZE, S._profTlPage, (np)=>{ S._profTlPage = np; render(); });

@@ -508,8 +508,20 @@ function MPick(){
 // ADD CUSTOM CHAR (con AniList)
 function MAddChar(){
   const tl=S.workingTL;if(!tl)return h('div',{class:'modal'},h('p',{},'Error'));
-  const m=h('div',{class:'modal'});
-  m.appendChild(h('h2',{},'A\xf1adir waifu a "'+tl.title+'"'));
+  if(!S.md) S.md={};
+  const bulkMode = !!S.md.bulkMode;
+
+  const m=h('div',{class:'modal'+(bulkMode?' modal-wide':'')});
+  const hdrRow=h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'10px',marginBottom:'4px'}});
+  hdrRow.appendChild(h('h2',{style:{margin:0}}, bulkMode ? 'A\xf1adir varias waifus a "'+tl.title+'"' : 'A\xf1adir waifu a "'+tl.title+'"'));
+  hdrRow.appendChild(h('button',{class:'btn bg bsm',onclick:()=>{ S.md.bulkMode=!bulkMode; render(); }}, bulkMode ? '← Una a una' : '+ A\xf1adir varias'));
+  m.appendChild(hdrRow);
+
+  if(bulkMode){
+    m.appendChild(buildBulkAddUI(tl));
+    return m;
+  }
+
   let imgData=null,fileName='',charName='',animeName='',aniSearchT=null;
 
   // Image
@@ -585,45 +597,106 @@ function MAddChar(){
   row.appendChild(h('button',{class:'btn bp',style:{flex:'1'},onclick:async ()=>{
     if(!charName.trim()){toast('Escribe el nombre','err');return;}
     if(!imgData){toast('Elige una imagen','err');return;}
-    
-    const cid='custom_'+uid();
-    let cloudUrl = null;
-
-    if(userSession) {
-      try {
-        toast("Subiendo imagen a la nube...", "info");
-        // Convertir base64 a blob para la subida
-        const blob = await (await fetch(imgData)).blob();
-        const fileExt = fileName.split('.').pop() || 'png';
-        const filePath = `${tl.folder}/${cid}.${fileExt}`;
-        
-        const { error: uploadErr } = await sbClient.storage.from('tierlists').upload(filePath, blob);
-        if(uploadErr) throw uploadErr;
-
-        const { data: { publicUrl } } = sbClient.storage.from('tierlists').getPublicUrl(filePath);
-        cloudUrl = publicUrl;
-
-        // Registrar en la tabla de personajes para que sea global
-        // Insertar personaje en la tabla de characters de ESTA tierlist
-        await sbClient.from('characters').insert({
-          id: cid, tierlist_id: tl.id, name: charName.trim(), anime: animeName.trim()||'Custom', image_url: cloudUrl, created_by: userSession.user.id, added_at: new Date().toISOString()
-        });
-        // También intentar insertar en tabla específica si existe
-        try {
-          await sbClient.rpc('insert_char_in_tierlist_table', {tierlist_id: tl.id, char_id: cid, char_name: charName.trim(), anime_name: animeName.trim()||'Custom', img_url: cloudUrl});
-        } catch(e) {}
-      } catch(e) {
-        console.error("Error en Storage:", e);
-        toast("Error en nube, se guardar\xe1 solo local", "err");
-      }
-    }
-
-    const cc={id:cid,name:charName.trim(),anime:animeName.trim()||'Custom',fileName,imageData:cloudUrl?null:imgData,file:cloudUrl,isCustom:true,added_at:new Date().toISOString()};
-    if(!tl.customChars)tl.customChars=[];
-    tl.customChars.push(cc);tl.pool.unshift(cid);
-    S.hasUnsaved=true;S.modal=null;render();toast(charName+' a\xf1adida \u2713');
+    if(userSession) toast("Subiendo imagen a la nube...", "info");
+    const ok = await saveOneCustomChar(tl, { name: charName, anime: animeName, imgData, fileName });
+    if(!ok){toast('No se pudo añadir','err');return;}
+    S.hasUnsaved=true;S.modal=null;render();toast(charName+' añadida ✓');
   }},'Guardar'));
   m.appendChild(row);return m;
+}
+
+// ---- Añadir VARIAS waifus de golpe ----
+// Mismo resultado final que "Añadir waifu" (una por una, vía
+// saveOneCustomChar), pero con un solo selector de archivos múltiple: se
+// cargan todas, salen en una lista con su miniatura, y al lado un campo
+// para el nombre y otro para el anime (con sugerencias de AniList) de
+// CADA una, antes de guardarlas todas juntas de una vez.
+function buildBulkAddUI(tl){
+  if(!S.md.bulkItems) S.md.bulkItems=[];
+  const items=S.md.bulkItems;
+  const wrap=h('div',{});
+
+  wrap.appendChild(h('p',{style:{fontSize:'11px',color:'var(--text3)',margin:'0 0 10px'}},
+    'Elige todas las imágenes de golpe. Se cargará una lista abajo para ponerle nombre y anime a cada una antes de guardarlas todas.'));
+
+  const uarea=h('div',{class:'uarea'});
+  const uinp=h('input',{type:'file',accept:'image/*',multiple:true});
+  const utxt=h('p',{style:{margin:'0',pointerEvents:'none'}},
+    items.length ? `✓ ${items.length} imagen(es) cargadas — puedes seguir añadiendo más` : '📁 Haz clic para elegir varias imágenes');
+  uinp.onchange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if(!files.length) return;
+    let pending = files.length;
+    files.forEach(f => {
+      const fr = new FileReader();
+      fr.onload = (ev) => {
+        const guessedName = f.name.replace(/\.(png|jpg|jpeg|gif|webp)$/i,'').replace(/[-_]/g,' ');
+        items.push({ _id: 'b'+uid(), fileName: f.name, imgData: ev.target.result, name: guessedName, anime: '' });
+        pending--;
+        if(pending===0) render();
+      };
+      fr.readAsDataURL(f);
+    });
+  };
+  uarea.appendChild(uinp); uarea.appendChild(utxt);
+  wrap.appendChild(uarea);
+
+  if(items.length){
+    const list=h('div',{class:'bulk-add-list'});
+    items.forEach((item, idx) => {
+      const row=h('div',{class:'bulk-add-row'});
+      row.appendChild(h('img',{class:'bulk-add-thumb',src:item.imgData}));
+
+      const fields=h('div',{class:'bulk-add-fields'});
+      const nameInp=h('input',{type:'text',placeholder:'Nombre',value:item.name,onmousedown:e=>e.stopPropagation()});
+      nameInp.oninput=(e)=>{ item.name=e.target.value; };
+      fields.appendChild(nameInp);
+
+      const animeInp=h('input',{type:'text',placeholder:'Anime',value:item.anime,list:'bulk-dl-'+item._id,onmousedown:e=>e.stopPropagation()});
+      const dl=h('datalist',{id:'bulk-dl-'+item._id});
+      animeInp.oninput=(e)=>{
+        item.anime=e.target.value;
+        clearTimeout(item._searchT);
+        const q=e.target.value;
+        if(q.trim().length<2) return;
+        item._searchT=setTimeout(async ()=>{
+          try{
+            const resolved=resolveAlias(q);
+            const results=await searchAniList(resolved||q);
+            dl.innerHTML='';
+            (results||[]).slice(0,8).forEach(r=>{ dl.appendChild(h('option',{value:r.title})); });
+          }catch(e){}
+        },350);
+      };
+      fields.appendChild(animeInp); fields.appendChild(dl);
+      row.appendChild(fields);
+
+      row.appendChild(h('button',{class:'btn bd bsm',title:'Quitar de la lista',onclick:()=>{ items.splice(idx,1); render(); }},'✕'));
+      list.appendChild(row);
+    });
+    wrap.appendChild(list);
+  }
+
+  const actionsRow=h('div',{style:{display:'flex',gap:'8px',marginTop:'14px'}});
+  actionsRow.appendChild(h('button',{class:'btn bg',style:{flex:'1'},onclick:()=>{ S.md.bulkItems=[]; S.modal=null; render(); }},'Cancelar'));
+  const saveBtn=h('button',{class:'btn bp',style:{flex:'1'}}, items.length ? `Guardar las ${items.length}` : 'Guardar');
+  saveBtn.onclick = async () => {
+    if(!items.length){toast('Añade al menos una imagen','err');return;}
+    if(items.some(it=>!it.name.trim())){toast('Ponle nombre a todas las imágenes','err');return;}
+    saveBtn.disabled=true; saveBtn.textContent='Guardando...';
+    toast(`Guardando ${items.length} personajes...`, 'info');
+    let done=0;
+    for(const item of items){
+      const ok = await saveOneCustomChar(tl, { name:item.name, anime:item.anime, imgData:item.imgData, fileName:item.fileName });
+      if(ok) done++;
+    }
+    S.md.bulkItems=[];
+    S.hasUnsaved=true; S.modal=null; render();
+    toast(`✓ ${done} personajes añadidos`, 'ok');
+  };
+  actionsRow.appendChild(saveBtn);
+  wrap.appendChild(actionsRow);
+  return wrap;
 }
 
 // EDIT CHAR
