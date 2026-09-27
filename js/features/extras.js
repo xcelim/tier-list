@@ -2,8 +2,8 @@
 // a partir de tus propias tierlists, sin depender de ninguna tabla nueva.
 // (El "Personaje del día" que había aquí se quitó a petición del usuario.)
 // No toca el editor/ranking.
-function StatsSection() {
-  const p = activeProfile();
+function StatsSection(profile) {
+  const p = profile || activeProfile();
   if (!p) return h('div', {});
   const tls = p.tls || [];
   const totalChars = totalCharsRanked(p);

@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v6'; // v6: comentarios/reacciones por ranking (no por plantilla), chat con limpieza total de políticas, marcos/menú avatar arreglados
+const CACHE_NAME = 'at-v7'; // v7: chat RLS con roles explícitos, drag sin salto al agarrar, stats reales unificadas, rediseño Mis Tierlists
 const ASSETS = [
   './',
   './index.html',

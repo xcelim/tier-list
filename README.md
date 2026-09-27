@@ -260,6 +260,51 @@ Es seguro volver a ejecutarlo entero.
 
 ### ⚠️ Vuelve a ejecutar `supabase-schema.sql` (completo, de arriba a abajo)
 
+## 🆕 Ronda 5 — más bugs reales + rediseño de Tierlists
+
+- **Chat: "new row violates row-level security policy"**: la política de
+  INSERT en `chats`/`chat_members` comprobaba `auth.uid() is not null`, que
+  en teoría debería bastar pero estaba dando problemas. Cambiado a la forma
+  correcta y más robusta de Supabase: `TO authenticated WITH CHECK (true)`
+  (restringe por ROL en vez de por una comprobación dentro de la condición).
+- **Salto al agarrar una carta (por fin, el motivo real)**: en el mismo
+  instante en que se colocaba el hueco en su sitio original, el código
+  seguía ejecutándose y volvía a calcular la posición con las coordenadas
+  YA MOVIDAS del cursor (las que cruzaron el umbral de 5px para empezar a
+  arrastrar), deshaciendo el arreglo al instante. Ahora se corta ahí y se
+  espera al siguiente movimiento real del ratón.
+- **Estadísticas/logros "falsos" en Ajustes**: el bug real era que Ajustes
+  calculaba todo desde una copia local (`activeProfile().tls`) que puede
+  quedar desactualizada, mientras que ver tu propio perfil desde Usuarios
+  usa datos frescos de Supabase — por eso salían números distintos según
+  por dónde entraras. Ahora Ajustes también pide tus rankings reales,
+  con la misma consulta, así los dos caminos coinciden siempre.
+- **Perfil de otro usuario**: añadido "Miembro desde".
+- **Barra de nivel solapando con el icono de cámara**: el botón de cámara
+  ahora es una etiqueta de texto aparte debajo de la barra, no puede
+  solaparse con nada.
+- **Rediseño de "Mis Tierlists"**: cabecera a juego con Usuarios, buscador
+  + orden (recientes / nombre / nº de personajes), tarjetas con portada
+  (la imagen de un personaje de esa tierlist), contador de tiers/personajes
+  con iconos, fecha de última actualización.
+- **Más decoración en el Home**: bordes cromáticos animados (efecto arcoíris
+  girando) en los 3 paneles del menú, chispas ascendentes decorativas tras
+  el título, resplandor pulsante en el separador.
+- **404 al refrescar**: ese mensaje concreto de GitHub ("no hay una página
+  de GitHub Pages aquí") significa que **GitHub Pages no está activado**
+  en el repositorio — no es un fallo del código. Actívalo en tu repo:
+  Settings → Pages → elige la rama/carpeta → Save. El archivo `404.html`
+  que ya incluye el proyecto se encargará de que las rutas como
+  `/tierlists` funcionen bien al recargar, en cuanto Pages esté activado.
+
+### ⚠️ Sobre el SQL
+
+Tienes razón en que el anterior dio errores de "ya existe" — era porque
+tenías tablas de una versión previa con otra estructura. El de esta
+ronda ya lo tienes corregido (nos pasaste exactamente lo que ejecutaste).
+Solo hace falta volver a ejecutar la parte de arriba (política de `chats`)
+si te sigue dando el error de "violates row-level security policy".
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

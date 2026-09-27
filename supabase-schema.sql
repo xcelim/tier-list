@@ -107,7 +107,8 @@ create policy "miembros ven sus chats" on chats for select
 
 drop policy if exists "cualquiera logueado crea chats" on chats;
 create policy "cualquiera logueado crea chats" on chats for insert
-  with check (auth.uid() is not null);
+  to authenticated
+  with check (true);
 
 drop policy if exists "miembros actualizan sus chats" on chats;
 create policy "miembros actualizan sus chats" on chats for update
@@ -119,7 +120,8 @@ create policy "ves las membresías de tus chats" on chat_members for select
 
 drop policy if exists "te añades o añades a otros a un chat" on chat_members;
 create policy "te añades o añades a otros a un chat" on chat_members for insert
-  with check (auth.uid() is not null);
+  to authenticated
+  with check (true);
 
 drop policy if exists "actualizas tu propia membresía" on chat_members;
 create policy "actualizas tu propia membresía" on chat_members for update
@@ -161,7 +163,8 @@ create policy "solo ves tus notificaciones" on notifications for select
 
 drop policy if exists "cualquiera logueado puede crear una notificación" on notifications;
 create policy "cualquiera logueado puede crear una notificación" on notifications for insert
-  with check (auth.uid() is not null);
+  to authenticated
+  with check (true);
 
 drop policy if exists "marcas tus notificaciones como leídas" on notifications;
 create policy "marcas tus notificaciones como leídas" on notifications for update

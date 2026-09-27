@@ -11,6 +11,14 @@ function Home(){
   const hhDiamond = h('div',{class:'hh-diamond-sep'});
   hhDiamond.innerHTML = '<span class="diamond"></span>';
   hdr.appendChild(hhDiamond);
+  // Chispitas ascendentes decorativas (puramente visuales)
+  for(let i=0;i<6;i++){
+    hdr.appendChild(h('div',{class:'hh-spark',style:{
+      left:(10+Math.random()*80)+'%',
+      animationDelay:(Math.random()*4)+'s',
+      animationDuration:(3+Math.random()*2)+'s'
+    }}));
+  }
   hdr.appendChild(h('p',{},'Crea, compara y descubre los mejores rankings de anime'));
   w.appendChild(hdr);
 
@@ -55,25 +63,93 @@ function Home(){
 }
 
 function TierlistsPage() {
-  const w=h('div',{});
+  const w=h('div',{class:'tl-page'});
   // Sincronización automática al entrar a la pantalla principal
   if (!S._ref) { S._ref = true; fetchGlobalTemplates().finally(() => setTimeout(() => S._ref = false, 5000)); }
 
   const p = activeProfile();
   if(!p) return w;
+
+  // --- Cabecera, a juego con la de Usuarios ---
+  const hdr = h('div', { class: 'users-page-header' });
+  hdr.appendChild(h('h1', { class: 'users-page-title' }, 'Mis Tierlists'));
+  const diam = h('div', { class: 'users-page-diamond' });
+  diam.innerHTML = '<span class="up-diamond"></span>';
+  hdr.appendChild(diam);
+  const allTls = p.tls || [];
+  const totalCharsAll = allTls.reduce((s,tl)=>s+(tl.tiers||[]).reduce((a,t)=>a+(t.chars||[]).length,0)+(tl.pool||[]).length,0);
+  hdr.appendChild(h('p', { class: 'users-page-sub' }, `${allTls.length} tierlist${allTls.length===1?'':'s'} · ${totalCharsAll} personajes en total`));
+  w.appendChild(hdr);
+
+  // --- Barra de búsqueda + orden ---
+  if(!S._tlSearch) S._tlSearch = '';
+  if(!S._tlSort) S._tlSort = 'recent';
+  const toolbar = h('div', { class: 'tl-toolbar' });
+  const swrap = h('div', { class: 'tl-search-wrap' });
+  swrap.appendChild(h('i', { class: 'ti ti-search' }));
+  swrap.appendChild(h('input', {
+    class: 'tl-search-input', placeholder: 'Buscar una tierlist...', value: S._tlSearch,
+    oninput: (e) => { S._tlSearch = e.target.value; render(); }
+  }));
+  toolbar.appendChild(swrap);
+  const sortWrap = h('div', { class: 'tl-sort-wrap' });
+  [['recent','Recientes'],['name','Nombre'],['chars','Nº de personajes']].forEach(([id,label])=>{
+    sortWrap.appendChild(h('button', {
+      class: 'tl-sort-btn' + (S._tlSort===id ? ' active':''),
+      onclick: () => { S._tlSort = id; render(); }
+    }, label));
+  });
+  toolbar.appendChild(sortWrap);
+  w.appendChild(toolbar);
+
+  // --- Rejilla ---
   const g=h('div',{class:'tlg'});
   g.appendChild(h('div',{class:'nc',onclick:()=>{S.modal='new-tl';S.md={};render();}},h('div',{class:'plus'},'+'),h('span',{style:{fontSize:'13px'}},'Nueva Tierlist')));
-  [...(p.tls||[])].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).forEach(tl=>{
-    const card=h('div',{class:'tlc',onclick:()=>{openEditor(tl.id);render();}});
+
+  let list = [...allTls];
+  if(S._tlSearch.trim()) list = list.filter(tl => (tl.title||'').toLowerCase().includes(S._tlSearch.trim().toLowerCase()));
+  const charCountOf = tl => (tl.tiers||[]).reduce((a,t)=>a+(t.chars||[]).length,0)+(tl.pool||[]).length;
+  if(S._tlSort==='name') list.sort((a,b)=>(a.title||'').localeCompare(b.title||''));
+  else if(S._tlSort==='chars') list.sort((a,b)=>charCountOf(b)-charCountOf(a));
+  else list.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+
+  if(list.length===0 && allTls.length>0){
+    g.appendChild(h('div', { class:'tl-empty-search' }, `Ninguna tierlist coincide con "${S._tlSearch}".`));
+  }
+
+  list.forEach(tl=>{
+    const card=h('div',{class:'tlc tlc-rich',onclick:()=>{openEditor(tl.id);render();}});
+
+    // Portada: la imagen del primer personaje que encontremos en la tierlist
+    let coverId = null;
+    for(const t of (tl.tiers||[])){ if(t.chars && t.chars.length){ coverId = t.chars[0]; break; } }
+    if(!coverId && (tl.pool||[]).length) coverId = tl.pool[0];
+    const cover = h('div', { class: 'tlc-cover' });
+    if(coverId){
+      try{ cover.style.backgroundImage = `url('${charImg(coverId, tl)}')`; }catch(e){}
+    } else {
+      cover.classList.add('tlc-cover-empty');
+      cover.appendChild(h('i', { class:'ti ti-stack-2' }));
+    }
+    card.appendChild(cover);
+
+    const body = h('div', { class:'tlc-body' });
     const ca=h('div',{class:'tlca'});
     if (p.is_admin) {
       ca.appendChild(h('button',{class:'btn bg bsm',onclick:(e)=>{e.stopPropagation();dupTL(tl.id);},'title':'Duplicar'},'⧇'));
       ca.appendChild(h('button',{class:'btn bd bsm',onclick:(e)=>{e.stopPropagation();delTL(tl.id);},'title':'Eliminar'},'✕'));
     }
-    // ... resto de la lógica de card que ya tenías ...
-    const tot=(tl.tiers||[]).reduce((a,t)=>a+(t.chars||[]).length,0)+(tl.pool||[]).length;
-    card.appendChild(ca); card.appendChild(h('h3',{},tl.title||'Sin título'));
-    card.appendChild(h('div',{class:'meta'},h('span',{},(tl.tiers||[]).length+' tiers'),h('span',{},tot+' chars')));
+    body.appendChild(ca);
+    body.appendChild(h('h3',{},tl.title||'Sin título'));
+    const tot=charCountOf(tl);
+    body.appendChild(h('div',{class:'meta'},
+      h('span',{}, h('i',{class:'ti ti-layout-rows'}), ' '+(tl.tiers||[]).length+' tiers'),
+      h('span',{}, h('i',{class:'ti ti-users'}), ' '+tot+' chars')
+    ));
+    if(tl.updatedAt){
+      body.appendChild(h('div', { class:'tlc-updated' }, 'Actualizada '+timeAgo(new Date(tl.updatedAt).toISOString())));
+    }
+    card.appendChild(body);
     g.appendChild(card);
   });
   w.appendChild(g); return w;
@@ -206,6 +282,10 @@ function UserViewPage() {
   statsRow.appendChild(stat(u.friend_count ?? 0, 'Amigos'));
   w.appendChild(statsRow);
 
+  if(u.created_at){
+    w.appendChild(h('div', { class:'stats-highlight', style:{textAlign:'center', marginBottom:'20px'} }, `Miembro desde: `, h('strong', {}, new Date(u.created_at).toLocaleDateString())));
+  }
+
   if(typeof AchievementsSection==='function'){
     const achWrap = h('div', { style:{maxWidth:'900px', margin:'0 auto 30px'} });
     achWrap.appendChild(AchievementsSection(pseudoProfile, true));
@@ -286,7 +366,8 @@ function Viewer() {
 
 function ProfilePage() {
   if (!userSession) return Home();
-  
+  if(typeof refreshAchievementData==='function' && !S._achRef){ S._achRef=true; refreshAchievementData().finally(()=>setTimeout(()=>S._achRef=false,4000)); }
+
   // Inicializar borrador si no existe
   if (!S.profileDraft) {
     S.profileDraft = JSON.parse(JSON.stringify(currentUserProfile));
@@ -362,11 +443,14 @@ function ProfilePage() {
     reader.onload = (ev) => { S.modal = 'crop-avatar'; S.md = { imageSrc: ev.target.result }; render(); };
     reader.readAsDataURL(file);
   }});
-  avWrap.appendChild(h('label', { class: 'camera-btn', title: 'Cambiar foto' }, h('i', { class: 'ti ti-camera' }), cameraInput));
+  // FIX: el botón de cámara estaba anclado a la esquina del círculo y se
+  // solapaba con la barra de nivel de debajo. Ahora va como una etiqueta
+  // aparte, en su propia línea, sin poder solaparse con nada.
   if(typeof computeXP==='function' && typeof LevelBadge==='function'){
-    const xp = computeXP(p); const lvl = computeLevel(xp);
+    const xp = computeXP(typeof ownRealProfile==='function' ? ownRealProfile() : p); const lvl = computeLevel(xp);
     avWrap.appendChild(LevelBadge(lvl, xp));
   }
+  avWrap.appendChild(h('label', { class: 'camera-btn-inline' }, h('i', { class: 'ti ti-camera' }), ' Cambiar foto', cameraInput));
   top.appendChild(avWrap);
 
   // Campos
@@ -437,7 +521,7 @@ function ProfilePage() {
 
   // Estadísticas
   if(typeof StatsSection==='function'){
-    content.appendChild(StatsSection());
+    content.appendChild(StatsSection(typeof ownRealProfile==='function' ? ownRealProfile() : p));
     content.appendChild(h('div', { class: 'divider-row' },
       h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
     ));
@@ -445,7 +529,7 @@ function ProfilePage() {
 
   // Logros
   if(typeof AchievementsSection==='function'){
-    content.appendChild(AchievementsSection());
+    content.appendChild(AchievementsSection(typeof ownRealProfile==='function' ? ownRealProfile() : p));
     content.appendChild(h('div', { class: 'divider-row' },
       h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
     ));
@@ -453,7 +537,7 @@ function ProfilePage() {
 
   // Marcos de avatar (desbloqueables por nivel)
   if(typeof AvatarFramePicker==='function' && typeof computeXP==='function'){
-    const xp = computeXP(p); const lvl = computeLevel(xp);
+    const xp = computeXP(typeof ownRealProfile==='function' ? ownRealProfile() : p); const lvl = computeLevel(xp);
     content.appendChild(AvatarFramePicker(p, lvl));
     content.appendChild(h('div', { class: 'divider-row' },
       h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })

@@ -195,6 +195,12 @@ document.addEventListener('pointermove',e=>{
  const initialZone = DS==='pool' ? {type:'pool'} : {type:'tier', tid:DS, idx:DGidx};
  _lastZoneKey = initialZone.type+(initialZone.tid||'')+(initialZone.idx??'');
  _updatePlaceholder(initialZone);
+ // FIX: sin este "return", el mismo evento seguía ejecutándose y volvía a
+ // calcular la zona con la posición ACTUAL del cursor (que ya se había
+ // movido esos 5px del umbral), deshaciendo el fix de arriba al instante y
+ // moviendo una carta vecina justo al agarrar. Esperamos al siguiente
+ // pointermove de verdad para volver a comprobar la zona.
+ return;
  }
  _posFloat(e.clientX,e.clientY);
  const zone=_getDropZone(e.clientX,e.clientY);

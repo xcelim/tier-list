@@ -46,6 +46,9 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--a
 .avatar-inner { width: 100%; height: 100%; border-radius: 50%; background: #111d42; overflow: hidden; display: flex; align-items: center; justify-content: center; }
 .camera-btn { position: absolute; bottom: 1px; right: 1px; width: 28px; height: 28px; background: linear-gradient(135deg, #3b6fd4, #1e3fa0); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid #07091a; }
 .camera-btn i { font-size: 13px; color: #fff; }
+.camera-btn-inline{display:flex;align-items:center;gap:5px;justify-content:center;margin-top:10px;font-size:10.5px;color:var(--text3);cursor:pointer;transition:.15s}
+.camera-btn-inline:hover{color:var(--neon-gold,var(--accent2))}
+.camera-btn-inline i{font-size:12px}
 .profile-right { flex: 1; min-width: 0; }
 .field-label { font-size: 13.5px; color: #7a90bb; margin-bottom: 7px; text-align: left;}
 .field-input { width: 100%; background: rgba(16, 28, 65, 0.8); border: 1px solid rgba(80, 130, 230, 0.38); border-radius: 10px; padding: 10px 14px; color: #c8d8ff; font-size: 15px; outline: none; transition: border-color 0.2s; margin-bottom: 10px; }
@@ -1069,3 +1072,59 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 .accent-swatch{width:38px;height:38px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:.2s}
 .accent-swatch:hover{transform:scale(1.1)}
 .accent-swatch.active{border-color:#fff;box-shadow:0 0 0 2px var(--neon-gold,var(--gold)),0 0 14px rgba(255,255,255,.4)}
+
+/* ============================================================================
+   REDISEÑO DE "MIS TIERLISTS" — cabecera + buscador/orden + tarjetas ricas
+   con portada, igual de "vivo" que el resto de la app ya rediseñada.
+   ============================================================================ */
+
+.tl-toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:22px 0 6px;max-width:1100px;margin-left:auto;margin-right:auto}
+.tl-search-wrap{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1.5px solid var(--border);border-radius:10px;padding:9px 14px;flex:1;min-width:200px;max-width:360px}
+.tl-search-wrap i{color:var(--text3);font-size:15px}
+.tl-search-input{background:none;border:none;outline:none;color:var(--text);font-size:13px;width:100%}
+.tl-sort-wrap{display:flex;gap:6px;flex-wrap:wrap}
+.tl-sort-btn{background:var(--bg2);border:1.5px solid var(--border);color:var(--text3);border-radius:20px;padding:7px 14px;font-size:11.5px;font-weight:700;cursor:pointer;transition:.2s;font-family:'Rajdhani',sans-serif;letter-spacing:.5px}
+.tl-sort-btn:hover{border-color:var(--neon-magenta,var(--accent2));color:var(--text)}
+.tl-sort-btn.active{background:var(--neon-magenta,var(--accent2));border-color:var(--neon-magenta,var(--accent2));color:#fff}
+.tl-empty-search{grid-column:1/-1;text-align:center;padding:40px;color:var(--text3);font-size:13px}
+
+/* Tarjetas con portada */
+.tlc-rich{padding:0!important;overflow:hidden;display:flex;flex-direction:column}
+.tlc-cover{height:108px;background-size:cover;background-position:center 20%;position:relative;flex-shrink:0}
+.tlc-cover::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(10,10,15,.85) 100%)}
+.tlc-cover-empty{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--bg3),var(--bg4))}
+.tlc-cover-empty i{font-size:28px;color:var(--text3);opacity:.5}
+.tlc-body{padding:12px 14px 14px;position:relative}
+.tlc-body h3{margin-top:2px}
+.tlc-updated{font-size:9.5px;color:var(--text3);margin-top:6px;opacity:.75}
+.tlc-rich .meta i{font-size:11px;vertical-align:-1px}
+
+/* ============================================================================
+   MÁS DECORACIÓN EN EL HOME — bordes cromáticos animados en los 3 paneles
+   del menú + un par de detalles "épicos" extra.
+   ============================================================================ */
+
+.menu-box::after{
+  content:'';position:absolute;inset:-4px;z-index:-1;
+  clip-path:inherit;
+  background:conic-gradient(from 0deg, var(--neon-magenta), var(--neon-gold), var(--neon-cyan), var(--neon-magenta));
+  filter:blur(3px);opacity:.55;
+  animation:chromatic-spin 5s linear infinite;
+}
+@keyframes chromatic-spin{to{filter:blur(3px) hue-rotate(360deg)}}
+:root[data-theme="light"] .menu-box::after{opacity:.35}
+
+/* Resplandor pulsante extra alrededor del separador con diamante del hero */
+.hh-diamond-sep{position:relative}
+.hh-diamond-sep::after{
+  content:'';position:absolute;left:50%;top:50%;width:60px;height:60px;
+  transform:translate(-50%,-50%);border-radius:50%;
+  background:radial-gradient(circle, rgba(255,207,64,.35), transparent 70%);
+  animation:diamond-pulse 2.4s ease-in-out infinite;pointer-events:none;
+}
+@keyframes diamond-pulse{0%,100%{opacity:.4;transform:translate(-50%,-50%) scale(.9)}50%{opacity:.9;transform:translate(-50%,-50%) scale(1.25)}}
+
+/* Chispas ascendentes sutiles detrás del hero (además del campo de estrellas global) */
+.hh{overflow:visible}
+.hh .hh-spark{position:absolute;bottom:0;width:3px;height:3px;border-radius:50%;background:var(--neon-gold);box-shadow:0 0 8px var(--neon-gold);animation:spark-rise 4s ease-in infinite;opacity:0;pointer-events:none}
+@keyframes spark-rise{0%{opacity:0;transform:translateY(0)}15%{opacity:.9}100%{opacity:0;transform:translateY(-160px)}}

@@ -48,7 +48,35 @@ async function refreshAchievementData(){
       changed = true;
     }catch(e){ S._hasCommented = false; }
   }
+  // FIX: Ajustes calculaba las estadísticas/logros desde activeProfile().tls
+  // (una copia local que puede estar desactualizada), mientras que ver tu
+  // propio perfil desde Usuarios usaba datos frescos de Supabase — daban
+  // números distintos. Ahora se piden tus rankings reales aquí también,
+  // con la MISMA consulta que se usa para ver el perfil de otra persona,
+  // así ambos caminos muestran siempre lo mismo.
+  if(S._ownRankings === undefined){
+    try{
+      const { data, error } = await sbClient.from('user_rankings')
+        .select('*, tierlists(title, folder)')
+        .eq('user_id', userSession.user.id);
+      if(error) throw error;
+      S._ownRankings = data || [];
+      changed = true;
+    }catch(e){ S._ownRankings = null; }
+  }
   if(changed) render();
+}
+
+// Construye un "perfil" con los datos REALES (de Supabase) del usuario
+// actual, en la misma forma que usa UserViewPage para otras personas, así
+// las estadísticas/logros salen siempre iguales se mire desde donde se mire.
+function ownRealProfile(){
+  const p = activeProfile();
+  if(!Array.isArray(S._ownRankings)) return p; // todavía cargando: usar la copia local mientras tanto
+  return {
+    ...p,
+    tls: S._ownRankings.map(r => ({ id: r.tierlist_id, title: r.tierlists?.title, tiers: r.tiers_data || [] })),
+  };
 }
 
 function totalCharsRanked(p){
