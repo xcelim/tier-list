@@ -136,6 +136,17 @@ async function syncFromSupabase() {
   S.workingIsForeignCollab = !!(myRank && myRank.user_id !== uid);
   S.workingIsCollaborative = !!(myRank && myRank.is_collaborative);
 
+  // Guardamos este resultado en caché local sobre la propia tierlist, para
+  // que la PRÓXIMA vez que se abra (openEditor) sepamos de antemano si es
+  // colaborativa antes incluso de que responda Supabase — así el botón de
+  // guardado correcto sale desde el primer render y no "parpadea" el botón
+  // equivocado mientras se espera la respuesta de la red (ver openEditor).
+  {
+    const _p = activeProfile();
+    const _tl = _p && _p.tls.find(t => t.id === S.cid);
+    if (_tl) { _tl._rankingId = S.workingRankingId; _tl._isCollaborative = S.workingIsCollaborative; }
+  }
+
   if (S.workingTL) {
     const placedIds = new Set();
     if (myRank) {

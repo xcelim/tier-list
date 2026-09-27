@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v9'; // v9: nueva tierlist siempre vacía (ya no mete los 2050 base), borde cromático con doble clip-path (sigue el recorte diagonal completo), paneles del home grandes de nuevo, tierlists en tarjetas anchas con portada subible, drag sin que las cartas se muevan en bloque, arreglado el crash al ver el perfil de un usuario, guardado normal/colaborativo bloqueado tras la primera elección
+const CACHE_NAME = 'at-v10'; // v10: perfil propio se ve como el de un amigo (nombre arriba, foto debajo, con tus tierlists) con botón "Editar perfil" para la personalización, tarjetas de tierlist idénticas y con paginación en Mis Tierlists/perfiles, buscador de tierlists ya no pierde el foco al escribir, arreglado que el hueco del drag no reaparecía al volver a la posición original, marco de avatar ya no se ve roto y ahora sale en Usuarios/comentarios/chat, botón de "Colaborativa" ya guarda directo tras la primera vez + botón "+" para añadir/quitar colaboradores, menos parpadeo del botón de guardado al abrir una tierlist colaborativa
 const ASSETS = [
   './',
   './index.html',

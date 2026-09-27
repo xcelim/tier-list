@@ -95,7 +95,8 @@ function renderChatAvatarItem(c) {
   const members = (c.chat_members || []).filter(m => m.user_id !== userSession?.user?.id);
   if (!c.is_group) {
     const p = members[0]?.profiles;
-    if (p?.avatar_url) return h('img', { src: p.avatar_url, class: 'chat-avatar-single' });
+    const fc = typeof frameClassFor==='function' ? frameClassFor(p) : '';
+    if (p?.avatar_url) return h('img', { src: p.avatar_url, class: 'chat-avatar-single' + (fc?(' '+fc):'') });
     const initEl = h('div', { class: 'chat-avatar-single', style: { background: '#1e2a5a', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'10px', fontWeight:'bold', color:'var(--accent2)' } }, (p?.name||'?').charAt(0).toUpperCase());
     return initEl;
   }
@@ -403,14 +404,17 @@ function MNewTL(){
 // Selector de amigos para compartir la tierlist abierta como colaborativa
 // (ver openCollabPicker/saveEditorChangesCollab en editor-working-copy.js).
 function MCollabSave(){
+  const manage = !!S.md?.manage;
   const m=h('div',{class:'modal'});
-  m.appendChild(h('h2',{},'\u{1F465} Guardar como colaborativa'));
+  m.appendChild(h('h2',{},manage ? '\u{1F465} Gestionar colaboradores' : '\u{1F465} Guardar como colaborativa'));
   m.appendChild(h('p',{style:{fontSize:'13px',color:'var(--text2)',marginBottom:'12px'}},
-    'Elige con qué amigos quieres compartir "'+(S.workingTL?.title||'')+'". A partir de ahora, cada vez que cualquiera de vosotros la guarde, se actualizará para todos en tiempo real.'));
+    manage
+      ? 'Marca quién sigue teniendo acceso a "'+(S.workingTL?.title||'')+'". Si desmarcas a alguien y guardas, la tierlist desaparecerá de su lista, como si nunca la hubiera tocado.'
+      : 'Elige con qué amigos quieres compartir "'+(S.workingTL?.title||'')+'". A partir de ahora, cada vez que cualquiera de vosotros la guarde, se actualizará para todos en tiempo real.'));
 
   const myFriends = (S.allUsers||[]).filter(u => u.relStatus==='accepted');
   const selected = S.md?.selected instanceof Set ? S.md.selected : new Set();
-  S.md = { selected };
+  S.md = { ...S.md, selected };
 
   if(myFriends.length===0){
     m.appendChild(h('div',{style:{color:'var(--text3)',fontSize:'13px',padding:'10px 0'}},'Todavía no tienes amigos aceptados. Añade amigos desde Usuarios para poder compartir tierlists.'));
@@ -422,7 +426,8 @@ function MCollabSave(){
       chk.checked = selected.has(f.id);
       chk.onchange=()=>{ if(chk.checked) selected.add(f.id); else selected.delete(f.id); };
       row.appendChild(chk);
-      row.appendChild(h('img',{src:f.avatar_url||`https://api.dicebear.com/7.x/initials/svg?seed=${f.name}`,style:{width:'28px',height:'28px',borderRadius:'50%',objectFit:'cover'}}));
+      const fc = typeof frameClassFor==='function' ? frameClassFor(f) : '';
+      row.appendChild(h('img',{class:fc,src:f.avatar_url||`https://api.dicebear.com/7.x/initials/svg?seed=${f.name}`,style:{width:'28px',height:'28px',borderRadius:'50%',objectFit:'cover'}}));
       row.appendChild(h('span',{},f.name));
       list.appendChild(row);
     });
@@ -431,7 +436,10 @@ function MCollabSave(){
 
   const row=h('div',{style:{display:'flex',gap:'8px',marginTop:'14px'}});
   row.appendChild(h('button',{class:'btn bg',style:{flex:'1'},onclick:()=>{S.modal=null;render();}},'Cancelar'));
-  row.appendChild(h('button',{class:'btn bp',style:{flex:'1'},onclick:()=>{saveEditorChangesCollab(Array.from(selected));}},'Compartir y guardar'));
+  row.appendChild(h('button',{class:'btn bp',style:{flex:'1'},onclick:()=>{
+    if(manage) saveManagedCollaborators(Array.from(selected));
+    else saveEditorChangesCollab(Array.from(selected));
+  }}, manage ? 'Guardar cambios' : 'Compartir y guardar'));
   m.appendChild(row);
   return m;
 }

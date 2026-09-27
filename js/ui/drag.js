@@ -98,12 +98,17 @@ function _updatePlaceholder(zone, preSnapshots){
  const ce=document.getElementById('t'+zone.tid)?.querySelector('.tchars');
  if(!ce){const ph=document.getElementById('drop-ph');if(ph)ph.remove();return;}
 
- // Evitar recalcular si ya hay un hueco puesto exactamente en la posición
- // original (pero SÍ crearlo la primera vez, aunque sea la posición
- // original — si no, el hueco nunca aparece al agarrar la carta).
- if(DS===zone.tid && zone.idx===DGidx && document.getElementById('drop-ph')){
- return;
- }
+ // NOTA: aquí antes había una comprobación de "no recalcular si el hueco
+ // ya está en esa posición" basada en si EXISTÍA algún #drop-ph en el DOM
+ // (sin importar en qué posición). El bug era que, si arrastrabas la carta
+ // lejos y volvías exactamente a la casilla original, esa comprobación se
+ // cumplía igual (sí había un hueco... pero en otro sitio) y la función se
+ // salía sin mover nada — el hueco se quedaba clavado y las cartas de en
+ // medio nunca volvían a su sitio ("vuelvo al hueco original y no se
+ // recrea"). Se ha quitado: quien llama a _updatePlaceholder (_requestZone
+ // y el stepper de abajo) ya se encarga de no llamarla salvo que el hueco
+ // realmente tenga que moverse a una posición nueva, así que esta función
+ // siempre puede confiar en que, si la llaman, es porque toca moverse.
 
  let snapshots, freshCards;
 

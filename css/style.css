@@ -1050,15 +1050,32 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 .frame-name{font-size:11px;font-weight:700;color:var(--text)}
 .frame-req{font-size:9px;color:var(--text3)}
 
-/* Estilos de marco reales — se aplican a .avatar-ring / .profile-btn / .frame-preview */
+/* Estilos de marco reales — se aplican a .avatar-ring / .profile-btn /
+   .frame-preview, pero también directamente sobre avatares "planos" (los
+   de Usuarios, comentarios, chat...) para que el marco salga SIEMPRE que
+   se muestre una foto de perfil, no solo en la pantalla de Perfil. */
 .frame-bronze{box-shadow:0 0 0 3px #a9713f, 0 0 14px rgba(169,113,63,.5)}
 .frame-silver{box-shadow:0 0 0 3px #cfd6de, 0 0 16px rgba(207,214,222,.55)}
 .frame-gold{box-shadow:0 0 0 3px var(--neon-gold,#ffcf40), 0 0 20px rgba(255,207,64,.6)}
 .frame-neon{box-shadow:0 0 0 3px var(--neon-magenta,#ff0a2e), 0 0 24px rgba(255,10,46,.65), 0 0 40px rgba(255,10,46,.3)}
 .frame-legendary{
-  box-shadow:0 0 0 3px transparent, 0 0 28px rgba(255,207,64,.5);
+  box-shadow:0 0 0 3px var(--neon-gold,#ffcf40), 0 0 28px rgba(255,207,64,.5);
   animation:frame-legendary-spin 3s linear infinite;
+}
+/* FIX: en el círculo grande de Perfil (.avatar-ring), el marco antes se
+   sumaba al degradado azul por defecto que YA tiene ese círculo (padding +
+   background), formando dos anillos superpuestos y un resultado feo/roto.
+   Al equipar un marco, sustituimos ese fondo por uno neutro (o, en el caso
+   de "legendario", por su propio degradado cónico giratorio) para que solo
+   se vea UN anillo limpio.  Estos selectores de dos clases pesan más que
+   la regla base de .avatar-ring, así que ganan siempre sin importar el
+   orden en la hoja de estilos. */
+.avatar-ring.frame-bronze,.avatar-ring.frame-silver,.avatar-ring.frame-gold,.avatar-ring.frame-neon{
+  background:#0d1630;
+}
+.avatar-ring.frame-legendary{
   background:conic-gradient(var(--neon-magenta,#ff0a2e),var(--neon-gold,#ffcf40),var(--neon-cyan,#fff),var(--neon-magenta,#ff0a2e));
+  box-shadow:none;
 }
 @keyframes frame-legendary-spin{from{filter:hue-rotate(0deg)}to{filter:hue-rotate(360deg)}}
 
@@ -1102,8 +1119,8 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
    rejilla pasa de columnas estrechas (antes: minmax(140px,1fr), pensada
    para tarjetas verticales) a columnas anchas de 1 o 2 por fila. */
 .tlg-wide{grid-template-columns:repeat(auto-fill,minmax(360px,1fr))}
-.tlc-wide{flex-direction:row!important;height:140px}
-.tlc-wide .tlc-cover{width:180px;height:100%;flex-shrink:0}
+.tlc-wide{flex-direction:row!important;height:112px}
+.tlc-wide .tlc-cover{width:210px;height:100%;flex-shrink:0}
 .tlc-wide .tlc-body{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0}
 .tlc-wide h3{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tlg-wide .nc{min-height:140px}
@@ -1124,13 +1141,25 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 .tlc-cover-btn:hover{opacity:1;background:var(--accent2,var(--neon-magenta))}
 .tlc-cover-btn i{font-size:13px}
 .tlc-body{padding:12px 14px 14px;position:relative}
+
+/* Paginación de tierlists — solo aparece si hay más de una página */
+.tl-pagination{display:flex;justify-content:center;align-items:center;gap:6px;margin:22px 0 10px;flex-wrap:wrap}
+.tl-page-btn{
+  min-width:34px;height:34px;padding:0 8px;border-radius:9px;border:1px solid var(--border2,rgba(255,255,255,.1));
+  background:var(--bg3,rgba(255,255,255,.04));color:var(--text2,#aab4cf);font-size:13px;font-weight:600;
+  cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;
+}
+.tl-page-btn:hover{background:var(--bg4,rgba(255,255,255,.09));color:var(--text,#fff)}
+.tl-page-btn.active{background:var(--accent2,var(--neon-magenta));color:#fff;border-color:transparent}
+.tl-page-btn:disabled{opacity:.35;cursor:not-allowed}
+.tl-page-arrow{font-size:14px}
 .tlc-body h3{margin-top:2px}
 .tlc-updated{font-size:9.5px;color:var(--text3);margin-top:6px;opacity:.75}
 .tlc-rich .meta i{font-size:11px;vertical-align:-1px}
 @media (max-width:520px){
   .tlg-wide{grid-template-columns:1fr}
-  .tlc-wide{height:120px}
-  .tlc-wide .tlc-cover{width:120px}
+  .tlc-wide{height:100px}
+  .tlc-wide .tlc-cover{width:110px}
 }
 
 /* ============================================================================

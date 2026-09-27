@@ -7,7 +7,27 @@ function render(){
   // sin que cada sitio que cambia de página tenga que acordarse de hacerlo.
   if(typeof syncRouteWithState==='function') syncRouteWithState();
 
-  const app=document.getElementById('app');app.innerHTML='';
+  const app=document.getElementById('app');
+
+  // FIX: como render() reconstruye TODO el DOM desde cero en cada llamada
+  // (app.innerHTML=''), cualquier <input> pierde el foco en cuanto escribes
+  // una letra — oninput llama a render(), que destruye el input y crea uno
+  // nuevo, así que el navegador ya no tiene nada enfocado (el buscador de
+  // tierlists obligaba a hacer clic en cada letra). Para arreglarlo sin
+  // reescribir todo el motor de render a un virtual-dom: antes de destruir
+  // el DOM, guardamos qué campo estaba enfocado (por su atributo
+  // data-focus-key, que hay que poner en cualquier <input>/<textarea> cuyo
+  // oninput dispare un render) y su posición del cursor; después de
+  // reconstruir, buscamos un elemento con la MISMA data-focus-key y le
+  // devolvemos el foco y la posición del cursor exactos.
+  let __focusKey=null,__focusSelStart=null,__focusSelEnd=null;
+  const __active=document.activeElement;
+  if(__active && __active.dataset && __active.dataset.focusKey){
+    __focusKey=__active.dataset.focusKey;
+    try{__focusSelStart=__active.selectionStart;__focusSelEnd=__active.selectionEnd;}catch(e){}
+  }
+
+  app.innerHTML='';
 
   // Forzar el fondo siempre en todas las pantallas
   document.body.classList.add('bg-main');
@@ -26,6 +46,17 @@ function render(){
   else if(S.page==='editor')main.appendChild(Editor());
   app.appendChild(main);
   const mo=ModalEl();if(mo)app.appendChild(mo);
+
+  // Devolver el foco (ver el FIX explicado arriba)
+  if(__focusKey){
+    const el=app.querySelector(`[data-focus-key="${__focusKey}"]`);
+    if(el){
+      el.focus();
+      if(__focusSelStart!=null && el.setSelectionRange){
+        try{el.setSelectionRange(__focusSelStart,__focusSelEnd);}catch(e){}
+      }
+    }
+  }
 }
 // === GLOBALS SUPABASE ===
 let userSession = null;

@@ -9,7 +9,13 @@ function openEditor(tlid){
   S.cid=tlid;
   S.workingTL=JSON.parse(JSON.stringify(tl)); // deep copy
   S.hasUnsaved=false;
-  S.workingRankingId=null;S.workingIsForeignCollab=false;S.workingIsCollaborative=false;
+  // FIX (parpadeo del botón de guardar): en vez de arrancar siempre en null/false
+  // y esperar a que syncFromSupabase() responda (lo que hacía que el botón
+  // "Guardar" normal se viera un instante en una tierlist colaborativa, y
+  // viceversa), arrancamos con el último valor conocido en caché (guardado la
+  // última vez que syncFromSupabase resolvió para esta misma tierlist). En
+  // cuanto la red responda se sobreescribe con el dato real de todos modos.
+  S.workingRankingId=tl._rankingId||null;S.workingIsForeignCollab=false;S.workingIsCollaborative=!!tl._isCollaborative;
   S.page='editor';S.q='';S.poolPage=0;S.poolSort='default';S.poolSortDir='asc';
   setRoute('editor',tlid);
   syncFromSupabase();
@@ -169,6 +175,51 @@ async function saveEditorChangesCollab(friendIds){
   }catch(e){
     console.error(e);
     toast('No se pudo compartir la tierlist: '+e.message,'err');
+  }
+  render();
+}
+
+// Abre el selector, pero en modo "gestionar": ya está guardada como
+// colaborativa, así que en vez de crear la fila desde cero, se cargan los
+// colaboradores actuales (para que salgan pre-marcados) y se permite tanto
+// añadir como QUITAR gente.
+async function openManageCollaboratorsPicker(){
+  if(!S.workingRankingId||!sbClient){toast('Guarda primero la tierlist','err');return;}
+  if(S.allUsers.length===0) await fetchAllUsers();
+  let current=[];
+  try{
+    const { data: existing } = await sbClient.from('user_rankings').select('collaborators').eq('id', S.workingRankingId).maybeSingle();
+    current = existing?.collaborators || [];
+  }catch(e){ console.error(e); }
+  S.modal='collab-save';
+  S.md={ selected:new Set(current), manage:true, _prevCollaborators:current };
+  render();
+}
+
+// Guarda la lista de colaboradores TAL CUAL se ha dejado en el modal
+// (reemplaza, no fusiona) — así quitar a alguien de verdad le retira el
+// acceso: al dejar de estar en "collaborators" (y no ser el dueño), esa
+// tierlist deja de aparecerle en su lista, como si nunca la hubiera tocado.
+async function saveManagedCollaborators(friendIds){
+  if(!S.workingRankingId||!sbClient)return;
+  const prev = S.md?._prevCollaborators || [];
+  try{
+    await sbClient.from('user_rankings').update({ collaborators: friendIds }).eq('id', S.workingRankingId);
+    const added = friendIds.filter(id=>!prev.includes(id));
+    if(added.length){
+      await Promise.all(added.map(fid=>sbClient.from('notifications').insert({
+        user_id: fid,
+        actor_id: userSession.user.id,
+        type: 'collab_invite',
+        tierlist_id: S.cid,
+        message: `${currentUserProfile?.name || 'Alguien'} te ha invitado a editar "${S.workingTL?.title||''}" en conjunto`
+      })));
+    }
+    S.modal=null;
+    toast('✓ Colaboradores actualizados','ok');
+  }catch(e){
+    console.error(e);
+    toast('No se pudo actualizar: '+e.message,'err');
   }
   render();
 }

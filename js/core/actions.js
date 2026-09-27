@@ -90,7 +90,7 @@ async function deleteBucketFolder(bucketFolder, tierlistId) {
   }
 }
 // Abre el selector de archivos del sistema y, al elegir una imagen, la
-// recorta/redimensiona a un formato de portada horizontal (500x220, el
+// recorta/redimensiona a un formato de portada horizontal (420x200, el
 // mismo formato de las tarjetas anchas de "Mis Tierlists") y la sube al
 // bucket de Storage que ya usa el resto de la app, sin tocar el ranking.
 function pickTierlistCover(tlId){
@@ -101,7 +101,7 @@ function pickTierlistCover(tlId){
     if(!file)return;
     if(!userSession||!sbClient){toast('Inicia sesión para poner una portada','err');return;}
     try{
-      const blob = await resizeImageToCover(file, 500, 220);
+      const blob = await resizeImageToCover(file, 420, 200);
       const path = `covers/${tlId}_${Date.now()}.jpg`;
       toast('Subiendo portada...', 'info');
       const { error: upErr } = await sbClient.storage.from('tierlists').upload(path, blob);

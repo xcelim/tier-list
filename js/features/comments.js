@@ -77,8 +77,9 @@ function CommentsSection(rankingId, ownerUserId) {
     list.forEach(c => {
       const mine = userSession && c.user_id === userSession.user.id;
       const item = h('div', { class: 'comment-item' });
+      const cFrame = typeof frameClassFor==='function' ? frameClassFor(c.author) : '';
       item.appendChild(h('img', {
-        class: 'comment-avatar',
+        class: 'comment-avatar' + (cFrame?(' '+cFrame):''),
         src: c.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.author?.name || '?')}`
       }));
       const body = h('div', { class: 'comment-body' });

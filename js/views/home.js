@@ -73,6 +73,93 @@ function Home(){
   return w;
 }
 
+// ============ TARJETAS DE TIERLIST COMPARTIDAS ============
+// Se usa exactamente esta misma tarjeta "ancha" (portada + info) tanto en
+// "Mis Tierlists" como en el perfil propio y el de un amigo, para que sean
+// idénticas en todas partes (mismo tamaño, misma foto de portada).
+function buildTlWideCard(tl, opts) {
+  opts = opts || {};
+  const card = h('div', { class: 'tlc tlc-rich tlc-wide', onclick: opts.onclick });
+
+  let coverId = null;
+  for (const t of (tl.tiers || [])) { if (t.chars && t.chars.length) { coverId = t.chars[0]; break; } }
+  if (!coverId && (tl.pool || []).length) coverId = tl.pool[0];
+  const cover = h('div', { class: 'tlc-cover' });
+  if (tl.cover_url) {
+    cover.style.backgroundImage = `url('${tl.cover_url}')`;
+  } else if (coverId) {
+    try { cover.style.backgroundImage = `url('${charImg(coverId, tl)}')`; } catch (e) {}
+  } else {
+    cover.classList.add('tlc-cover-empty');
+    cover.appendChild(h('i', { class: 'ti ti-stack-2' }));
+  }
+  if (opts.editable) {
+    cover.appendChild(h('button', {
+      class: 'tlc-cover-btn', title: 'Cambiar portada',
+      onclick: (e) => { e.stopPropagation(); pickTierlistCover(tl.id); }
+    }, h('i', { class: 'ti ti-camera' })));
+  }
+  card.appendChild(cover);
+
+  const body = h('div', { class: 'tlc-body' });
+  if (opts.editable && opts.profile && opts.profile.is_admin) {
+    const ca = h('div', { class: 'tlca' });
+    ca.appendChild(h('button', { class: 'btn bg bsm', onclick: (e) => { e.stopPropagation(); dupTL(tl.id); }, title: 'Duplicar' }, '⧇'));
+    ca.appendChild(h('button', { class: 'btn bd bsm', onclick: (e) => { e.stopPropagation(); delTL(tl.id); }, title: 'Eliminar' }, '✕'));
+    body.appendChild(ca);
+  }
+  body.appendChild(h('h3', {}, tl.title || 'Sin título'));
+  const tot = (tl.tiers || []).reduce((a, t) => a + (t.chars || []).length, 0) + (tl.pool || []).length;
+  body.appendChild(h('div', { class: 'meta' },
+    h('span', {}, h('i', { class: 'ti ti-layout-rows' }), ' ' + (tl.tiers || []).length + ' tiers'),
+    h('span', {}, h('i', { class: 'ti ti-users' }), ' ' + tot + ' chars')
+  ));
+  if (tl.updatedAt) {
+    body.appendChild(h('div', { class: 'tlc-updated' }, 'Actualizada ' + timeAgo(new Date(tl.updatedAt).toISOString())));
+  }
+  card.appendChild(body);
+  return card;
+}
+
+// Círculo de avatar grande (100px) con su marco equipado, reutilizado en la
+// cabecera del perfil propio y del de un amigo, para que ambas pantallas
+// se vean exactamente igual.
+function avatarRingBig(person, sizePx) {
+  sizePx = sizePx || 100;
+  const ring = h('div', { class: 'avatar-ring' + (typeof frameClassFor === 'function' ? ' ' + frameClassFor(person) : '') });
+  ring.appendChild(h('img', {
+    src: (person && person.avatar_url) || `https://api.dicebear.com/7.x/initials/svg?seed=${(person && person.name) || '?'}`,
+    style: { width: sizePx + 'px', height: sizePx + 'px', borderRadius: '50%', objectFit: 'cover' }
+  }));
+  return ring;
+}
+
+// Barra de paginación numerada. Devuelve null si no hace falta (todo cabe
+// en una sola página) para que, tal y como se pidió, los números de
+// página no aparezcan si no hay suficiente contenido para más de una.
+function buildPagination(totalItems, pageSize, curPage, onChange) {
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  if (totalPages <= 1) return null;
+  const bar = h('div', { class: 'tl-pagination' });
+  bar.appendChild(h('button', {
+    class: 'tl-page-btn tl-page-arrow', disabled: curPage === 0,
+    onclick: () => onChange(Math.max(0, curPage - 1))
+  }, h('i', { class: 'ti ti-chevron-left' })));
+  for (let i = 0; i < totalPages; i++) {
+    bar.appendChild(h('button', {
+      class: 'tl-page-btn' + (i === curPage ? ' active' : ''),
+      onclick: () => onChange(i)
+    }, (i + 1) + ''));
+  }
+  bar.appendChild(h('button', {
+    class: 'tl-page-btn tl-page-arrow', disabled: curPage >= totalPages - 1,
+    onclick: () => onChange(Math.min(totalPages - 1, curPage + 1))
+  }, h('i', { class: 'ti ti-chevron-right' })));
+  return bar;
+}
+
+const TL_PAGE_SIZE = 8;
+
 function TierlistsPage() {
   const w=h('div',{class:'tl-page'});
   // Sincronización automática al entrar a la pantalla principal
@@ -100,7 +187,8 @@ function TierlistsPage() {
   swrap.appendChild(h('i', { class: 'ti ti-search' }));
   swrap.appendChild(h('input', {
     class: 'tl-search-input', placeholder: 'Buscar una tierlist...', value: S._tlSearch,
-    oninput: (e) => { S._tlSearch = e.target.value; render(); }
+    'data-focus-key': 'tl-search',
+    oninput: (e) => { S._tlSearch = e.target.value; S._tlPage = 0; render(); }
   }));
   toolbar.appendChild(swrap);
   const sortWrap = h('div', { class: 'tl-sort-wrap' });
@@ -117,7 +205,6 @@ function TierlistsPage() {
   // nuevas; el perfil de otro usuario sigue usando .tlg normal con las
   // tarjetas pequeñas de antes, para no romper esa pantalla)
   const g=h('div',{class:'tlg tlg-wide'});
-  g.appendChild(h('div',{class:'nc',onclick:()=>{S.modal='new-tl';S.md={};render();}},h('div',{class:'plus'},'+'),h('span',{style:{fontSize:'13px'}},'Nueva Tierlist')));
 
   let list = [...allTls];
   if(S._tlSearch.trim()) list = list.filter(tl => (tl.title||'').toLowerCase().includes(S._tlSearch.trim().toLowerCase()));
@@ -127,55 +214,28 @@ function TierlistsPage() {
   else list.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
 
   if(list.length===0 && allTls.length>0){
+    g.appendChild(h('div',{class:'nc',onclick:()=>{S.modal='new-tl';S.md={};render();}},h('div',{class:'plus'},'+'),h('span',{style:{fontSize:'13px'}},'Nueva Tierlist')));
     g.appendChild(h('div', { class:'tl-empty-search' }, `Ninguna tierlist coincide con "${S._tlSearch}".`));
+  } else {
+    // Paginación: página 1 completa, página 2, etc. — sin scroll infinito.
+    // La tarjeta de "Nueva Tierlist" solo se muestra en la primera página.
+    if(!S._tlPage) S._tlPage = 0;
+    const totalPages = Math.max(1, Math.ceil(list.length / TL_PAGE_SIZE));
+    if(S._tlPage >= totalPages) S._tlPage = totalPages - 1;
+    const start = S._tlPage * TL_PAGE_SIZE;
+    const pageItems = list.slice(start, start + TL_PAGE_SIZE);
+
+    if(S._tlPage === 0){
+      g.appendChild(h('div',{class:'nc',onclick:()=>{S.modal='new-tl';S.md={};render();}},h('div',{class:'plus'},'+'),h('span',{style:{fontSize:'13px'}},'Nueva Tierlist')));
+    }
+    pageItems.forEach(tl=>{
+      g.appendChild(buildTlWideCard(tl, { editable:true, profile:p, onclick:()=>{openEditor(tl.id);render();} }));
+    });
+    w.appendChild(g);
+    const pager = buildPagination(list.length, TL_PAGE_SIZE, S._tlPage, (np)=>{ S._tlPage = np; render(); });
+    if(pager) w.appendChild(pager);
+    return w;
   }
-
-  list.forEach(tl=>{
-    // Tarjeta ANCHA horizontal (portada a la izquierda, info a la derecha)
-    // en vez de la tarjeta alta de antes.
-    const card=h('div',{class:'tlc tlc-rich tlc-wide',onclick:()=>{openEditor(tl.id);render();}});
-
-    // Portada: la que haya subido el creador (tl.cover_url) o, si no tiene,
-    // la imagen del primer personaje que encontremos en la tierlist.
-    let coverId = null;
-    for(const t of (tl.tiers||[])){ if(t.chars && t.chars.length){ coverId = t.chars[0]; break; } }
-    if(!coverId && (tl.pool||[]).length) coverId = tl.pool[0];
-    const cover = h('div', { class: 'tlc-cover' });
-    if(tl.cover_url){
-      cover.style.backgroundImage = `url('${tl.cover_url}')`;
-    } else if(coverId){
-      try{ cover.style.backgroundImage = `url('${charImg(coverId, tl)}')`; }catch(e){}
-    } else {
-      cover.classList.add('tlc-cover-empty');
-      cover.appendChild(h('i', { class:'ti ti-stack-2' }));
-    }
-    // Botón para que el creador le ponga/cambie la foto de portada — no
-    // navega al editor (stopPropagation), abre el selector de archivos.
-    cover.appendChild(h('button', {
-      class: 'tlc-cover-btn', title: 'Cambiar portada',
-      onclick: (e) => { e.stopPropagation(); pickTierlistCover(tl.id); }
-    }, h('i', { class: 'ti ti-camera' })));
-    card.appendChild(cover);
-
-    const body = h('div', { class:'tlc-body' });
-    const ca=h('div',{class:'tlca'});
-    if (p.is_admin) {
-      ca.appendChild(h('button',{class:'btn bg bsm',onclick:(e)=>{e.stopPropagation();dupTL(tl.id);},'title':'Duplicar'},'⧇'));
-      ca.appendChild(h('button',{class:'btn bd bsm',onclick:(e)=>{e.stopPropagation();delTL(tl.id);},'title':'Eliminar'},'✕'));
-    }
-    body.appendChild(ca);
-    body.appendChild(h('h3',{},tl.title||'Sin título'));
-    const tot=charCountOf(tl);
-    body.appendChild(h('div',{class:'meta'},
-      h('span',{}, h('i',{class:'ti ti-layout-rows'}), ' '+(tl.tiers||[]).length+' tiers'),
-      h('span',{}, h('i',{class:'ti ti-users'}), ' '+tot+' chars')
-    ));
-    if(tl.updatedAt){
-      body.appendChild(h('div', { class:'tlc-updated' }, 'Actualizada '+timeAgo(new Date(tl.updatedAt).toISOString())));
-    }
-    card.appendChild(body);
-    g.appendChild(card);
-  });
   w.appendChild(g); return w;
 }
 
@@ -220,7 +280,8 @@ function UsersPage() {
       const avWrap = h('div', { class: 'user-avatar-wrap' });
       avWrap.appendChild(h('div', { class: 'user-avatar-ring' }));
       avWrap.appendChild(h('div', { class: 'user-avatar-border' }));
-      const av = h('img', { class: 'user-avatar', src: u.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${u.name}` });
+      const uFrame = typeof frameClassFor==='function' ? frameClassFor(u) : '';
+      const av = h('img', { class: 'user-avatar' + (uFrame?(' '+uFrame):''), src: u.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${u.name}` });
       avWrap.appendChild(av);
       card.appendChild(avWrap);
 
@@ -269,15 +330,11 @@ function UserViewPage() {
   const w = h('div', { class: 'users-page' });
   const hdr = h('div', { class: 'users-page-header' });
 
-  const avWrap = h('div', { class:'avatar-wrap', style:{display:'inline-block'} });
-  const ring = h('div', { class: 'avatar-ring' + (typeof frameClassFor==='function' ? ' '+frameClassFor(u) : '') });
-  ring.appendChild(h('img', {
-    src: u.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${u.name}`,
-    style: {width:'100px', height:'100px', borderRadius:'50%', objectFit:'cover'}
-  }));
-  avWrap.appendChild(ring);
-  hdr.appendChild(avWrap);
+  // El nombre va ARRIBA y la foto debajo (igual en el perfil propio).
   hdr.appendChild(h('h1', { class: 'users-page-title' }, u.name));
+  const avWrap = h('div', { class:'avatar-wrap', style:{display:'inline-block', margin:'8px 0'} });
+  avWrap.appendChild(avatarRingBig(u, 100));
+  hdr.appendChild(avWrap);
   hdr.appendChild(h('p', { class: 'users-page-sub' }, `Perfil de ${u.name}`));
 
   // Pseudo-perfil de solo lectura para reutilizar los mismos cálculos de
@@ -321,20 +378,26 @@ function UserViewPage() {
     h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
   ));
 
-  const grid = h('div', { class: 'tlg' });
+  const grid = h('div', { class: 'tlg tlg-wide' });
   if(u.rankings.length === 0) {
     grid.appendChild(h('div', {style:{gridColumn:'1/-1', textAlign:'center', padding:'40px', color:'var(--text3)'}}, 'Este usuario aún no ha guardado ningún ranking.'));
+    w.appendChild(grid);
   } else {
-    u.rankings.forEach(r => {
-      const tl = r.tierlists || { title: 'Tierlist desconocida' };
-      const n = (r.tiers_data||[]).reduce((a,t)=>a+(t.chars||[]).length,0);
-      const card = h('div', { class: 'tlc', onclick: () => openViewer(r) });
-      card.appendChild(h('h3', {}, tl.title));
-      card.appendChild(h('div', { class: 'meta' }, h('span', {}, `${n} personajes`), h('span', {}, 'Ver ranking →')));
-      grid.appendChild(card);
+    if(!S._uvPage) S._uvPage = 0;
+    const totalPages = Math.max(1, Math.ceil(u.rankings.length / TL_PAGE_SIZE));
+    if(S._uvPage >= totalPages) S._uvPage = totalPages - 1;
+    const start = S._uvPage * TL_PAGE_SIZE;
+    u.rankings.slice(start, start + TL_PAGE_SIZE).forEach(r => {
+      const tlMeta = r.tierlists || { title: 'Tierlist desconocida' };
+      // Mismo objeto "tl-like" que usan las tarjetas de "Mis Tierlists",
+      // para que salgan exactamente iguales (misma portada, mismo tamaño).
+      const tlLike = { title: tlMeta.title, cover_url: tlMeta.cover_url, tiers: r.tiers_data || [], pool: [], updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : null, folder: tlMeta.folder };
+      grid.appendChild(buildTlWideCard(tlLike, { editable:false, onclick:()=>openViewer(r) }));
     });
+    w.appendChild(grid);
+    const pager = buildPagination(u.rankings.length, TL_PAGE_SIZE, S._uvPage, (np)=>{ S._uvPage = np; render(); });
+    if(pager) w.appendChild(pager);
   }
-  w.appendChild(grid);
   return w;
 }
 
@@ -433,141 +496,175 @@ function ProfilePage() {
   // Barra de cambios sin guardar
   if(S.profileUnsaved){
     const cb=h('div',{class:'confirm-bar'});
-    cb.appendChild(h('span',{},'\u26A0\uFE0F Tienes cambios en tu perfil sin guardar'));
-    cb.appendChild(h('button',{class:'btn btn-save',onclick:saveProfileChanges},'\u2713 Guardar cambios'));
+    cb.appendChild(h('span',{},'⚠️ Tienes cambios en tu perfil sin guardar'));
+    cb.appendChild(h('button',{class:'btn btn-save',onclick:saveProfileChanges},'✓ Guardar cambios'));
     cb.appendChild(h('button',{class:'btn bd bsm',onclick:()=>{S.profileDraft=null; S.profileUnsaved=false; render();}},'Descartar'));
     content.appendChild(cb);
   }
 
-  // Header
-  content.appendChild(h('h1', { class: 'page-title' }, 'Perfil', h('span', { class: 'heart-icon' })));
-  content.appendChild(h('p', { class: 'page-subtitle' },
-    h('span', { class: 'diamond-sm' }),
-    'Personaliza tu perfil y gestiona tu cuenta.',
-    h('span', { class: 'diamond-sm' })
-  ));
+  // Botón de modo: por defecto el perfil se ve tal cual lo vería un amigo
+  // (solo lectura); al pulsar "Editar perfil" aparece además todo lo de
+  // personalización (foto, nombre, colores, paleta, marcos, cuenta).
+  const modeRow = h('div', { style:{display:'flex',justifyContent:'center',margin:'0 0 10px'} });
+  modeRow.appendChild(h('button', {
+    class: 'btn ' + (S._profileEditMode ? 'bd' : 'bp'),
+    onclick: () => { S._profileEditMode = !S._profileEditMode; render(); }
+  }, S._profileEditMode ? h('i',{class:'ti ti-eye'}) : h('i',{class:'ti ti-pencil'}),
+     S._profileEditMode ? ' Salir de edición' : ' Editar perfil'));
+  content.appendChild(modeRow);
 
-  // Profile card
-  const card = h('div', { class: 'profile-card' });
-  const top = h('div', { class: 'profile-top' });
+  // Cabecera: el nombre va ARRIBA y la foto debajo, igual que al ver el
+  // perfil de un amigo.
+  content.appendChild(h('h1', { class: 'page-title', style:{textAlign:'center'} }, p.name, h('span', { class: 'heart-icon' })));
 
-  // Avatar
-  const avWrap = h('div', { class: 'avatar-wrap' });
-  const ring = h('div', { class: 'avatar-ring' + (typeof frameClassFor==='function' ? ' '+frameClassFor(p) : '') });
-  const inner = h('div', { class: 'avatar-inner' });
-  inner.appendChild(h('img', {
-    src: p.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${p.name}`,
-    style: { width:'100%', height:'100%', objectFit:'cover' }
-  }));
-  ring.appendChild(inner);
-  avWrap.appendChild(ring);
-  const cameraInput = h('input', { type:'file', hidden:true, accept:'image/*', onchange: async (e) => {
-    const file = e.target.files[0];
-    if (!file) return; 
-    const reader = new FileReader();
-    reader.onload = (ev) => { S.modal = 'crop-avatar'; S.md = { imageSrc: ev.target.result }; render(); };
-    reader.readAsDataURL(file);
-  }});
-  // FIX: el botón de cámara estaba anclado a la esquina del círculo y se
-  // solapaba con la barra de nivel de debajo. Ahora va como una etiqueta
-  // aparte, en su propia línea, sin poder solaparse con nada.
+  const avWrap = h('div', { class: 'avatar-wrap', style:{display:'flex',flexDirection:'column',alignItems:'center',margin:'0 auto 14px'} });
+  if(S._profileEditMode){
+    // En modo edición, el mismo círculo permite cambiar la foto.
+    const ring = h('div', { class: 'avatar-ring' + (typeof frameClassFor==='function' ? ' '+frameClassFor(p) : '') });
+    const inner = h('div', { class: 'avatar-inner' });
+    inner.appendChild(h('img', {
+      src: p.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${p.name}`,
+      style: { width:'100%', height:'100%', objectFit:'cover' }
+    }));
+    ring.appendChild(inner);
+    avWrap.appendChild(ring);
+    const cameraInput = h('input', { type:'file', hidden:true, accept:'image/*', onchange: async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => { S.modal = 'crop-avatar'; S.md = { imageSrc: ev.target.result }; render(); };
+      reader.readAsDataURL(file);
+    }});
+    avWrap.appendChild(h('label', { class: 'camera-btn-inline', style:{marginTop:'6px'} }, h('i', { class: 'ti ti-camera' }), ' Cambiar foto', cameraInput));
+  } else {
+    avWrap.appendChild(avatarRingBig(p, 100));
+  }
+  content.appendChild(avWrap);
+
   if(typeof computeXP==='function' && typeof LevelBadge==='function'){
     const xp = computeXP(typeof ownRealProfile==='function' ? ownRealProfile() : p); const lvl = computeLevel(xp);
-    avWrap.appendChild(LevelBadge(lvl, xp));
+    content.appendChild(h('div', { style:{display:'flex',justifyContent:'center',marginBottom:'14px'} }, LevelBadge(lvl, xp)));
   }
-  avWrap.appendChild(h('label', { class: 'camera-btn-inline' }, h('i', { class: 'ti ti-camera' }), ' Cambiar foto', cameraInput));
-  top.appendChild(avWrap);
 
-  // Campos
-  const right = h('div', { class: 'profile-right' });
-  right.appendChild(h('div', { class: 'field-label' }, 'Nombre de usuario'));
-  const nameInput = h('input', { class: 'field-input', type: 'text', value: p.name });
-  right.appendChild(nameInput);
-  nameInput.oninput = (e) => { p.name = e.target.value; markProfileDirty(); };
-  right.appendChild(h('button', { class: 'save-btn', onclick: saveProfileChanges }, h('i', { class: 'ti ti-device-floppy' }), ' Guardar cambios'));
-  top.appendChild(right);
-  card.appendChild(top);
+  // Todo lo de personalización: SOLO en modo edición.
+  if(S._profileEditMode){
+    const card = h('div', { class: 'profile-card' });
 
-  // Selector de color
-  const colors = [
-    { cls: 'c1', val: '#5b7fe8', label: 'Azul eléctrico' },
-    { cls: 'c2', val: '#9b59f5', label: 'Púrpura' },
-    { cls: 'c3', val: '#60a5fa', label: 'Azul claro' },
-    { cls: 'c4', val: '#22d3ee', label: 'Cian' },
-    { cls: 'c5', val: '#34d399', label: 'Verde' },
-    { cls: 'c6', val: '#fbbf24', label: 'Ámbar' },
-    { cls: 'c7', val: '#f87171', label: 'Coral' }
-  ];
-  const colorsSection = h('div', { class: 'colors-section' });
-  colorsSection.appendChild(h('div', { class: 'colors-label' }, 'Selecciona tu color favorito'));
-  const colorsRow = h('div', { class: 'colors-row' });
-  colors.forEach(c => {
-    const active = (p.color || '').toLowerCase() === c.val.toLowerCase();
-    const dot = h('button', { class: 'color-dot ' + c.cls + (active ? ' active' : ''), 'aria-label': c.label, onclick: (e) => {
-      colorsRow.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
-      e.currentTarget.classList.add('active');
-      p.color = c.val; markProfileDirty();
-    }}, h('i', { class: 'ti ti-check' }));
-    colorsRow.appendChild(dot);
-  });
-  colorsSection.appendChild(colorsRow);
-  card.appendChild(colorsSection);
+    const right = h('div', { class: 'profile-right', style:{width:'100%'} });
+    right.appendChild(h('div', { class: 'field-label' }, 'Nombre de usuario'));
+    const nameInput = h('input', { class: 'field-input', type: 'text', value: p.name });
+    right.appendChild(nameInput);
+    nameInput.oninput = (e) => { p.name = e.target.value; markProfileDirty(); };
+    right.appendChild(h('button', { class: 'save-btn', onclick: saveProfileChanges }, h('i', { class: 'ti ti-device-floppy' }), ' Guardar cambios'));
+    card.appendChild(right);
 
-  // Paleta de la app (personalización general) — cambia el look completo
-  if(typeof ACCENT_PRESETS==='object'){
-    const accentSection = h('div', { class: 'colors-section' });
-    accentSection.appendChild(h('div', { class: 'colors-label' }, '🎨 Paleta de la interfaz'));
-    const accentRow = h('div', { class: 'accent-row' });
-    Object.entries(ACCENT_PRESETS).forEach(([id, preset]) => {
-      const active = currentAccent() === id;
-      accentRow.appendChild(h('button', {
-        class: 'accent-swatch' + (active ? ' active' : ''),
-        style: { background: `linear-gradient(135deg, ${preset.magenta}, ${preset.gold})` },
-        title: preset.name,
-        onclick: () => setAccent(id)
-      }));
+    // Selector de color
+    const colors = [
+      { cls: 'c1', val: '#5b7fe8', label: 'Azul eléctrico' },
+      { cls: 'c2', val: '#9b59f5', label: 'Púrpura' },
+      { cls: 'c3', val: '#60a5fa', label: 'Azul claro' },
+      { cls: 'c4', val: '#22d3ee', label: 'Cian' },
+      { cls: 'c5', val: '#34d399', label: 'Verde' },
+      { cls: 'c6', val: '#fbbf24', label: 'Ámbar' },
+      { cls: 'c7', val: '#f87171', label: 'Coral' }
+    ];
+    const colorsSection = h('div', { class: 'colors-section' });
+    colorsSection.appendChild(h('div', { class: 'colors-label' }, 'Selecciona tu color favorito'));
+    const colorsRow = h('div', { class: 'colors-row' });
+    colors.forEach(c => {
+      const active = (p.color || '').toLowerCase() === c.val.toLowerCase();
+      const dot = h('button', { class: 'color-dot ' + c.cls + (active ? ' active' : ''), 'aria-label': c.label, onclick: (e) => {
+        colorsRow.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+        p.color = c.val; markProfileDirty();
+      }}, h('i', { class: 'ti ti-check' }));
+      colorsRow.appendChild(dot);
     });
-    accentSection.appendChild(accentRow);
-    card.appendChild(accentSection);
+    colorsSection.appendChild(colorsRow);
+    card.appendChild(colorsSection);
+
+    // Paleta de la app (personalización general) — cambia el look completo
+    if(typeof ACCENT_PRESETS==='object'){
+      const accentSection = h('div', { class: 'colors-section' });
+      accentSection.appendChild(h('div', { class: 'colors-label' }, '🎨 Paleta de la interfaz'));
+      const accentRow = h('div', { class: 'accent-row' });
+      Object.entries(ACCENT_PRESETS).forEach(([id, preset]) => {
+        const active = currentAccent() === id;
+        accentRow.appendChild(h('button', {
+          class: 'accent-swatch' + (active ? ' active' : ''),
+          style: { background: `linear-gradient(135deg, ${preset.magenta}, ${preset.gold})` },
+          title: preset.name,
+          onclick: () => setAccent(id)
+        }));
+      });
+      accentSection.appendChild(accentRow);
+      card.appendChild(accentSection);
+    }
+
+    content.appendChild(card);
+
+    // Marcos de avatar (desbloqueables por nivel)
+    if(typeof AvatarFramePicker==='function' && typeof computeXP==='function'){
+      const xp2 = computeXP(typeof ownRealProfile==='function' ? ownRealProfile() : p); const lvl2 = computeLevel(xp2);
+      content.appendChild(AvatarFramePicker(p, lvl2));
+    }
+
+    // Acciones de cuenta
+    const actionRow = h('div', { class: 'action-row' });
+    actionRow.appendChild(h('button', { class: 'logout-btn', onclick: handleLogout }, h('i', { class: 'ti ti-logout' }), ' Cerrar sesión'));
+    actionRow.appendChild(h('button', { class: 'delete-btn', onclick: handleDeleteAccount }, h('i', { class: 'ti ti-trash' }), ' Eliminar cuenta'));
+    content.appendChild(actionRow);
+
+    content.appendChild(h('div', { class: 'divider-row' },
+      h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
+    ));
   }
 
-  content.appendChild(card);
+  // A partir de aquí, contenido de solo lectura (idéntico a ver el perfil
+  // de un amigo): estadísticas, logros y tus tierlists — SIEMPRE visible,
+  // también en modo edición, tal y como se pidió.
+  if(typeof StatsSection==='function'){
+    const statsWrap = h('div', { style:{maxWidth:'600px', margin:'0 auto'} });
+    statsWrap.appendChild(StatsSection(typeof ownRealProfile==='function' ? ownRealProfile() : p));
+    content.appendChild(statsWrap);
+    content.appendChild(h('div', { class: 'divider-row' },
+      h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
+    ));
+  }
 
-  // Acciones
-  const actionRow = h('div', { class: 'action-row' });
-  actionRow.appendChild(h('button', { class: 'logout-btn', onclick: handleLogout }, h('i', { class: 'ti ti-logout' }), ' Cerrar sesión'));
-  actionRow.appendChild(h('button', { class: 'delete-btn', onclick: handleDeleteAccount }, h('i', { class: 'ti ti-trash' }), ' Eliminar cuenta'));
-  content.appendChild(actionRow);
+  if(typeof AchievementsSection==='function'){
+    const achWrap = h('div', { style:{maxWidth:'900px', margin:'0 auto 10px'} });
+    achWrap.appendChild(AchievementsSection(typeof ownRealProfile==='function' ? ownRealProfile() : p));
+    content.appendChild(achWrap);
+    content.appendChild(h('div', { class: 'divider-row' },
+      h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
+    ));
+  }
 
-  // Divisor
+  // Mis tierlists — mismas tarjetas anchas (con portada) que en "Mis
+  // Tierlists", con paginación si hace falta.
+  content.appendChild(h('h2', { class: 'friends-title', style:{textAlign:'center'} }, 'Mis Tierlists', h('span', { class: 'heart-icon' })));
+  const allTls = p.tls || [];
+  const tlGrid = h('div', { class: 'tlg tlg-wide' });
+  if(allTls.length === 0){
+    tlGrid.appendChild(h('div', { style:{gridColumn:'1/-1', textAlign:'center', padding:'30px', color:'var(--text3)'} }, 'Todavía no has creado ninguna tierlist.'));
+    content.appendChild(tlGrid);
+  } else {
+    if(!S._profTlPage) S._profTlPage = 0;
+    const totalPages = Math.max(1, Math.ceil(allTls.length / TL_PAGE_SIZE));
+    if(S._profTlPage >= totalPages) S._profTlPage = totalPages - 1;
+    const start = S._profTlPage * TL_PAGE_SIZE;
+    allTls.slice(start, start + TL_PAGE_SIZE).forEach(tl => {
+      tlGrid.appendChild(buildTlWideCard(tl, { editable:true, profile:p, onclick:()=>{openEditor(tl.id);render();} }));
+    });
+    content.appendChild(tlGrid);
+    const pager = buildPagination(allTls.length, TL_PAGE_SIZE, S._profTlPage, (np)=>{ S._profTlPage = np; render(); });
+    if(pager) content.appendChild(pager);
+  }
+
   content.appendChild(h('div', { class: 'divider-row' },
     h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
   ));
-
-  // Estadísticas
-  if(typeof StatsSection==='function'){
-    content.appendChild(StatsSection(typeof ownRealProfile==='function' ? ownRealProfile() : p));
-    content.appendChild(h('div', { class: 'divider-row' },
-      h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
-    ));
-  }
-
-  // Logros
-  if(typeof AchievementsSection==='function'){
-    content.appendChild(AchievementsSection(typeof ownRealProfile==='function' ? ownRealProfile() : p));
-    content.appendChild(h('div', { class: 'divider-row' },
-      h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
-    ));
-  }
-
-  // Marcos de avatar (desbloqueables por nivel)
-  if(typeof AvatarFramePicker==='function' && typeof computeXP==='function'){
-    const xp = computeXP(typeof ownRealProfile==='function' ? ownRealProfile() : p); const lvl = computeLevel(xp);
-    content.appendChild(AvatarFramePicker(p, lvl));
-    content.appendChild(h('div', { class: 'divider-row' },
-      h('div', { class: 'div-line' }), h('div', { class: 'div-diamond' }), h('div', { class: 'div-line' })
-    ));
-  }
 
   // Amigos
   content.appendChild(h('h2', { class: 'friends-title' }, 'Amigos', h('span', { class: 'heart-icon' })));
@@ -580,19 +677,20 @@ function ProfilePage() {
     const grid = h('div', { class: 'friends-grid' });
     friends.forEach(f => {
       const fc = h('div', { class: 'user-card', onclick: () => viewUser(f.id) });
-      const avWrap = h('div', { class: 'user-avatar-wrap' });
-      avWrap.appendChild(h('div', { class: 'user-avatar-ring' }));
-      avWrap.appendChild(h('div', { class: 'user-avatar-border' }));
-      const av = h('img', { class: 'user-avatar', src: f.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${f.name}` });
-      avWrap.appendChild(av);
-      fc.appendChild(avWrap);
+      const avWrap2 = h('div', { class: 'user-avatar-wrap' });
+      avWrap2.appendChild(h('div', { class: 'user-avatar-ring' }));
+      avWrap2.appendChild(h('div', { class: 'user-avatar-border' }));
+      const fFrame = typeof frameClassFor==='function' ? frameClassFor(f) : '';
+      const av = h('img', { class: 'user-avatar' + (fFrame?(' '+fFrame):''), src: f.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${f.name}` });
+      avWrap2.appendChild(av);
+      fc.appendChild(avWrap2);
       
       fc.appendChild(h('span', { class: 'user-name' }, f.name));
       fc.appendChild(h('div', { class: 'user-stats' }, `${f.tl_count || 0} tierlists · ${f.friend_count || 0} amigos`));
 
       const btns = h('div', { class: 'friend-btns' });
       btns.appendChild(h('button', { class: 'fb-add', title: 'Ver perfil', onclick: (e) => { e.stopPropagation(); viewUser(f.id); } }, h('i', { class: 'ti ti-eye' })));
-      btns.appendChild(h('button', { class: 'fb-remove', title: 'Eliminar amigo', onclick: (e) => { e.stopPropagation(); removeFriend(f.relId); } }, h('i', { class: 'ti ti-minus' })));
+      if(S._profileEditMode) btns.appendChild(h('button', { class: 'fb-remove', title: 'Eliminar amigo', onclick: (e) => { e.stopPropagation(); removeFriend(f.relId); } }, h('i', { class: 'ti ti-minus' })));
       fc.appendChild(btns);
       grid.appendChild(fc);
     });

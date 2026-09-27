@@ -19,7 +19,11 @@ function Editor(){
     const cb=h('div',{class:'confirm-bar'});
     cb.appendChild(h('span',{},'\u26A0\uFE0F Cambios sin guardar'));
     if(showNormalBtn) cb.appendChild(h('button',{class:'btn btn-save',onclick:()=>confirmAndSaveNormal(neverSaved)},'\u2713 Guardar'));
-    if(showCollabBtn) cb.appendChild(h('button',{class:'btn bg bsm',onclick:()=>confirmAndOpenCollabPicker(neverSaved)},'\u{1F465} Guardar colaborativa'));
+    if(showCollabBtn) cb.appendChild(h('button',{class:'btn bg bsm',onclick:()=>{
+      if(S.workingIsCollaborative && !neverSaved) saveEditorChanges();
+      else confirmAndOpenCollabPicker(neverSaved);
+    }}, S.workingIsCollaborative && !neverSaved ? '\u2713 Guardar' : '\u{1F465} Guardar colaborativa'));
+    if(S.workingIsCollaborative && !neverSaved) cb.appendChild(h('button',{class:'btn bg bsm',title:'A\u00f1adir o quitar colaboradores',onclick:openManageCollaboratorsPicker},'+'));
     cb.appendChild(h('button',{class:'btn bd bsm',onclick:()=>{if(confirm('\xBFDescartar todos los cambios?'))discardChanges();}},'Descartar'));
     w.appendChild(cb);
   }
@@ -40,7 +44,11 @@ function Editor(){
   tb.appendChild(badges);
   const ea=h('div',{class:'eacts'});
   if(showNormalBtn) ea.appendChild(h('button',{class:'btn btn-save',onclick:()=>confirmAndSaveNormal(neverSaved)},'\u2713 Guardar'));
-  if(showCollabBtn) ea.appendChild(h('button',{class:'btn bg',onclick:()=>confirmAndOpenCollabPicker(neverSaved),title:'Compartir esta tierlist con amigos para editarla en conjunto'},'\u{1F465} Colaborativa'));
+  if(showCollabBtn) ea.appendChild(h('button',{class:'btn bg',onclick:()=>{
+    if(S.workingIsCollaborative && !neverSaved) saveEditorChanges();
+    else confirmAndOpenCollabPicker(neverSaved);
+  },title: S.workingIsCollaborative && !neverSaved ? 'Guardar los cambios (compartidos con tus colaboradores)' : 'Compartir esta tierlist con amigos para editarla en conjunto'}, S.workingIsCollaborative && !neverSaved ? '\u2713 Guardar' : '\u{1F465} Colaborativa'));
+  if(S.workingIsCollaborative && !neverSaved) ea.appendChild(h('button',{class:'btn bg bsm',title:'A\u00f1adir o quitar colaboradores',onclick:openManageCollaboratorsPicker},'+'));
   if(S.workingIsCollaborative) badges.appendChild(h('span',{class:'saved-badge',style:{background:'var(--neon-cyan,#3ec6ff)'}},'\u{1F465} Colaborativa'));
   ea.appendChild(h('button',{class:'btn bd',onclick:resetRank},'Reset Rank'));
   ea.appendChild(h('button',{class:'btn bg',onclick:()=>{S.modal='addchar';S.md={};render();}},'+ Waifu'));

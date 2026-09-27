@@ -444,6 +444,95 @@ Esta ronda añade la columna `cover_url` a `tierlists` (para la portada
 personalizada). Sin ella, el botón de cámara de "Mis Tierlists" dará
 error al intentar guardar la portada.
 
+## 🆕 Ronda 8 — perfil como el de un amigo, tarjetas y marcos unificados, colaboradores gestionables
+
+### Sobre el chat, otra vez: la política de `chats` estaba bien, pero esa NO es la única tabla implicada
+
+Tu captura de `pg_policies` para `chats` es correcta (`with_check = true`,
+`roles = {authenticated}`) — eso descarta que el problema esté ahí. Pero
+crear un chat privado en realidad hace **dos** inserts seguidos: uno en
+`chats` (el que comprobaste) y justo después otro en `chat_members`, con
+**dos filas a la vez**: la tuya y la de tu amigo (`openChat`/`createGroup`
+en `js/core/save.js`). Si la política de INSERT de `chat_members` en tu
+proyecto quedó con una condición como `user_id = auth.uid()` (en vez de
+`with_check (true)`, que es lo que trae `supabase-schema.sql`), la fila
+que insertas para TU AMIGO se rechaza por RLS — porque tú no eres
+`auth.uid()` para esa fila — y todo el insert falla en bloque, con el
+mismo mensaje genérico de "row-level security policy", pero en la tabla
+`chat_members`, no en `chats`. Compruébalo con:
+
+```sql
+select policyname, cmd, roles, qual, with_check
+from pg_policies where tablename in ('chat_members','messages');
+```
+
+Si `chat_members` no tiene una política de INSERT con `with_check = true`
+para `authenticated` (llamada "te añades o añades a otros a un chat" en el
+SQL), o si `messages` no tiene su política de INSERT, vuelve a pegar el
+bloque de políticas de chat de `supabase-schema.sql` (líneas del
+`drop policy if exists "miembros ven sus chats"` en adelante) entero, de
+una sola vez, en el SQL Editor.
+
+### Bugs arreglados
+
+- **El nombre iba debajo de la foto en el perfil**: ahora el nombre va
+  ARRIBA y la foto debajo, tanto en tu perfil como al ver el de un amigo.
+- **El buscador de "Mis Tierlists" perdía el foco en cada letra**: como
+  `render()` reconstruye toda la pantalla de cero en cada tecla, el
+  `<input>` se destruía y se creaba uno nuevo sin foco. Se añadió un
+  mecanismo genérico de "recordar qué campo estaba enfocado (y en qué
+  posición del cursor) antes de reconstruir, y devolvérselo después" —
+  reutilizable en cualquier campo futuro con el atributo `data-focus-key`.
+- **El hueco del drag no reaparecía al volver a la posición original**: al
+  arrastrar una carta fuera de su hueco y luego devolver el cursor a ese
+  mismo sitio, una comprobación de más impedía que el hueco se recreara
+  ahí, así que dos cartas parecían "pegadas" y se movían juntas. Se quitó
+  esa comprobación redundante (el resto de la lógica del arrastre ya
+  evitaba las llamadas innecesarias por su cuenta).
+- **El marco de avatar se veía roto**: los marcos (bronce/plata/oro/
+  neón/legendario) se sumaban al degradado azul por defecto que ya trae el
+  círculo grande de Perfil, formando dos anillos superpuestos. Ahora, al
+  equipar un marco, ese fondo por defecto se sustituye por uno limpio (o
+  por el degradado giratorio propio del marco "legendario"), así que solo
+  se ve un anillo.
+- **El marco solo salía en tu propio perfil**: ahora se aplica también al
+  ver el perfil de un amigo, en la lista de Usuarios, en la lista de
+  amigos, en los comentarios y en los avatares del chat.
+- **Parpadeo del botón de guardado al abrir una tierlist ya guardada**: se
+  sabía si era colaborativa o no solo DESPUÉS de que respondiera Supabase,
+  así que por un instante se veía el botón equivocado. Ahora se guarda en
+  caché local (sobre la propia tierlist) el último resultado conocido, y
+  el editor arranca ya con ese dato mientras llega la respuesta real de la
+  red.
+
+### Nuevo
+
+- **El perfil se ve por defecto como el de un amigo**: estadísticas,
+  logros y tus propias tierlists (en las mismas tarjetas anchas con
+  portada que "Mis Tierlists"), en modo solo lectura. Un botón "Editar
+  perfil" arriba muestra además la foto/nombre editables, el selector de
+  color, la paleta de la interfaz, los marcos de avatar y las acciones de
+  cuenta (cerrar sesión / eliminar cuenta) — sin ocultar tus tierlists.
+- **Tarjetas de tierlist idénticas en todas partes**: el perfil propio y
+  el de un amigo usan ahora exactamente la misma tarjeta ancha con
+  portada que "Mis Tierlists" (mismo tamaño, misma foto).
+- **Paginación en vez de scroll infinito**: tanto "Mis Tierlists" como las
+  tierlists del perfil (propio o de un amigo) se dividen en páginas de 8.
+  Si todo cabe en una sola página, los números de página no aparecen.
+- **Gestión de colaboradores**: una vez una tierlist ya está guardada como
+  colaborativa, el botón "Colaborativa" simplemente guarda (como el botón
+  normal) en vez de reabrir el selector de amigos. Al lado aparece un
+  botón "+" que abre un selector con los colaboradores actuales ya
+  marcados, para añadir o quitar gente; si quitas a alguien y guardas,
+  esa persona deja de tener acceso y la tierlist desaparece de su lista
+  como si nunca la hubiera tocado.
+
+### ⚠️ Vuelve a ejecutar el bloque de políticas de chat de `supabase-schema.sql`
+
+Solo si sigues viendo el error de RLS en el chat — pega de nuevo, entero y
+de una vez, el bloque de políticas de `chats`/`chat_members`/`messages`
+(ver el apartado de arriba). Esta ronda no añade columnas nuevas.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,
