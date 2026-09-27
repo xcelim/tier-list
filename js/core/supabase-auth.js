@@ -149,16 +149,15 @@ initSupabase();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 })();
 
-  sbClient.auth.onAuthStateChange(async (ev, session) => {
-    if (session) {
-      handleAuthSession(session);
-      setupRealtimeListeners();
-    } else {
-      // ... tu código de limpieza de sesión actual ...
-      userSession = null;
-      render();
-    }
-  });
+// FIX: aquí había una SEGUNDA llamada a sbClient.auth.onAuthStateChange(...)
+// duplicada (idéntica a la de dentro de initSupabase(), línea ~111) suelta
+// a nivel superior del archivo. Registrar el mismo listener dos veces hace
+// que cada evento de login/logout dispare handleAuthSession(...) y
+// setupRealtimeListeners() DOS VECES seguidas (duplicando subscripciones
+// realtime y carreras de estado), y si este archivo llegaba a ejecutarse
+// antes de que sbClient existiera, esta línea suelta lanzaba un error y
+// cortaba el resto del script. Se quita por completo: el listener de
+// dentro de initSupabase() ya cubre exactamente lo mismo.
 
 // Escucha en tiempo real las solicitudes de amistad entrantes para
 // refrescar la campanita de notificaciones sin que el usuario tenga que

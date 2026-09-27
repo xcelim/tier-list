@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v12'; // v12: tarjetas de tierlist más estrechas/altas con borde degradado, distintivo de colaborativa + contador real de tiers/personajes, botón de modo observador en tarjetas y editor con botón de vuelta a edición, seleccionar varias waifus para poner nombre/anime a todas de golpe al añadir varias, refresco de plantillas también en el perfil (para que una colaborativa recién compartida aparezca sin pasar por Mis Tierlists), reintento de sesión caducada antes de crear un chat
+const CACHE_NAME = 'at-v13'; // v13: quitado un listener de sesión duplicado (onAuthStateChange registrado dos veces) que podía causar carreras de estado con Realtime; añadido diagnóstico automático en consola (debugAuthContext) justo antes de crear un chat o grupo, para averiguar por qué seguía saliendo el error de RLS en "chats" aunque la política en Supabase está confirmada correcta
 const ASSETS = [
   './',
   './index.html',

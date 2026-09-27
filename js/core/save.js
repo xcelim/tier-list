@@ -302,6 +302,30 @@ async function ensureFreshSession() {
   } catch (e) { console.error('[ensureFreshSession]', e); return false; }
 }
 
+// DIAGNÓSTICO temporal para el error de RLS en "chats": la política en
+// Supabase está confirmada correcta (with_check=true, roles={authenticated}),
+// así que si el insert sigue fallando, lo único que queda por comprobar es
+// si la petición REALMENTE viaja como rol "authenticated" — es decir, qué
+// dice el propio token de la sesión. Esto se imprime en la consola del
+// navegador (F12 → Consola) justo antes de crear un chat.
+async function debugAuthContext(label){
+  try{
+    const { data: { session } } = await sbClient.auth.getSession();
+    if(!session){ console.warn('[chat-debug]', label, '— NO HAY SESIÓN (auth.getSession() devolvió null)'); return; }
+    let roleClaim = null, expLeft = null;
+    try{
+      const payload = JSON.parse(atob(session.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+      roleClaim = payload.role;
+      expLeft = Math.round(payload.exp - Date.now()/1000) + 's';
+    }catch(e){}
+    console.log('[chat-debug]', label, {
+      user_id: session.user?.id,
+      role_claim_en_el_token: roleClaim,   // esto DEBE decir "authenticated" — si dice "anon" o null, ahí está el problema
+      token_caduca_en: expLeft
+    });
+  }catch(e){ console.error('[chat-debug] error leyendo la sesión:', e); }
+}
+
 async function openChat(chat) {
   if (chat.is_temp) {
     if (!(await ensureFreshSession())) {
@@ -309,6 +333,7 @@ async function openChat(chat) {
       return;
     }
     // Crear el chat real en la base de datos al primer contacto
+    await debugAuthContext('antes de crear chat (openChat)');
     const { data: nc, error: chatErr } = await sbClient.from('chats').insert({ is_group: false }).select().single();
     if (chatErr || !nc) {
       const detail = [chatErr?.message, chatErr?.details, chatErr?.hint].filter(Boolean).join(' — ');
@@ -400,6 +425,7 @@ async function createGroup(name, friendIds) {
     return;
   }
 
+  await debugAuthContext('antes de crear chat (createGroup)');
   const { data: chat, error: cErr } = await sbClient.from('chats')
     .insert({ name, is_group: true }).select().single();
 

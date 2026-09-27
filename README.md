@@ -657,6 +657,51 @@ faltaba era que la tierlist se viera y se contara bien en las listas.
   borde con degradado de colores (magenta → oro → cian) a juego con el
   resto de la interfaz.
 
+## 🆕 Ronda 11 — el error de "chats" seguía saliendo tras Ronda 10: diagnóstico a fondo
+
+El aviso de sesión caducada (`ensureFreshSession()`, Ronda 10) no arregló
+el error — seguía saliendo el mismo `new row violates row-level security
+policy for table "chats"`. Revisando la política en Supabase directamente
+(con una consulta a `pg_policies`) se confirmó que la política de INSERT
+en `chats` está perfectamente bien: es `PERMISSIVE`, para el rol
+`authenticated`, con `with_check = true`, y no hay ninguna otra política
+`RESTRICTIVE` que la esté bloqueando por detrás (eso sí rompería el INSERT
+aunque la política "buena" esté bien, porque las restrictivas se combinan
+con Y lógico). Con la base de datos descartada como causa, quedan dos
+posibles explicaciones del lado del cliente:
+
+- **Arreglado: un listener de sesión duplicado.** Había, suelto al final
+  de `supabase-auth.js`, una SEGUNDA llamada a
+  `sbClient.auth.onAuthStateChange(...)` idéntica a la que ya existe
+  dentro de `initSupabase()`. Tenerla dos veces hace que cada login/logout
+  dispare `handleAuthSession(...)` y las suscripciones en tiempo real dos
+  veces seguidas (duplicando canales de Realtime y provocando carreras de
+  estado) — no es descartable que esto interfiriera con que el cliente de
+  Supabase tuviera lista su sesión en el momento exacto de crear el chat.
+  Se ha eliminado por completo, dejando solo el listener de dentro de
+  `initSupabase()`.
+- **Nuevo: diagnóstico directo del token.** Si aun así, tras este arreglo,
+  el error sigue saliendo, lo único que queda por comprobar es si la propia
+  petición viaja realmente como `role: "authenticated"` — es decir, qué
+  dice el token de la sesión en ese preciso instante. Se ha añadido una
+  función `debugAuthContext(...)` que se ejecuta automáticamente justo
+  antes de crear un chat (tanto al escribir a un amigo por primera vez
+  como al crear un grupo) y escribe en la consola del navegador (F12 →
+  pestaña "Consola") una línea `[chat-debug]` con el `user_id`, el valor
+  exacto de `role` que lleva el token (`role_claim_en_el_token` — esto
+  DEBE decir `"authenticated"`; si dice `"anon"` o sale vacío, ahí está el
+  problema real) y cuánto le queda de vida al token (`token_caduca_en`).
+
+**Si el error de "No se pudo abrir el chat" vuelve a salir:** abre las
+herramientas de desarrollador del navegador (F12), pestaña "Consola",
+reproduce la acción de abrir el chat, busca la línea que empieza por
+`[chat-debug]` y copia/pega aquí exactamente lo que ponga en
+`role_claim_en_el_token` y en `token_caduca_en`. Con ese dato ya se puede
+apuntar con precisión a la causa real (por ejemplo, si dijera `"anon"`
+significaría que, pese a verte con la sesión iniciada en la app, el
+cliente de Supabase no está adjuntando tu token de usuario a esa petición
+en concreto — algo muy distinto a un problema de políticas).
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,
