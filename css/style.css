@@ -381,14 +381,15 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 
 /* Base de todas las tarjetas — resplandor base visible */
 .menu-box{width:240px;height:320px;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;cursor:pointer;transition:.35s cubic-bezier(.25,.8,.25,1);position:relative;overflow:hidden;border:2.5px solid var(--card-border);box-shadow:var(--card-glow-base)}
-.menu-box::before{content:'';position:absolute;inset:0;background-image:var(--card-bg);background-size:cover;background-position:center;opacity:.22;transition:.3s}
-.menu-box::after{content:'';position:absolute;inset:0;background:var(--card-gradient);opacity:.88}
-.menu-box::before{content:'';position:absolute;inset:0;background-image:var(--card-bg);background-size:cover;background-position:center;opacity:.32;transition:.3s}
-.menu-box::after{content:'';position:absolute;inset:0;background:var(--card-gradient);opacity:.82}
+/* El icono de fondo y el degradado de color de cada panel ya NO viven en
+   ::before/::after de .menu-box — viven en .mb-bg (ver más abajo, sección
+   "Borde cromático"), para poder dejar un anillo del degradado animado
+   visible alrededor sin que ninguna de las dos capas se tape entre sí. */
+.mb-bg::before{content:'';position:absolute;inset:0;background-image:var(--card-bg);background-size:cover;background-position:center;opacity:.32;transition:.3s}
+.mb-bg::after{content:'';position:absolute;inset:0;background:var(--card-gradient);opacity:.82}
 .menu-box:hover{transform:translateY(-10px) scale(1.03);box-shadow:var(--card-glow-hover)}
-.menu-box:hover::before{opacity:.35}
-.menu-box:hover::before{opacity:.48}
-.menu-box .mb-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:18px}
+.menu-box:hover .mb-bg::before{opacity:.48}
+.menu-box .mb-content{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;gap:18px}
 .menu-box .mb-icon svg{width:28px;height:28px;stroke:rgba(255,255,255,.9);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .menu-box h2{font-size:22px;font-weight:600;font-family:'Cinzel',serif;color:#fff;letter-spacing:.5px}
 
@@ -805,9 +806,9 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 /* --- HERO de la home: cartel gráfico tipo Persona, título 100% sólido y
    garantizado de ver (nada de background-clip:text, que fue justo lo que
    fallaba antes y mostraba el cuadro de color en vez del texto) --- */
-.hh{padding-top:34px;position:relative}
+.hh{padding-top:22px;position:relative}
 .hh h1{
-  font-size:min(11vw,76px)!important;font-weight:900!important;letter-spacing:1px!important;
+  font-size:min(9vw,60px)!important;font-weight:900!important;letter-spacing:1px!important;
   font-family:'Cinzel',serif!important;text-transform:uppercase;
   color:#fff!important;
   background:none!important;background-image:none!important;
@@ -833,7 +834,7 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
   clip-path:polygon(0 18px,18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%);
   border-width:1.5px!important;
 }
-.menu-box::after{mix-blend-mode:normal}
+.mb-bg::after{mix-blend-mode:normal}
 .menu-box:hover{transform:translateY(-12px) scale(1.045) rotate(-.6deg)!important}
 .menu-box h2{font-family:'Cinzel',serif!important;letter-spacing:2px!important;text-transform:uppercase}
 .menu-box{isolation:isolate}
@@ -971,8 +972,8 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 .menu-grid{
   display:flex!important;flex-wrap:nowrap!important;gap:0!important;
   justify-content:stretch!important;
-  height:46vh;min-height:300px;max-height:420px;
-  margin:22px -20px 0!important;
+  height:56vh;min-height:400px;max-height:580px;
+  margin:20px -20px 0!important;
   position:relative;overflow:visible;
 }
 .menu-box{
@@ -987,8 +988,8 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 .menu-box:nth-child(2){z-index:2}
 .menu-box:nth-child(3){z-index:1;clip-path:polygon(32% 0,100% 0,100% 100%,0 100%)}
 .menu-box:hover{flex:1.35 1 0;filter:brightness(1.2) saturate(1.15)}
-.menu-box::before{opacity:.4!important}
-.menu-box:hover::before{opacity:.55!important}
+.mb-bg::before{opacity:.4!important}
+.menu-box:hover .mb-bg::before{opacity:.55!important}
 /* Borde de neón en el filo diagonal, vía un segundo capa detrás */
 .menu-box .mb-content{transform:translateX(0);padding:0 30px}
 .menu-box:nth-child(1) .mb-content{padding-right:60px}
@@ -1080,11 +1081,13 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
    con portada, igual de "vivo" que el resto de la app ya rediseñada.
    ============================================================================ */
 
-.tl-toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:22px 0 6px;max-width:1100px;margin-left:auto;margin-right:auto}
-.tl-search-wrap{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1.5px solid var(--border);border-radius:10px;padding:9px 14px;flex:1;min-width:200px;max-width:360px}
+/* Buscador CENTRADO en su propia fila, filtros de orden DEBAJO también
+   centrados (antes iban uno al lado del otro, pegados a los extremos). */
+.tl-toolbar{display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;margin:22px 0 6px;max-width:1100px;margin-left:auto;margin-right:auto}
+.tl-search-wrap{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1.5px solid var(--border);border-radius:10px;padding:10px 16px;width:100%;max-width:420px}
 .tl-search-wrap i{color:var(--text3);font-size:15px}
-.tl-search-input{background:none;border:none;outline:none;color:var(--text);font-size:13px;width:100%}
-.tl-sort-wrap{display:flex;gap:6px;flex-wrap:wrap}
+.tl-search-input{background:none;border:none;outline:none;color:var(--text);font-size:13px;width:100%;text-align:center}
+.tl-sort-wrap{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 .tl-sort-btn{background:var(--bg2);border:1.5px solid var(--border);color:var(--text3);border-radius:20px;padding:7px 14px;font-size:11.5px;font-weight:700;cursor:pointer;transition:.2s;font-family:'Rajdhani',sans-serif;letter-spacing:.5px}
 .tl-sort-btn:hover{border-color:var(--neon-magenta,var(--accent2));color:var(--text)}
 .tl-sort-btn.active{background:var(--neon-magenta,var(--accent2));border-color:var(--neon-magenta,var(--accent2));color:#fff}
@@ -1092,52 +1095,86 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 
 /* Tarjetas con portada */
 .tlc-rich{padding:0!important;overflow:hidden;display:flex;flex-direction:column}
+
+/* Tarjetas ANCHAS (horizontales) en vez de altas: portada a la izquierda a
+   todo lo alto, info a la derecha — como una tarjeta de tipo "fila", no
+   demasiado alargada (140px de alto es un término medio legible). La
+   rejilla pasa de columnas estrechas (antes: minmax(140px,1fr), pensada
+   para tarjetas verticales) a columnas anchas de 1 o 2 por fila. */
+.tlg-wide{grid-template-columns:repeat(auto-fill,minmax(360px,1fr))}
+.tlc-wide{flex-direction:row!important;height:140px}
+.tlc-wide .tlc-cover{width:180px;height:100%;flex-shrink:0}
+.tlc-wide .tlc-body{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.tlc-wide h3{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tlg-wide .nc{min-height:140px}
+
 .tlc-cover{height:108px;background-size:cover;background-position:center 20%;position:relative;flex-shrink:0}
 .tlc-cover::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(10,10,15,.85) 100%)}
 .tlc-cover-empty{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--bg3),var(--bg4))}
 .tlc-cover-empty i{font-size:28px;color:var(--text3);opacity:.5}
+/* Botón de cámara para poner/cambiar la portada — discreto, aparece con
+   más fuerza al pasar el ratón por encima de la tarjeta. */
+.tlc-cover-btn{
+  position:absolute;bottom:6px;right:6px;z-index:1;
+  width:26px;height:26px;border-radius:50%;border:none;
+  background:rgba(10,10,15,.65);color:#fff;display:flex;align-items:center;
+  justify-content:center;cursor:pointer;opacity:.75;transition:.2s;
+  backdrop-filter:blur(2px);
+}
+.tlc-cover-btn:hover{opacity:1;background:var(--accent2,var(--neon-magenta))}
+.tlc-cover-btn i{font-size:13px}
 .tlc-body{padding:12px 14px 14px;position:relative}
 .tlc-body h3{margin-top:2px}
 .tlc-updated{font-size:9.5px;color:var(--text3);margin-top:6px;opacity:.75}
 .tlc-rich .meta i{font-size:11px;vertical-align:-1px}
+@media (max-width:520px){
+  .tlg-wide{grid-template-columns:1fr}
+  .tlc-wide{height:120px}
+  .tlc-wide .tlc-cover{width:120px}
+}
 
 /* ============================================================================
    MÁS DECORACIÓN EN EL HOME — bordes cromáticos animados en los 3 paneles
    del menú + un par de detalles "épicos" extra.
    ============================================================================ */
 
-/* Borde cromático — mucho más lento (24s, antes eran 5s) y con un aro
-   nítido bien definido en vez de un resplandor difuso genérico. Vive en su
-   propio elemento (.mb-aura, añadido en home.js), pero el intento inicial
-   de "recortar el centro" con un ::after de fondo sólido (inset:3px;
-   background:var(--bg2)) se quedaba TAPADO por .menu-box::after (el
-   degradado de color propio de cada tarjeta, pintado más tarde en el
-   orden de apilamiento porque es el último hijo generado) — el aro nunca
-   llegaba a verse. La técnica correcta, la misma que ya usan
-   .user-avatar-border y .tlc::before en este mismo archivo, es
-   "padding + mask-composite:exclude": se rellena TODO el elemento con el
-   degradado y luego se recorta con una máscara que solo dej ve el grosor
-   del padding, dejando el centro totalmente transparente (no un color de
-   fondo simulado) — así funciona sea cual sea el orden de apilamiento de
-   los hermanos, y no hace falta adivinar el color de fondo detrás. */
+/* Borde cromático — segundo intento con mask-composite:exclude (línea de
+   abajo en el historial) todavía fallaba: esa técnica dibuja un anillo
+   RECTANGULAR (basado en border-radius), pero estos paneles no son un
+   rectángulo redondeado — tienen un recorte diagonal real via
+   "clip-path: polygon(...)" en .menu-box. El propio clip-path del panel
+   recorta TODO lo que hay dentro (incluida la máscara), así que el anillo
+   rectangular desaparecía casi entero justo en los bordes en diagonal,
+   quedando solo un pelín visible en los bordes rectos — por eso "no se
+   notaba" y no eran "bordes completos".
+
+   Solución de verdad — "doble clip-path": .mb-aura ocupa el panel ENTERO
+   con el MISMO clip-path que .menu-box (clip-path:inherit) relleno del
+   degradado cónico girando. Encima, .mb-bg tiene ESE MISMO clip-path pero
+   en una caja más pequeña (inset), así que sus puntos porcentuales del
+   polygon se recalculan sobre un tamaño menor → una versión paralela más
+   pequeña de la MISMA silueta diagonal. El resultado: un anillo que seguro
+   sigue el contorno diagonal completo del panel, sea cual sea su forma. */
 .menu-box{position:relative}
 .mb-aura{
-  position:absolute;inset:0;z-index:2;pointer-events:none;
-  border-radius:inherit;
+  position:absolute;inset:0;z-index:1;pointer-events:none;
+  clip-path:inherit;
   overflow:hidden; /* recorta el degradado gigante que gira dentro */
-  padding:3px;box-sizing:border-box;
-  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
-  -webkit-mask-composite:xor;
-  mask-composite:exclude;
 }
 .mb-aura::before{
   content:'';position:absolute;inset:-60%;
   background:conic-gradient(from 0deg,
     var(--neon-magenta) 0deg, var(--neon-gold) 90deg,
     var(--neon-cyan) 180deg, var(--neon-magenta) 270deg, var(--neon-magenta) 360deg);
-  animation:chromatic-spin 24s linear infinite;
+  animation:chromatic-spin 14s linear infinite;
 }
 @keyframes chromatic-spin{to{transform:rotate(360deg)}}
+/* .mb-bg: la misma silueta, 5px más pequeña por cada lado — deja ver un
+   anillo de 5px de .mb-aura alrededor, siguiendo el contorno diagonal. */
+.mb-bg{
+  position:absolute;inset:5px;z-index:2;
+  clip-path:inherit;
+}
 .menu-box .mb-content{position:relative;z-index:3}
 
 /* Resplandor pulsante extra alrededor del separador con diamante del hero */

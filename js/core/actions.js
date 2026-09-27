@@ -89,6 +89,62 @@ async function deleteBucketFolder(bucketFolder, tierlistId) {
     if (totalDel > 0) toast(`Borrando archivos... ${doneDel}/${totalDel}`, 'info');
   }
 }
+// Abre el selector de archivos del sistema y, al elegir una imagen, la
+// recorta/redimensiona a un formato de portada horizontal (500x220, el
+// mismo formato de las tarjetas anchas de "Mis Tierlists") y la sube al
+// bucket de Storage que ya usa el resto de la app, sin tocar el ranking.
+function pickTierlistCover(tlId){
+  const input=document.createElement('input');
+  input.type='file';input.accept='image/*';
+  input.onchange=async ()=>{
+    const file=input.files && input.files[0];
+    if(!file)return;
+    if(!userSession||!sbClient){toast('Inicia sesión para poner una portada','err');return;}
+    try{
+      const blob = await resizeImageToCover(file, 500, 220);
+      const path = `covers/${tlId}_${Date.now()}.jpg`;
+      toast('Subiendo portada...', 'info');
+      const { error: upErr } = await sbClient.storage.from('tierlists').upload(path, blob);
+      if(upErr) throw upErr;
+      const { data: { publicUrl } } = sbClient.storage.from('tierlists').getPublicUrl(path);
+      const { error: dbErr } = await sbClient.from('tierlists').update({ cover_url: publicUrl }).eq('id', tlId);
+      if(dbErr) throw dbErr;
+      const p=activeProfile();
+      const tl=p&&p.tls.find(t=>t.id===tlId);
+      if(tl) tl.cover_url = publicUrl;
+      saveProfiles();
+      toast('✓ Portada actualizada');
+      render();
+    }catch(e){
+      console.error(e);
+      toast('No se pudo subir la portada: '+e.message,'err');
+    }
+  };
+  input.click();
+}
+// Redimensiona/recorta (cover-fit, como background-size:cover) una imagen
+// a un ancho/alto exactos usando un <canvas>, y la devuelve como blob JPEG
+// listo para subir — así las portadas pesan poco y todas miden igual.
+function resizeImageToCover(file, w, h){
+  return new Promise((resolve, reject)=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      const canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      const ctx=canvas.getContext('2d');
+      const srcRatio=img.width/img.height, dstRatio=w/h;
+      let sx=0,sy=0,sw=img.width,sh=img.height;
+      if(srcRatio>dstRatio){ sw=img.height*dstRatio; sx=(img.width-sw)/2; }
+      else{ sh=img.width/dstRatio; sy=(img.height-sh)/2; }
+      ctx.drawImage(img,sx,sy,sw,sh,0,0,w,h);
+      canvas.toBlob(b=> b?resolve(b):reject(new Error('No se pudo procesar la imagen')), 'image/jpeg', 0.85);
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Imagen inválida'));};
+    img.src=url;
+  });
+}
 async function delTL(id){
   if(!confirm('¿Eliminar esta tierlist para TODOS los usuarios? Esta acción no se puede deshacer.'))return;
   const p=activeProfile();if(!p)return;

@@ -14,7 +14,12 @@ const FRAME_DEFS = [
 ];
 
 function computeXP(p){
-  const achCount = (typeof computeAchievements==='function') ? computeAchievements().filter(a=>a.unlocked).length : 0;
+  // FIX: antes llamaba a computeAchievements() SIN pasarle "p", así que por
+  // dentro usaba siempre activeProfile() (tu perfil local) — al ver el
+  // perfil de un amigo, su nivel se calculaba en realidad con TUS logros,
+  // no los suyos. Ahora se le pasa "p" para que cuente los logros de la
+  // persona correcta en cada caso.
+  const achCount = (typeof computeAchievements==='function') ? computeAchievements(p).filter(a=>a.unlocked).length : 0;
   return (p.tls||[]).length * 15 + totalCharsRanked(p) + achCount * 25;
 }
 

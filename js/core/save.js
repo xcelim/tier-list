@@ -42,6 +42,7 @@ async function fetchGlobalTemplates() {
       p.tls[localIdx].title     = t.title;
       p.tls[localIdx].tiers     = t.tiers_config;
       p.tls[localIdx].folder    = t.folder;
+      p.tls[localIdx].cover_url = t.cover_url;
       p.tls[localIdx].updatedAt = tlData.updatedAt;
       p.tls[localIdx].isRemoteTemplate = true;
     }
@@ -75,10 +76,23 @@ async function syncFromSupabase() {
     S.workingTL.tiers = tlMeta.tiers_config.map(tc => ({ ...tc, chars: [] }));
   }
 
-  // Catálogo dinámico para esta tierlist
+  // Catálogo dinámico para esta tierlist.
+  // FIX: esto antes metía SIEMPRE los ~2050 personajes de AC_BASE (el
+  // catálogo base de "Waifus") en el pool de CUALQUIER tierlist, incluida
+  // una recién creada y vacía — por eso una tierlist nueva aparecía llena
+  // de golpe aunque se hubiera pedido vacía. AC_BASE solo pertenece a la
+  // tierlist por defecto ('waifus_v1'); cualquier otra tierlist empieza
+  // con el catálogo vacío y solo se rellena con los personajes que se le
+  // hayan añadido a ELLA (tabla "characters", filtrada por tierlist_id).
+  // AC (el catálogo de "qué personaje es cada id") sí mantiene siempre la
+  // base completa disponible para look-ups (nombres/imágenes que se puedan
+  // necesitar en otras pantallas), pero "sharedIds" — que es lo que decide
+  // qué aparece en el POOL de ESTA tierlist — solo incluye la base completa
+  // cuando de verdad estamos editando la tierlist por defecto.
+  const isDefaultWaifusTL = (S.cid === 'waifus_v1');
   AC = JSON.parse(JSON.stringify(AC_BASE));
   const sharedIds = new Set();
-  Object.keys(AC_BASE).forEach(id => sharedIds.add(id));
+  if (isDefaultWaifusTL) Object.keys(AC_BASE).forEach(id => sharedIds.add(id));
 
   // 1. Cargar TODOS los personajes compartidos (Paginado para evitar límite de 1000)
   let allChars = [];

@@ -5,12 +5,21 @@ function Editor(){
   const tl=S.workingTL;
   if(!tl)return h('div',{style:{padding:'40px',color:'var(--text3)'}},'Error: sin tierlist activa');
   const w=h('div',{});
+  // \u00BFYa se ha guardado esta tierlist alguna vez? (S.workingRankingId solo
+  // existe si ya hay una fila en Supabase para ella). La PRIMERA vez que
+  // se guarda se elige el tipo (normal o colaborativa) y esa elecci\u00F3n se
+  // queda fija: a partir de ah\u00ED solo se muestra el bot\u00F3n del tipo elegido,
+  // el otro desaparece \u2014 as\u00ED que hay que preguntar antes de confirmar la
+  // primera vez, porque no se puede deshacer desde aqu\u00ED.
+  const neverSaved = !S.workingRankingId;
+  const showNormalBtn = neverSaved || !S.workingIsCollaborative;
+  const showCollabBtn = !!userSession && (neverSaved || S.workingIsCollaborative);
   // Unsaved warning bar
   if(S.hasUnsaved){
     const cb=h('div',{class:'confirm-bar'});
     cb.appendChild(h('span',{},'\u26A0\uFE0F Cambios sin guardar'));
-    cb.appendChild(h('button',{class:'btn btn-save',onclick:saveEditorChanges},'\u2713 Guardar'));
-    cb.appendChild(h('button',{class:'btn bg bsm',onclick:openCollabPicker,title:'Compartir esta tierlist con amigos para editarla en conjunto'},'\u{1F465} Guardar colaborativa'));
+    if(showNormalBtn) cb.appendChild(h('button',{class:'btn btn-save',onclick:()=>confirmAndSaveNormal(neverSaved)},'\u2713 Guardar'));
+    if(showCollabBtn) cb.appendChild(h('button',{class:'btn bg bsm',onclick:()=>confirmAndOpenCollabPicker(neverSaved)},'\u{1F465} Guardar colaborativa'));
     cb.appendChild(h('button',{class:'btn bd bsm',onclick:()=>{if(confirm('\xBFDescartar todos los cambios?'))discardChanges();}},'Descartar'));
     w.appendChild(cb);
   }
@@ -30,8 +39,8 @@ function Editor(){
   if(S.hasUnsaved) badges.appendChild(h('span',{class:'unsaved-badge'},'● Sin guardar'));
   tb.appendChild(badges);
   const ea=h('div',{class:'eacts'});
-  ea.appendChild(h('button',{class:'btn btn-save',onclick:saveEditorChanges},'\u2713 Guardar'));
-  ea.appendChild(h('button',{class:'btn bg',onclick:openCollabPicker,title:'Compartir esta tierlist con amigos para editarla en conjunto'},'\u{1F465} Colaborativa'));
+  if(showNormalBtn) ea.appendChild(h('button',{class:'btn btn-save',onclick:()=>confirmAndSaveNormal(neverSaved)},'\u2713 Guardar'));
+  if(showCollabBtn) ea.appendChild(h('button',{class:'btn bg',onclick:()=>confirmAndOpenCollabPicker(neverSaved),title:'Compartir esta tierlist con amigos para editarla en conjunto'},'\u{1F465} Colaborativa'));
   if(S.workingIsCollaborative) badges.appendChild(h('span',{class:'saved-badge',style:{background:'var(--neon-cyan,#3ec6ff)'}},'\u{1F465} Colaborativa'));
   ea.appendChild(h('button',{class:'btn bd',onclick:resetRank},'Reset Rank'));
   ea.appendChild(h('button',{class:'btn bg',onclick:()=>{S.modal='addchar';S.md={};render();}},'+ Waifu'));

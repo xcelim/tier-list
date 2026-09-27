@@ -20,6 +20,10 @@
 -- ============================================================================
 alter table profiles add column if not exists avatar_frame text default 'none';
 
+-- Portada personalizada de una tierlist (rediseño de "Mis Tierlists" con
+-- tarjetas horizontales — el creador puede subir una foto de portada).
+alter table tierlists add column if not exists cover_url text;
+
 
 -- ============================================================================
 -- 1) CHAT — chats / chat_members / messages

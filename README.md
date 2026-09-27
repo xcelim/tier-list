@@ -358,6 +358,92 @@ viejas de esa tabla, por si ya tenías alguna más restrictiva de antes), y
 añade `user_rankings` a la publicación de Realtime. Sin volver a ejecutar
 esto, el botón "Guardar colaborativa" dará un error de permisos.
 
+## 🆕 Ronda 7 — tierlist nueva vacía de verdad, borde cromático completo, tarjetas anchas con portada, drag afinado y guardado bloqueado
+
+### Bugs arreglados
+
+- **Tierlist nueva con 2050 waifus aunque no se pidiera**: se ha quitado el
+  desplegable "Empezar con..." — una tierlist nueva ahora SIEMPRE se crea
+  vacía. El bug de fondo era más profundo: `syncFromSupabase()` metía
+  siempre el catálogo base de 2050 personajes en el "pool" de CUALQUIER
+  tierlist, no solo en la de Waifus por defecto. Ahora esa base solo se usa
+  para la tierlist con id `waifus_v1`; cualquier otra empieza realmente
+  vacía y solo se llena con lo que le añadas tú.
+- **Pantalla en blanco al ver el perfil de un usuario**: el bug de la ronda
+  pasada — pasar un número (`u.friend_count`) directamente como hijo de un
+  elemento en vez de convertirlo a texto (`+ ''`) hacía que `appendChild`
+  fallara con una excepción, y como el render se corta ahí, la pantalla se
+  quedaba en blanco (con la barra de navegación ya pintada, pero nada más).
+  Se aprovechó también para arreglar un bug relacionado: el nivel/XP de un
+  amigo se calculaba en realidad con TUS logros, no los suyos.
+- **Borde cromático de los paneles del home, otra vez**: el intento con
+  `mask-composite:exclude` de la ronda anterior asumía un rectángulo
+  redondeado, pero estos paneles tienen un recorte diagonal real
+  (`clip-path: polygon(...)`) — el propio recorte se comía el anillo justo
+  en los bordes en diagonal, dejando solo un borde recto casi invisible.
+  Solución nueva: técnica de "doble clip-path" — una capa de fondo
+  (`.mb-aura`) con el degradado girando y el MISMO recorte que el panel, y
+  encima una segunda capa (`.mb-bg`, con el icono y el color del panel) con
+  ese mismo recorte pero un poco más pequeña — el hueco entre las dos deja
+  ver un borde que sigue el contorno diagonal COMPLETO del panel.
+- **Paneles del home demasiado pequeños**: se habían encogido de más al
+  intentar quitar el scroll. Ahora son grandes otra vez (altura del 56% de
+  la pantalla) y se ha compensado quitando aire de la cabecera y el pie
+  para que siga sin haber que hacer scroll.
+- **Drag & drop — las cartas de al lado ya no se mueven "en bloque"**: si
+  movías el ratón rápido, el hueco podía saltar 2 o más posiciones de golpe
+  en un solo fotograma, así que las cartas de en medio se desplazaban todas
+  a la vez sin que se viera el hueco abriéndose entre ellas. Ahora el hueco
+  "viaja" una posición a la vez (cada 90ms), así que en todo momento se ve
+  claramente el espacio abriéndose entre cada dos cartas.
+
+### Nuevo
+
+- **"Mis Tierlists" en tarjetas anchas**: en vez de tarjetas altas, ahora
+  son tarjetas horizontales (portada a la izquierda, info a la derecha).
+  El buscador está centrado en su propia fila y los filtros de orden van
+  debajo, también centrados.
+- **Portada personalizada por tierlist**: botón de cámara sobre la portada
+  de cada tarjeta para subir tu propia foto (se recorta/redimensiona sola
+  a 500×220 y se sube al mismo storage que ya usa la app). Requiere la
+  columna nueva `cover_url` en `tierlists` (ver SQL).
+- **Guardado normal vs. colaborativo, bloqueado tras la primera vez**: al
+  guardar una tierlist por primera vez salen los dos botones y se pregunta
+  con un aviso antes de confirmar (la elección no se puede deshacer desde
+  aquí). A partir de esa primera vez, solo se muestra el botón del tipo
+  elegido — el otro desaparece.
+
+### ⚠️ Sobre el chat: "new row violates row-level security policy for table chats"
+
+Si te sigue saliendo este error después de haber ejecutado el SQL de la
+Ronda 6/7 completo, el código del cliente ya está bien (usa exactamente la
+política que hay en el SQL), así que el problema está en qué política hay
+REALMENTE activa en tu proyecto de Supabase. Antes de nada, comprueba tú
+mismo qué hay activo — pega esto en el SQL Editor de Supabase y mira el
+resultado:
+
+```sql
+select policyname, cmd, roles, qual, with_check
+from pg_policies where tablename = 'chats';
+```
+
+Deberías ver una única política de tipo `INSERT` llamada
+"cualquiera logueado crea chats", con `roles = {authenticated}` y
+`with_check = true`. Si ves más de una política de INSERT, o el
+`with_check` no es `true`, es que queda alguna política vieja o que el SQL
+no se ejecutó entero de una vez (por ejemplo, si se cortó a mitad). Borra
+las que sobren a mano desde Database → Policies, o vuelve a pegar el
+`supabase-schema.sql` completo de arriba a abajo en una sola ejecución.
+Si aun así el problema persiste, prueba a cerrar sesión y volver a entrar
+(un token de sesión caducado o corrupto también puede dar este mismo
+error).
+
+### ⚠️ Vuelve a ejecutar `supabase-schema.sql` (completo, de arriba a abajo)
+
+Esta ronda añade la columna `cover_url` a `tierlists` (para la portada
+personalizada). Sin ella, el botón de cámara de "Mis Tierlists" dará
+error al intentar guardar la portada.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

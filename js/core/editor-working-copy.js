@@ -15,6 +15,24 @@ function openEditor(tlid){
   syncFromSupabase();
 }
 
+// Puertas de confirmación para el primer guardado: la elección entre
+// "normal" y "colaborativa" se queda fija a partir de la primera vez que
+// se guarda (a partir de ahí solo se muestra el botón del tipo elegido),
+// así que antes de esa primera vez se avisa de que es una decisión que no
+// se puede deshacer desde aquí.
+function confirmAndSaveNormal(neverSaved){
+  if(neverSaved){
+    if(!confirm('¿Guardar esta tierlist en modo NORMAL (solo tuya)?\n\nUna vez la guardes así, ya no podrás convertirla en colaborativa después: la opción "Guardar colaborativa" desaparecerá.'))return;
+  }
+  saveEditorChanges();
+}
+function confirmAndOpenCollabPicker(neverSaved){
+  if(neverSaved){
+    if(!confirm('¿Guardar esta tierlist como COLABORATIVA?\n\nElegirás con qué amigos compartirla y, a partir de ahí, esta tierlist será conjunta: la opción de guardarla en modo normal (solo tuya) desaparecerá.'))return;
+  }
+  openCollabPicker();
+}
+
 // Guarda los cambios. Si esta tierlist es colaborativa y la fila es de un
 // amigo (t\u00fa eres colaborador, no due\u00f1o), se ACTUALIZA esa misma fila por su
 // "id" en vez de crear/actualizar tu propia fila \u2014 as\u00ed los cambios de
@@ -52,13 +70,18 @@ async function saveEditorChanges(){
         }).eq('id', S.workingRankingId);
       } else {
         // 2b. Guardamos TU ranking personal con TU estructura (esto lo hace universal en tus dispositivos)
-        await sbClient.from('user_rankings').upsert({
+        const { data: savedRow } = await sbClient.from('user_rankings').upsert({
           user_id: userSession.user.id,
           tierlist_id: S.cid,
           tiers_data: tiersData,
           pool_data: S.workingTL.pool,
           updated_at: new Date()
-        }, { onConflict: 'user_id, tierlist_id' });
+        }, { onConflict: 'user_id, tierlist_id' }).select().maybeSingle();
+        // Guardamos el id de la fila recién creada/actualizada: hace falta
+        // para que, nada más guardar por primera vez (sin necesidad de
+        // salir y volver a entrar al editor), el botón de guardado se
+        // "bloquee" ya en modo normal y "Guardar colaborativa" desaparezca.
+        if (savedRow) { S.workingRankingId = savedRow.id; S.workingIsCollaborative = !!savedRow.is_collaborative; }
       }
 
       S.hasUnsaved=false;

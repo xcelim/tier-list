@@ -54,13 +54,18 @@ function Home(){
       h('h2', {}, item.title),
       sepEl
     );
-    // El borde cromático va en su propio elemento (mb-aura), NO en ::before
-    // ni ::after, porque esas dos capas ya están usadas por el icono de
-    // fondo y por el degradado de color propio de cada panel
-    // (--card-gradient) — reutilizarlas para el borde las pisaba y rompía
-    // el color de fondo de las 3 tarjetas.
+    // Borde cromático: truco de "doble clip-path". .mb-aura ocupa TODO el
+    // panel con el mismo recorte diagonal que .menu-box y se rellena con
+    // un degradado cónico girando; encima, .mb-bg tiene el MISMO recorte
+    // pero un poco más pequeño (inset), y ahí es donde ahora viven el
+    // icono de fondo y el degradado de color propio de cada panel (antes
+    // en ::before/::after de .menu-box). Como .mb-bg es más pequeño, deja
+    // ver un anillo fino de .mb-aura alrededor — un borde de verdad que
+    // sigue la forma diagonal del panel, no un rectángulo que se recorta
+    // a la mitad por las esquinas en ángulo.
     const aura = h('div', { class: 'mb-aura' });
-    menu.appendChild(h('div', { class: `menu-box ${item.cls}`, onclick: () => { S.page = item.id; render(); } }, aura, content));
+    const bg = h('div', { class: 'mb-bg' });
+    menu.appendChild(h('div', { class: `menu-box ${item.cls}`, onclick: () => { S.page = item.id; render(); } }, aura, bg, content));
   });
 
   w.appendChild(menu);
@@ -87,7 +92,7 @@ function TierlistsPage() {
   hdr.appendChild(h('p', { class: 'users-page-sub' }, `${allTls.length} tierlist${allTls.length===1?'':'s'} · ${totalCharsAll} personajes en total`));
   w.appendChild(hdr);
 
-  // --- Barra de búsqueda + orden ---
+  // --- Barra de búsqueda (centrada) + filtros DEBAJO (también centrados) ---
   if(!S._tlSearch) S._tlSearch = '';
   if(!S._tlSort) S._tlSort = 'recent';
   const toolbar = h('div', { class: 'tl-toolbar' });
@@ -108,8 +113,10 @@ function TierlistsPage() {
   toolbar.appendChild(sortWrap);
   w.appendChild(toolbar);
 
-  // --- Rejilla ---
-  const g=h('div',{class:'tlg'});
+  // --- Rejilla --- (tlg-wide: solo aquí se usan las tarjetas anchas
+  // nuevas; el perfil de otro usuario sigue usando .tlg normal con las
+  // tarjetas pequeñas de antes, para no romper esa pantalla)
+  const g=h('div',{class:'tlg tlg-wide'});
   g.appendChild(h('div',{class:'nc',onclick:()=>{S.modal='new-tl';S.md={};render();}},h('div',{class:'plus'},'+'),h('span',{style:{fontSize:'13px'}},'Nueva Tierlist')));
 
   let list = [...allTls];
@@ -124,19 +131,30 @@ function TierlistsPage() {
   }
 
   list.forEach(tl=>{
-    const card=h('div',{class:'tlc tlc-rich',onclick:()=>{openEditor(tl.id);render();}});
+    // Tarjeta ANCHA horizontal (portada a la izquierda, info a la derecha)
+    // en vez de la tarjeta alta de antes.
+    const card=h('div',{class:'tlc tlc-rich tlc-wide',onclick:()=>{openEditor(tl.id);render();}});
 
-    // Portada: la imagen del primer personaje que encontremos en la tierlist
+    // Portada: la que haya subido el creador (tl.cover_url) o, si no tiene,
+    // la imagen del primer personaje que encontremos en la tierlist.
     let coverId = null;
     for(const t of (tl.tiers||[])){ if(t.chars && t.chars.length){ coverId = t.chars[0]; break; } }
     if(!coverId && (tl.pool||[]).length) coverId = tl.pool[0];
     const cover = h('div', { class: 'tlc-cover' });
-    if(coverId){
+    if(tl.cover_url){
+      cover.style.backgroundImage = `url('${tl.cover_url}')`;
+    } else if(coverId){
       try{ cover.style.backgroundImage = `url('${charImg(coverId, tl)}')`; }catch(e){}
     } else {
       cover.classList.add('tlc-cover-empty');
       cover.appendChild(h('i', { class:'ti ti-stack-2' }));
     }
+    // Botón para que el creador le ponga/cambie la foto de portada — no
+    // navega al editor (stopPropagation), abre el selector de archivos.
+    cover.appendChild(h('button', {
+      class: 'tlc-cover-btn', title: 'Cambiar portada',
+      onclick: (e) => { e.stopPropagation(); pickTierlistCover(tl.id); }
+    }, h('i', { class: 'ti ti-camera' })));
     card.appendChild(cover);
 
     const body = h('div', { class:'tlc-body' });
@@ -289,7 +307,7 @@ function UserViewPage() {
     statsWrap.appendChild(StatsSection(pseudoProfile));
     // Amigos no lo calcula StatsSection (es un dato social, no de tierlists),
     // así que se añade aparte, igual que antes.
-    statsWrap.appendChild(h('div', { class:'stats-highlight', style:{textAlign:'center'} }, `Amigos: `, h('strong', {}, u.friend_count ?? 0)));
+    statsWrap.appendChild(h('div', { class:'stats-highlight', style:{textAlign:'center'} }, `Amigos: `, h('strong', {}, (u.friend_count ?? 0) + '')));
     w.appendChild(statsWrap);
   }
 

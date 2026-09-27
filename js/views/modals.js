@@ -353,11 +353,9 @@ function MNewTL(){
   const g2=h('div',{class:'fg'});g2.appendChild(h('label',{},'Carpeta de imágenes'));g2.appendChild(fi);
   g2.appendChild(h('div',{style:{fontSize:'10px',color:'var(--text3)',marginTop:'3px'}},'Crea esta carpeta junto al HTML para fotos propias'));
   m.appendChild(g2);
-  const g3=h('div',{class:'fg'});g3.appendChild(h('label',{},'Empezar con'));
-  const sel=h('select',{});
-  sel.appendChild(h('option',{value:'waifus'},'Tierlist Waifus completa (2050 personajes)'));
-  sel.appendChild(h('option',{value:'empty'},'Vacía'));
-  g3.appendChild(sel);m.appendChild(g3);
+  // Antes había un desplegable para "empezar con la tierlist Waifus
+  // completa (2050 personajes)" o vacía. Se quita a petición: ahora una
+  // tierlist nueva SIEMPRE se crea vacía, solo con título y carpeta.
   const row=h('div',{style:{display:'flex',gap:'8px',marginTop:'14px'}});
   row.appendChild(h('button',{class:'btn bg',style:{flex:'1'},onclick:()=>{S.modal=null;render();}},'Cancelar'));
   const createBtn=h('button',{class:'btn bp',style:{flex:'1'},onclick:()=>{
@@ -368,11 +366,11 @@ function MNewTL(){
     if(isDup){toast('Ya existe una tierlist con ese nombre','err');return;}
     const id=uid();const fl=folder||sanFolder(title);
     const defT=[{id:uid(),label:'S',color:'#e74c3c',chars:[]},{id:uid(),label:'A',color:'#e67e22',chars:[]},{id:uid(),label:'B',color:'#f1c40f',chars:[]},{id:uid(),label:'C',color:'#2ecc71',chars:[]},{id:uid(),label:'D',color:'#3498db',chars:[]},{id:uid(),label:'F',color:'#636e72',chars:[]}];
-    
+
     const newTL = {
       id, title: title.trim(), folder: fl,
-      tiers: sel.value==='waifus' ? JSON.parse(JSON.stringify(DT)) : defT,
-      pool: sel.value==='waifus' ? [...DP] : [],
+      tiers: defT,
+      pool: [],
       customChars: [], createdAt: Date.now(), updatedAt: Date.now(),
       isRemoteTemplate: true  // marcada como global desde el inicio
     };

@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v8'; // v8: borde cromático del home con mask-composite (ya no tapa el color de cada panel), home sin scroll, drag "medir antes de ocultar" reaplicado, chat sin parpadeo reaplicado, stats de "ver perfil de amigo" iguales a las tuyas, tierlists colaborativas en tiempo real
+const CACHE_NAME = 'at-v9'; // v9: nueva tierlist siempre vacía (ya no mete los 2050 base), borde cromático con doble clip-path (sigue el recorte diagonal completo), paneles del home grandes de nuevo, tierlists en tarjetas anchas con portada subible, drag sin que las cartas se muevan en bloque, arreglado el crash al ver el perfil de un usuario, guardado normal/colaborativo bloqueado tras la primera elección
 const ASSETS = [
   './',
   './index.html',

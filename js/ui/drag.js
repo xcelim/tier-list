@@ -6,6 +6,14 @@ let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
 let scrollDir=0,scrollInt=null;
 let _md=false,_mdMoved=false,_mdX=0,_mdY=0,_mdImg='',_lastZoneKey='';
 let _pointerId=null, _lpT=null;
+// "Stepper" del hueco: si el ratón se mueve rápido y el índice de destino
+// salta más de una posición de golpe, en vez de mover 2+ cartas a la vez
+// en un solo fotograma (lo que se ve como si "se movieran juntas" sin
+// separación entre ellas), recorremos el hueco UNA posición a la vez, cada
+// pocos milisegundos, de modo que en cada paso solo se desplaza la carta
+// justo contigua al hueco y se ve claramente el espacio abriéndose entre
+// cada dos cartas según el hueco "viaja" hacia su destino final.
+let _curTid=null,_curIdx=null,_targetTid=null,_targetIdx=null,_stepTimer=null;
 
 function updateScroll(){if(scrollDir!==0)window.scrollBy(0,scrollDir*60);}
 function createFloat(imgSrc){
@@ -42,12 +50,14 @@ function _getDropZone(cx,cy){
  if(!ce)return{type:'tier',tid,idx:0};
  const cards=Array.from(ce.querySelectorAll('.tc:not(.is-dragging)'));
  
- // 1. Si el cursor está directamente sobre el hueco (placeholder), mantenemos la posición para evitar rebotes o bloqueos
+ // 1. Si el cursor está directamente sobre el hueco (placeholder), mantenemos
+ // la posición OBJETIVO (no la posición donde el hueco esté ahora mismo a
+ // medio "viaje" con el stepper) — si no, mientras el ratón está encima del
+ // hueco que todavía se está desplazando paso a paso, esto congelaría el
+ // avance en la posición intermedia actual en vez de dejarlo llegar a su
+ // destino real.
  if(el.id==='drop-ph'||el.closest('#drop-ph')){
- if(_lastZoneKey&&_lastZoneKey.startsWith('tier'+tid)){
- const prevIdx=parseInt(_lastZoneKey.replace('tier'+tid,''),10);
- if(!isNaN(prevIdx))return{type:'tier',tid,idx:prevIdx};
- }
+ if(_targetTid===tid && _targetIdx!=null) return{type:'tier',tid,idx:_targetIdx};
  }
  
  // 2. Si el cursor está sobre una carta real, decidimos si va antes o después según su mitad exacta
@@ -149,6 +159,48 @@ function _updatePlaceholder(zone, preSnapshots){
  });
  }
 }
+function _stopStepper(){ if(_stepTimer){clearInterval(_stepTimer);_stepTimer=null;} }
+function _startStepper(){
+ if(_stepTimer)return; // ya en marcha, dejamos que siga
+ _stepTimer=setInterval(()=>{
+ if(_targetTid===null || _curTid!==_targetTid){_stopStepper();return;}
+ if(_curIdx===_targetIdx){_stopStepper();return;}
+ _curIdx += (_curIdx<_targetIdx?1:-1);
+ const z={type:'tier',tid:_curTid,idx:_curIdx};
+ _lastZoneKey='tier'+_curTid+_curIdx;
+ _updatePlaceholder(z);
+ },90);
+}
+// Punto de entrada único para "pedir" que el hueco vaya a una zona nueva.
+// En vez de saltar directo al índice calculado por la posición del cursor
+// (lo que puede mover 2+ cartas de golpe si el ratón se movió rápido entre
+// dos eventos), guardamos ese índice como "objetivo" y dejamos que
+// _startStepper lo alcance recorriendo una posición a la vez.
+function _requestZone(zone){
+ if(!zone){
+ _targetTid=null;_targetIdx=null;_stopStepper();
+ if(_curTid!==null||_lastZoneKey){_curTid=null;_curIdx=null;_lastZoneKey='';_updatePlaceholder(null);}
+ return;
+ }
+ if(zone.type==='pool'){
+ _targetTid=null;_targetIdx=null;_stopStepper();
+ if(_lastZoneKey!=='pool'){_curTid='pool';_curIdx=null;_lastZoneKey='pool';_updatePlaceholder(zone);}
+ return;
+ }
+ // zone.type==='tier'
+ _targetTid=zone.tid;_targetIdx=zone.idx;
+ if(_curTid!==zone.tid){
+ // Cambiar de fila/tier: no tiene sentido "recorrer" casillas de otra
+ // fila, así que aquí sí saltamos directo a la posición inicial en la
+ // fila nueva, y desde ahí el stepper continúa paso a paso.
+ _curTid=zone.tid;_curIdx=zone.idx;
+ _lastZoneKey='tier'+zone.tid+zone.idx;
+ _updatePlaceholder(zone);
+ return;
+ }
+ if(_curIdx===null)_curIdx=zone.idx;
+ _startStepper();
+}
 function _executeDrop(zone){
  if(!zone||!DG)return;
  const tl=S.workingTL;
@@ -173,6 +225,7 @@ function _executeDrop(zone){
 function _dragCleanup(){
  document.body.style.userSelect='';
  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;_lastZoneKey='';
+ _stopStepper();_curTid=null;_curIdx=null;_targetTid=null;_targetIdx=null;
  removeFloat();lastZone=null;
  const ph=document.getElementById('drop-ph');if(ph)ph.remove();
  document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
@@ -218,6 +271,9 @@ document.addEventListener('pointermove',e=>{
  });
  const initialZone = DS==='pool' ? {type:'pool'} : {type:'tier', tid:DS, idx:DGidx};
  _lastZoneKey = initialZone.type+(initialZone.tid||'')+(initialZone.idx??'');
+ _curTid = DS==='pool' ? 'pool' : DS;
+ _curIdx = DS==='pool' ? null : DGidx;
+ _targetTid = _curTid; _targetIdx = _curIdx;
  _updatePlaceholder(initialZone, preSnapshots);
  // Sin este "return", el mismo evento seguía ejecutándose y volvía a
  // calcular la zona con la posición YA MOVIDA del cursor (la que cruzó el
@@ -227,8 +283,7 @@ document.addEventListener('pointermove',e=>{
  }
  _posFloat(e.clientX,e.clientY);
  const zone=_getDropZone(e.clientX,e.clientY);
- const key=zone?(zone.type+(zone.tid||'')+(zone.idx??'')):'';
- if(key!==_lastZoneKey){_lastZoneKey=key;_updatePlaceholder(zone);}
+ _requestZone(zone);
 });
 
 document.addEventListener('pointerup',e=>{
