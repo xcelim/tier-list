@@ -7,6 +7,46 @@ async function saveProfiles() {
   DB.s('activeProfile', S.activeProfile);
 }
 
+// FIX (Ronda 26 — "no sale ninguna waifu" en el modo Visor sin conexión):
+// las imágenes de los personajes se piden a Supabase Storage según se
+// necesitan (al abrir una tierlist), y el Service Worker solo las guarda en
+// caché la PRIMERA vez que de verdad se piden con conexión — si nunca se
+// habían visto en este dispositivo, sin conexión salen en blanco. Como
+// pidió el usuario ("descarga en el móvil las tierlists de modo observar,
+// no creo que ocupen mucho"), esto se adelanta: mientras haya red, descarga
+// (y mete en la misma caché que usa el Service Worker, "at-char-imgs-v1")
+// la imagen de cada personaje que ya esté colocado en alguna tier de
+// CUALQUIERA de tus propias tierlists — no todo el catálogo/pool entero
+// (eso sí podría ser mucho), solo lo que de verdad puede verse en el modo
+// Visor. Es "best effort" en segundo plano: una imagen que falle no para
+// a las demás, y una imagen que ya esté en caché no se vuelve a pedir.
+async function precacheOwnTierImages(){
+  if (!('caches' in window)) return;
+  try{
+    const p = activeProfile();
+    if(!p) return;
+    const urls = new Set();
+    (p.tls||[]).forEach(tl=>{
+      (tl.tiers||[]).forEach(t=>{
+        (t.chars||[]).forEach(cid=>{
+          const url = charImg(cid, tl);
+          if(url && url.startsWith('http')) urls.add(url);
+        });
+      });
+    });
+    if(!urls.size) return;
+    const cache = await caches.open('at-char-imgs-v1');
+    for(const url of urls){
+      try{
+        const already = await cache.match(url);
+        if(already) continue;
+        const resp = await fetch(url, { mode:'cors' });
+        if(resp && resp.ok) await cache.put(url, resp.clone());
+      }catch(e){ /* una imagen suelta sin red/CORS no debe parar las demás */ }
+    }
+  }catch(e){ console.warn('[precacheOwnTierImages]', e); }
+}
+
 async function fetchGlobalTemplates() {
   let allTemplates = [];
   let from = 0;

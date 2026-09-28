@@ -191,7 +191,11 @@ async function handleAuthSession(session) {
 
     S.profiles = S.profiles.filter(x => x.id === S.activeProfile);
     saveProfiles();
-    fetchGlobalTemplates();
+    // FIX (Ronda 26): tras cargar/sincronizar las tierlists propias con
+    // conexión, adelanta la descarga de sus imágenes para el modo Visor sin
+    // conexión (ver precacheOwnTierImages en save.js) — en segundo plano,
+    // no bloquea nada de lo que sigue.
+    fetchGlobalTemplates().then(() => { if (typeof precacheOwnTierImages === 'function') precacheOwnTierImages(); });
     // Si hay una ruta pendiente (URL con hash al cargar), abrir el editor correspondiente
     await fetchAllUsers(); // Vital para que salgan los amigos en el chat
     fetchChats(); // Cargar chats al iniciar sesión

@@ -1265,6 +1265,34 @@ todos con causa real encontrada y arreglada:
     app vuelve a funcionar con total normalidad — no hay que hacer nada
     manualmente.
 
+## 🆕 Ronda 26 — el modo sin conexión no mostraba ni el nombre del tier ni las waifus
+
+Probando la Ronda 25 en el móvil de verdad, salía "?" en cada tier en vez de
+"S"/"A"/"B"... y ninguna imagen de personaje se veía (huecos en negro). Dos
+bugs distintos, los dos con causa real:
+
+- **"?" en vez del nombre del tier**: al traducir una tierlist propia al
+  formato que espera el Visor, se leía el nombre del tier de un campo que
+  nunca existió (`t.name`) en vez del que de verdad se usa en todas partes
+  del código — al guardar, al subir a Supabase, al sincronizar — que es
+  `t.label`. Con el campo equivocado, siempre salía `undefined` y el "?" de
+  repuesto. Corregido a leer `t.label`.
+- **Ninguna waifu se veía**: las imágenes de los personajes se piden a
+  Supabase Storage cuando hacen falta, y el Service Worker solo las guarda
+  en caché la PRIMERA vez que de verdad se piden con conexión (ver Ronda
+  25). Si nunca se había abierto esa tierlist en concreto con red desde que
+  se implementó esto, sus imágenes sencillamente no estaban en la caché
+  todavía — de ahí el hueco en blanco. Arreglado adelantando el trabajo, tal
+  y como se pidió ("descarga en el móvil las tierlists de modo observar, no
+  creo que ocupen mucho"): mientras haya conexión, justo después de cargar
+  tus tierlists y cada vez que guardas una, la app descarga en segundo plano
+  las imágenes de los personajes que ya tengas colocados en tus propias
+  tierlists (no el catálogo entero, solo lo que de verdad puede verse en el
+  Visor) y las guarda en la misma caché que usa el modo sin conexión. Así,
+  la próxima vez que abras el Visor sin conexión, las imágenes ya están
+  ahí aunque sea la primera vez que ves esa tierlist en modo observador ese
+  día.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

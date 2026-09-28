@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v27'; // v27: modo sin conexion -- "Mis Tierlists" se puede ver en modo Visor (solo lectura) sin internet usando los datos ya guardados en el dispositivo, Usuarios/Perfil/chat/notificaciones se ocultan mientras no haya conexion para evitar fallos (acceder a Perfil a cambiar algo, etc.), aviso "Sin conexion" en la barra de navegacion, y las imagenes de personajes ya vistas una vez se guardan para poder verlas de nuevo sin conexion; ademas: viewer en movil ya no bloquea el scroll al tocar una carta (el touch-action:none del editor se aplicaba tambien sin querer al modo Visor, que no tiene ningun JS de arrastre que lo compense)
+const CACHE_NAME = 'at-v28'; // v28: en modo sin conexion salia "?" en vez de S/A/B/... en cada tier (bug de nombre de campo, tiers usa "label" no "name") y no salia ninguna waifu (las imagenes solo se guardaban en cache la primera vez que se pedian con conexion) -- ahora el nombre del tier sale bien y, mientras haya conexion, se descargan por adelantado las imagenes de los personajes ya colocados en tus propias tierlists para que el modo Visor sin conexion pueda mostrarlas sin haberlas visto antes
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión
