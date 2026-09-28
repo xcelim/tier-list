@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v33'; // v33: el boton "Descargar" ya no vuelve a traer TODAS las imagenes cada vez -- ahora solo descarga las que faltan (un personaje nuevo que hayas colocado) y limpia las que sobren (uno que hayas quitado), saltandose las que no han cambiado; ademas se ve el progreso en pantalla ("Descargando... x/y") mientras dura, no solo un aviso que desaparece
+const CACHE_NAME = 'at-v34'; // v34: el contador de "Descargando... x/y" mostraba el total de personajes de TODA la tierlist (ej. 236) aunque por dentro ya se saltara las que no habian cambiado -- parecia que se descargaba todo de nuevo aunque no fuera asi; ahora se calcula antes cuantas hacen falta de verdad y el contador (y el propio boton) solo muestran esas
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión

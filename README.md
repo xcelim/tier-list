@@ -1405,6 +1405,21 @@ se añade, no se descarga todo de nuevo".
   queda con el mismo contador y deshabilitado), en vez de un solo aviso que
   aparece y desaparece.
 
+## 🆕 Ronda 32 — el contador de "Descargando..." mostraba el total, no lo nuevo
+
+Pedido explícito tras ver "Descargando 236" en una segunda descarga: "se
+siguen descargando todas". Por dentro, la Ronda 31 SÍ se saltaba de verdad
+las imágenes ya en caché (0 peticiones de red de más, verificado) — pero el
+contador de progreso mostraba el TOTAL de personajes de la tierlist entera,
+no cuántos hacía falta traer de verdad, así que en pantalla parecía que se
+estaba descargando todo de nuevo aunque no fuera así.
+
+Arreglado: ahora se comprueba primero, sin descargar nada, cuántas
+imágenes faltan de verdad (comparando con lo que ya hay en caché), y el
+contador — y el propio botón — solo cuentan esas. Si no hace falta traer
+ninguna, avisa directamente de que "ya estaba al día" sin mostrar ningún
+progreso.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

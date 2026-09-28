@@ -100,13 +100,18 @@ async function downloadImagesToCache(urls, force, onProgress){
 // nuevo"): antes se forzaba a volver a traer TODAS las imágenes de la
 // tierlist cada vez, aunque ya estuvieran guardadas de una descarga
 // anterior — lento y de sobra en cuanto la tierlist tiene unos cuantos
-// personajes. Ahora se salta las que ya están en caché (solo se
-// descargan de verdad las que faltan: un personaje nuevo que hayas
-// añadido) y, como ya hacía antes, se limpian al final las que sobren (un
-// personaje que hayas quitado). Se guarda además el progreso en
-// S._downloadProgress mientras dura, para mostrar "Descargando... (x/y)"
-// en pantalla (ver Viewer() en home.js) en vez de un solo aviso que
-// desaparece.
+// personajes. Se guarda además el progreso en S._downloadProgress mientras
+// dura, para mostrar "Descargando... (x/y)" en pantalla (ver Viewer() en
+// home.js) en vez de un solo aviso que desaparece.
+// FIX (Ronda 32 — "me sigue saliendo descargando 236, se siguen
+// descargando todas"): la Ronda 31 SÍ se saltaba de verdad las imágenes ya
+// en caché (nada de red de más), pero el contador de progreso mostraba el
+// TOTAL de personajes de la tierlist entera (236) en vez de cuántas hacía
+// falta traer de verdad — así que, aunque por dentro fuera rápido, en
+// pantalla parecía que se estaba volviendo a descargar todo. Ahora se
+// mira ANTES cuáles ya están en caché (sin descargar nada todavía) y el
+// contador de progreso — y el propio botón — solo cuentan las que de
+// verdad son nuevas.
 async function downloadTierlistForOffline(tlid){
   if (!('caches' in window)) { toast('Tu navegador no soporta guardar tierlists para verlas sin conexión', 'err'); return; }
   const localTl = getTLfromProfile(tlid);
@@ -119,19 +124,34 @@ async function downloadTierlistForOffline(tlid){
   const tlForUrls = { folder, customChars, tiers: tiersSource };
   const urls = collectTierImageUrls([tlForUrls]);
   if(!urls.size){ toast('Esta tierlist todavía no tiene personajes colocados', 'info'); return; }
-  S._downloadProgress = { tlid, done: 0, total: urls.size };
+
+  // Primero comprobamos cuáles YA están en caché, sin descargar nada — así
+  // el contador de progreso solo cuenta las de verdad nuevas, no el total
+  // de la tierlist entera.
+  const cache = await caches.open('at-char-imgs-v1');
+  const missing = [];
+  await Promise.all(Array.from(urls).map(async url => {
+    const already = await cache.match(url);
+    if(!already) missing.push(url);
+  }));
+
+  if(!missing.length){
+    await gcCharImageCache();
+    toast(`✓ "${title}" ya estaba al día (sin cambios que descargar)`, 'ok');
+    return;
+  }
+
+  S._downloadProgress = { tlid, done: 0, total: missing.length };
   render();
   try{
-    const { ok, fail, total, downloaded } = await downloadImagesToCache(urls, false, (done, tot) => {
+    const { fail, downloaded } = await downloadImagesToCache(missing, true, (done, tot) => {
       S._downloadProgress = { tlid, done, total: tot };
       render();
     });
     await gcCharImageCache();
     S._downloadProgress = null;
     if(fail){
-      toast(`Descargado (${ok}/${total}) — ${fail} imagen${fail===1?'':'es'} no se pudo${fail===1?'':'ieron'} traer`, 'info');
-    } else if(downloaded === 0){
-      toast(`✓ "${title}" ya estaba al día (sin cambios que descargar)`, 'ok');
+      toast(`Descargado (${downloaded}/${missing.length}) — ${fail} imagen${fail===1?'':'es'} no se pudo${fail===1?'':'ieron'} traer`, 'info');
     } else {
       toast(`✓ "${title}" lista para verse sin conexión (${downloaded} imagen${downloaded===1?'':'es'} nueva${downloaded===1?'':'s'})`, 'ok');
     }
