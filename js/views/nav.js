@@ -59,30 +59,26 @@ function Nav(){
     const btnContent = p.avatar_url 
       ? h('img', { src: p.avatar_url, style: { width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' } }) 
       : p.name.charAt(0).toUpperCase();
-    const btn = h('div', { class: 'profile-btn active' + (typeof frameClassFor==='function' ? ' '+frameClassFor(p) : ''), style: { background: p.color + '33', color: p.color }, onclick: (e) => { e.stopPropagation(); S.profileMenu = userSession.user.id; S.notifMenu = false; render(); } }, btnContent); // Mantener el perfil
+    // FIX: antes, pulsar el avatar solo abría un menú desplegable (con
+    // "Editar perfil" y "Cerrar sesión" dentro) en vez de llevarte
+    // directamente a tu perfil, que es lo que se espera al pulsar tu propio
+    // icono. Ahora lleva directo a la página de Perfil (que ya tiene su
+    // propio botón de "Cerrar sesión" al final), sin menú intermedio.
+    const btn = h('div', { class: 'profile-btn active' + (typeof frameClassFor==='function' ? ' '+frameClassFor(p) : ''), style: { background: p.color + '33', color: p.color }, title: 'Mi perfil', onclick: (e) => {
+      e.stopPropagation();
+      S.notifMenu = false;
+      if(S.hasUnsaved && !confirm('¿Salir sin guardar cambios?')) return;
+      S.workingTL = null; S.hasUnsaved = false;
+      S.page = 'profile'; setRoute('profile'); render();
+    } }, btnContent);
     nr.appendChild(btn);
   } else {
     nr.appendChild(h('div', { class: 'profile-btn', style: { background: 'var(--bg3)', color: 'var(--text2)' }, onclick: handleGoogleLogin, title: 'Iniciar Sesión con Google' }, '👤'));
   }
   n.appendChild(nr);
 
-  if(S.profileMenu){
-    // FIX: antes, si getProfile() no encontraba el perfil local por
-    // cualquier motivo, el menú no se pintaba y no pasaba NADA visible al
-    // pulsar el avatar. Ahora hay un respaldo con currentUserProfile.
-    const p=getProfile(S.profileMenu) || currentUserProfile;
-    if(p){
-      const pm=h('div',{class:'profile-menu'});
-      pm.appendChild(h('div',{class:'pm-header'},h('div',{class:'pm-name'},p.name),h('div',{class:'pm-sub'},((p.tls||[]).length)+' tierlists')));
-      pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.page='profile'; S.profileMenu=null; render();}},'\u270F Editar perfil'));
-      pm.appendChild(h('div',{class:'pm-item',onclick:()=>{S.profileMenu=null;handleLogout();}},'🚪 Cerrar sesión'));
-      document.addEventListener('click',()=>{S.profileMenu=null;render();},{once:true});
-      n.appendChild(pm);
-    }
-  }
-
   if(userSession && S.notifMenu) {
-    const nm = h('div', { class: 'notif-menu' }, h('div', { class: 'notif-title' }, 'Notificaciones', h('span', {style:{cursor:'pointer'}, onclick:()=>S.notifMenu=false}, '✕')));
+    const nm = h('div', { class: 'notif-menu' }, h('div', { class: 'notif-title' }, 'Notificaciones', h('span', {style:{cursor:'pointer'}, onclick:(e)=>{e.stopPropagation();S.notifMenu=false;render();}}, '✕')));
     if(S.pendingRequests.length === 0) {
       nm.appendChild(h('div', { class: 'notif-empty' }, 'No tienes solicitudes pendientes.'));
     } else {
@@ -115,11 +111,26 @@ function Nav(){
         nm.appendChild(h('button',{class:'btn bg bsm',style:{width:'100%',marginTop:'6px'},onclick:(e)=>{e.stopPropagation();markAllNotificationsRead();}},'Marcar todo como leído'));
       }
     }
-    document.addEventListener('click',()=>{S.notifMenu=false;render();},{once:true});
+    // FIX: antes se registraba un listener nuevo de "click fuera para
+    // cerrar" en CADA render mientras el menú estaba abierto (y como
+    // fetchNotifications()/fetchAppNotifications() también llaman a
+    // render() al terminar, se acumulaban varios listeners de golpe). Con
+    // muchos acumulados, cualquier click DENTRO del propio menú (que
+    // burbujea hasta document) disparaba todos a la vez, así que el botón
+    // en algunos casos "no hacía nada" visible o el menú se comportaba de
+    // forma rara. Ahora solo hay un listener vivo como máximo: se guarda
+    // la referencia y se quita el anterior antes de poner uno nuevo.
+    if (typeof _closeNotifMenuHandler === 'function') {
+      document.removeEventListener('click', _closeNotifMenuHandler);
+    }
+    _closeNotifMenuHandler = () => { S.notifMenu = false; render(); };
+    document.addEventListener('click', _closeNotifMenuHandler, { once: true });
     n.appendChild(nm);
   }
   return n;
 }
+
+let _closeNotifMenuHandler = null;
 
 let isProcessingFriendship = false;
 

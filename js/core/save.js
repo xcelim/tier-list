@@ -334,7 +334,13 @@ async function openChat(chat) {
     }
     // Crear el chat real en la base de datos al primer contacto
     await debugAuthContext('antes de crear chat (openChat)');
-    const { data: nc, error: chatErr } = await sbClient.from('chats').insert({ is_group: false }).select().single();
+    // FIX (Ronda 11, causa real del error de RLS en "chats"): hay que
+    // mandar created_by para que la política de SELECT te deje "ver" la
+    // fila que acabas de insertar (con el .select().single() de aquí abajo)
+    // ANTES de que exista tu fila en chat_members — si no, Postgres
+    // rechaza el propio INSERT con "violates row-level security policy"
+    // al intentar el RETURNING, aunque el INSERT en sí sea válido.
+    const { data: nc, error: chatErr } = await sbClient.from('chats').insert({ is_group: false, created_by: userSession.user.id }).select().single();
     if (chatErr || !nc) {
       const detail = [chatErr?.message, chatErr?.details, chatErr?.hint].filter(Boolean).join(' — ');
       toast("No se pudo abrir el chat: " + (detail || 'error desconocido'), "err");
@@ -427,7 +433,7 @@ async function createGroup(name, friendIds) {
 
   await debugAuthContext('antes de crear chat (createGroup)');
   const { data: chat, error: cErr } = await sbClient.from('chats')
-    .insert({ name, is_group: true }).select().single();
+    .insert({ name, is_group: true, created_by: userSession.user.id }).select().single();
 
   if (cErr || !chat) {
     const detail = [cErr?.message, cErr?.details, cErr?.hint].filter(Boolean).join(' — ');

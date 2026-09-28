@@ -18,6 +18,7 @@ async function handleLogout() {
   isFetchingProfile = false;
   await sbClient.auth.signOut();
   userSession = null;
+  _realtimeListenersReady = false; // por si vuelve a entrar (quizá con otra cuenta) en la misma pestaña
   S.activeProfile = null;
   S.profiles = [];
   S.page = 'home';
@@ -115,6 +116,7 @@ function initSupabase() {
     } else {
       // Mantenemos intacto tu código original de limpieza profunda al cerrar sesión
       userSession = null;
+      _realtimeListenersReady = false;
       currentUserProfile = null;
       S.activeProfile = null;
       S.profiles = [];
@@ -166,8 +168,22 @@ initSupabase();
 // que no existen en el proyecto — nunca llegó a funcionar. Se corrige aquí
 // para usar la tabla real, "friendships", y el sistema de notificaciones
 // que ya existe: fetchNotifications() + S.pendingRequests, en nav.js).
+// FIX: esta función se llama cada vez que hay un evento de auth con sesión
+// (login, refresco de token, o cuando el navegador recupera la conexión al
+// volver a la pestaña — Supabase dispara un evento interno para eso). Antes
+// se creaban canales nuevos cada vez con sbClient.channel('cambios-sociales')
+// / .channel('notificaciones-app'): como el cliente de Supabase reutiliza el
+// canal si ya existe uno con el mismo nombre, la segunda vez que se llamaba
+// intentaba volver a registrar los callbacks sobre un canal que YA estaba
+// suscrito, y eso lanza "cannot add `postgres_changes` callbacks... after
+// `subscribe()`" (visible en la consola cada vez que se cambiaba de pestaña
+// y se volvía). Ahora solo se registran los canales una vez por sesión de
+// página, con una bandera.
+let _realtimeListenersReady = false;
 function setupRealtimeListeners() {
   if (!sbClient || !userSession) return;
+  if (_realtimeListenersReady) return;
+  _realtimeListenersReady = true;
 
   sbClient
     .channel('cambios-sociales')

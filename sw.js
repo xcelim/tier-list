@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v13'; // v13: quitado un listener de sesión duplicado (onAuthStateChange registrado dos veces) que podía causar carreras de estado con Realtime; añadido diagnóstico automático en consola (debugAuthContext) justo antes de crear un chat o grupo, para averiguar por qué seguía saliendo el error de RLS en "chats" aunque la política en Supabase está confirmada correcta
+const CACHE_NAME = 'at-v14'; // v14: causa real del error de RLS en "chats" encontrada y arreglada (created_by + política de SELECT, ver supabase-schema.sql — HAY QUE re-ejecutar el SQL en Supabase), icono de perfil lleva directo al perfil, campana de notificaciones sin acumulación de listeners, quitado error de canales de Realtime duplicados al cambiar de pestaña, avatares de comentarios recortados en círculo de verdad en todos los navegadores
 const ASSETS = [
   './',
   './index.html',

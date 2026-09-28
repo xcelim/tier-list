@@ -702,6 +702,84 @@ significaría que, pese a verte con la sesión iniciada en la app, el
 cliente de Supabase no está adjuntando tu token de usuario a esa petición
 en concreto — algo muy distinto a un problema de políticas).
 
+## 🆕 Ronda 12 — encontrada la causa REAL del error de "chats" (no era ni el token ni la política tal cual estaba escrita)
+
+**Actualización sobre la Ronda 11**: siguiendo el diagnóstico (`debugAuthContext`)
+se confirmó que el token SÍ viajaba como `role: "authenticated"` y con
+tiempo de vida de sobra — así que la sesión nunca fue el problema. Con eso
+descartado, la causa real resultó ser una interacción muy poco intuitiva
+entre Postgres RLS y el `RETURNING` que pide Supabase cuando se usa
+`.select()` después de un `.insert()`:
+
+- El código hacía `sbClient.from('chats').insert({...}).select().single()`.
+  Ese `.select()` le pide a Postgres que devuelva ("RETURNING") la fila
+  recién creada.
+- Con RLS activo, para poder devolver esa fila Postgres exige que también
+  cumpla la política de **SELECT** de la tabla — no solo la de INSERT.
+- La política de SELECT de `chats` era `is_chat_member(id, auth.uid())` —
+  es decir, "solo puedes verlo si ya eres miembro". Pero en ese preciso
+  instante todavía NO eres miembro: la fila de `chat_members` que te
+  convierte en miembro se crea en el paso siguiente, justo después.
+- Resultado: Postgres rechaza la operación entera con el mismo mensaje
+  genérico `new row violates row-level security policy for table "chats"`
+  — que es exactamente el mismo texto que si hubiera fallado el INSERT, así
+  que parecía un problema de política de INSERT cuando en realidad era la
+  política de SELECT actuando sobre el RETURNING.
+
+**Arreglo aplicado** (en `supabase-schema.sql`, sección 1 — hay que
+volver a pegar ese archivo entero en el SQL Editor de Supabase, es
+seguro re-ejecutarlo):
+- Nueva columna `chats.created_by` (el usuario que creó el chat).
+- La política de SELECT ahora es
+  `is_chat_member(id, auth.uid()) OR created_by = auth.uid()` — así el
+  creador puede ver su propio chat recién creado aunque todavía no exista
+  su fila de membresía.
+- La política de INSERT pasa de `with_check (true)` a
+  `with_check (created_by = auth.uid())`, algo más estricta y correcta (ya
+  no basta con estar logueado, tiene que coincidir el creador).
+- El cliente (`js/core/save.js`, en `openChat()` y `createGroup()`) ahora
+  manda `created_by: userSession.user.id` al crear el chat.
+
+**Importante**: para que esto funcione tienes que volver a ejecutar
+`supabase-schema.sql` completo en tu proyecto de Supabase (SQL Editor →
+pegar todo el archivo → Run). Sin la columna `created_by` y la política
+nueva, el error seguirá saliendo exactamente igual.
+
+El diagnóstico (`debugAuthContext`, en consola) se deja tal cual por si
+hiciera falta en el futuro — no molesta ni afecta al rendimiento.
+
+### Otros arreglos de esta ronda
+
+- **El icono de tu perfil (arriba a la derecha) ahora te lleva directo a tu
+  perfil.** Antes solo abría un menú desplegable con "Editar perfil" /
+  "Cerrar sesión"; como la página de Perfil ya tiene su propio botón de
+  "Cerrar sesión" al final, ese menú intermedio sobraba y no era lo que se
+  esperaba al pulsar el icono.
+- **Campana de notificaciones — arreglada una acumulación de eventos que
+  podía dejarla "sin hacer nada".** Cada vez que se abría el menú de
+  notificaciones se registraba un nuevo listener de "click fuera para
+  cerrar", y como las llamadas para traer notificaciones también
+  refrescan la pantalla al terminar, se iban acumulando varios listeners
+  de golpe sin quitar los anteriores; con varios acumulados, un click
+  dentro del propio menú (que sube hasta el documento) los disparaba todos
+  a la vez. Ahora solo queda uno vivo como máximo. De paso, el botón "✕"
+  para cerrar el menú a mano tampoco refrescaba la pantalla (quedaba
+  "cerrado" en el estado pero seguía viéndose) — ya lo hace.
+- **Se ha quitado un error real de la consola**: al cambiar de pestaña y
+  volver, Supabase relanza la comprobación de sesión, y eso disparaba de
+  nuevo `setupRealtimeListeners()`, que intentaba volver a registrar los
+  mismos canales de tiempo real ya suscritos — Supabase lo rechazaba con
+  `cannot add postgres_changes callbacks... after subscribe()` cada vez.
+  Ahora esos canales solo se registran una vez por sesión de página.
+- **Fotos redondas de verdad en los comentarios.** El avatar de cada
+  comentario llevaba el recorte circular (`border-radius`) puesto
+  directamente en la imagen; en algunos navegadores (sobre todo
+  Safari/WebKit) esa combinación no recorta bien y se ven las esquinas
+  cuadradas asomando, más notorio todavía si tienes un marco de color
+  equipado. Ahora la imagen va dentro de un contenedor que sí recorta
+  siempre (el mismo truco que ya se usaba en el círculo grande de Perfil),
+  así que sale perfectamente redonda sin importar el navegador.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

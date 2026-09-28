@@ -105,18 +105,41 @@ as $$
   select exists(select 1 from chat_members where chat_id = p_chat_id and user_id = p_user_id);
 $$;
 
+-- ----------------------------------------------------------------------------
+-- FIX (Ronda 11) — el error real de "new row violates row-level security
+-- policy for table chats" al abrir un chat por primera vez.
+--
+-- La política de INSERT (with_check=true) SIEMPRE fue correcta — por eso el
+-- diagnóstico con pg_policies no encontraba nada raro. El problema real es
+-- otro, más sutil: el código del cliente hace
+--   sbClient.from('chats').insert({...}).select().single()
+-- y ese ".select()" le pide a Postgres el "RETURNING *" de la fila recién
+-- creada. Cuando RLS está activo, Postgres también exige que esa fila
+-- devuelta cumpla la política de SELECT — y la política de SELECT era
+-- "is_chat_member(id, auth.uid())", que en ese preciso instante da FALSE,
+-- porque la fila en chat_members que te convierte en miembro de ese chat
+-- todavía no existe (se crea en el paso SIGUIENTE, justo después). Postgres
+-- entonces rechaza la operación entera con el mismo mensaje genérico de
+-- RLS, aunque la política de INSERT nunca falló.
+--
+-- La solución: guardar quién creó el chat (created_by) y dejar que el
+-- creador también pueda "verse a sí mismo" antes de que exista su fila de
+-- membresía.
+-- ----------------------------------------------------------------------------
+alter table chats add column if not exists created_by uuid references profiles(id);
+
 drop policy if exists "miembros ven sus chats" on chats;
 create policy "miembros ven sus chats" on chats for select
-  using (is_chat_member(id, auth.uid()));
+  using (is_chat_member(id, auth.uid()) or created_by = auth.uid());
 
 drop policy if exists "cualquiera logueado crea chats" on chats;
 create policy "cualquiera logueado crea chats" on chats for insert
   to authenticated
-  with check (true);
+  with check (created_by = auth.uid());
 
 drop policy if exists "miembros actualizan sus chats" on chats;
 create policy "miembros actualizan sus chats" on chats for update
-  using (is_chat_member(id, auth.uid()));
+  using (is_chat_member(id, auth.uid()) or created_by = auth.uid());
 
 drop policy if exists "ves las membresías de tus chats" on chat_members;
 create policy "ves las membresías de tus chats" on chat_members for select

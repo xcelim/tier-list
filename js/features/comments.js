@@ -78,10 +78,15 @@ function CommentsSection(rankingId, ownerUserId) {
       const mine = userSession && c.user_id === userSession.user.id;
       const item = h('div', { class: 'comment-item' });
       const cFrame = typeof frameClassFor==='function' ? frameClassFor(c.author) : '';
-      item.appendChild(h('img', {
-        class: 'comment-avatar' + (cFrame?(' '+cFrame):''),
-        src: c.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.author?.name || '?')}`
-      }));
+      // FIX: la imagen ya no lleva el border-radius directamente (se veía
+      // cortada/cuadrada en algunos navegadores) — ahora va envuelta en un
+      // contenedor con overflow:hidden que recorta de verdad, y el marco de
+      // color (si tiene) se pone en ese contenedor, no en la imagen.
+      item.appendChild(h('div', { class: 'comment-avatar-wrap' + (cFrame?(' '+cFrame):'') },
+        h('img', {
+          src: c.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.author?.name || '?')}`
+        })
+      ));
       const body = h('div', { class: 'comment-body' });
       body.appendChild(h('div', { class: 'comment-head' },
         h('strong', {}, c.author?.name || 'Usuario'),
