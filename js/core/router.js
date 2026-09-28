@@ -14,6 +14,30 @@
 
 // ============ ROUTING (URLs reales vía History API) ============
 
+// FIX (Ronda 16) — BUG REAL ENCONTRADO: el sitio se despliega en GitHub
+// Pages bajo un subdirectorio (https://xcelim.github.io/tier-list/), NO en
+// la raíz del dominio. Pero pathForPage()/getRouteFromPath() de aquí abajo
+// estaban escritas asumiendo que la app vive en la raíz ("/", "/tierlists"…).
+// Como setRoute() se llama automáticamente en CADA render(), la barra de
+// direcciones se reescribía sola a "https://xcelim.github.io/" nada más
+// cargar o navegar dentro de la app — perdiendo el "/tier-list" sin que se
+// notara (sigue pareciendo que la app funciona, porque pushState no recarga
+// la página). El problema salta al pulsar recargar (F5) en esa URL: el
+// navegador SÍ pide esa URL de verdad al servidor, y como
+// "https://xcelim.github.io/" no es ningún repositorio, GitHub Pages
+// responde con su 404 genérico ("There isn't a GitHub Pages site here").
+//
+// BASE_PATH se calcula una sola vez, a partir de la URL con la que se cargó
+// la página de verdad, quitándole cualquier ruta "conocida" de la app para
+// quedarnos solo con el prefijo real del despliegue. Así funciona igual de
+// bien en "/tier-list/" (GitHub Pages) que en la raíz de un dominio propio.
+const BASE_PATH = (function(){
+  let p = location.pathname.replace(/\/index\.html$/,'');
+  p = p.replace(/\/(tierlists|usuarios|ajustes|ver|editor\/[^/]+|usuario\/[^/]+)\/?$/,'');
+  if(!p.endsWith('/')) p += '/';
+  return p;
+})();
+
 // Títulos de pestaña por sección
 const ROUTE_TITLES = {
   home: 'AnimeTier',
@@ -23,17 +47,18 @@ const ROUTE_TITLES = {
   viewer: 'AnimeTier – Modo observador',
 };
 
-// Convierte page (+ un id opcional) en una ruta de URL limpia
+// Convierte page (+ un id opcional) en una ruta de URL limpia, siempre
+// dentro de BASE_PATH (antes devolvía rutas absolutas desde la raíz).
 function pathForPage(page, extra){
   switch(page){
-    case 'home':      return '/';
-    case 'tierlists':  return '/tierlists';
-    case 'users':      return '/usuarios';
-    case 'profile':    return '/ajustes';
-    case 'editor':     return extra ? '/editor/'+encodeURIComponent(extra) : '/tierlists';
-    case 'user-view':  return extra ? '/usuario/'+encodeURIComponent(extra) : '/usuarios';
-    case 'viewer':     return '/ver';
-    default:           return '/';
+    case 'home':      return BASE_PATH;
+    case 'tierlists':  return BASE_PATH + 'tierlists';
+    case 'users':      return BASE_PATH + 'usuarios';
+    case 'profile':    return BASE_PATH + 'ajustes';
+    case 'editor':     return extra ? BASE_PATH + 'editor/' + encodeURIComponent(extra) : BASE_PATH + 'tierlists';
+    case 'user-view':  return extra ? BASE_PATH + 'usuario/' + encodeURIComponent(extra) : BASE_PATH + 'usuarios';
+    case 'viewer':     return BASE_PATH + 'ver';
+    default:           return BASE_PATH;
   }
 }
 
@@ -41,7 +66,9 @@ function pathForPage(page, extra){
 function getRouteFromPath(){
   // Compatibilidad con enlaces antiguos tipo #home / #editor/xxx
   if(location.hash && location.hash.includes('access_token')) return {page:'home',id:null};
-  let path = location.pathname.replace(/\/index\.html$/,'').replace(/\/+$/,'');
+  let path = location.pathname.replace(/\/index\.html$/,'');
+  if(path.startsWith(BASE_PATH)) path = path.slice(BASE_PATH.length);
+  path = path.replace(/^\/+/,'').replace(/\/+$/,'');
   if(!path) return {page:'home',id:null};
   const parts = path.split('/').filter(Boolean);
   if(parts[0]==='tierlists') return {page:'tierlists',id:null};

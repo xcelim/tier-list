@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v17'; // v17: bug real de la campana de notificaciones encontrado y arreglado — el JS estaba bien (confirmado por consola), era el panel .at-alerts-panel con position:absolute dependiendo del <nav> (sticky + backdrop-filter), ahora usa position:fixed con z-index muy alto para que se vea siempre
+const CACHE_NAME = 'at-v18'; // v18: bug real de "al recargar me va a la home / 404" encontrado y arreglado — el router generaba rutas absolutas de dominio raíz ("/", "/tierlists"...) en vez de rutas relativas al subdirectorio real de despliegue ("/tier-list/"), así que cada render() reescribía la URL a la raíz del dominio y un F5 ahí daba 404 de GitHub Pages; ahora usa BASE_PATH calculado dinámicamente, y 404.html usa el truco estándar de redirección de SPA para que las rutas internas también sobrevivan a un F5 o a entrar directo por esa URL
 const ASSETS = [
   './',
   './index.html',

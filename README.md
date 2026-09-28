@@ -888,6 +888,34 @@ como debía. El problema tenía que ser, por tanto, puramente visual.
   14 como causa — las clases ya se habían renombrado y el bug seguía sin
   arreglarse, así que confirmaba que la causa era otra (esta de aquí).
 
+## 🆕 Ronda 16 — al recargar la página se iba a `xcelim.github.io/` y daba 404
+
+- **Causa real**: el router (`js/core/router.js`) generaba rutas absolutas
+  pensadas para vivir en la **raíz** de un dominio (`/`, `/tierlists`,
+  `/ajustes`...), pero el sitio se despliega en GitHub Pages bajo el
+  subdirectorio del repositorio (`https://xcelim.github.io/tier-list/`). Como
+  la URL se sincroniza automáticamente en cada `render()`, la barra de
+  direcciones se reescribía sola a `https://xcelim.github.io/` (perdiendo el
+  `/tier-list`) sin que se notara nada raro, porque cambiar la URL con
+  `history.pushState` no recarga la página. El problema saltaba al pulsar
+  recargar (F5) estando en esa URL: ahí el navegador sí pide esa dirección
+  de verdad al servidor, y como `https://xcelim.github.io/` no es ningún
+  repositorio tuyo, GitHub Pages responde con su 404 genérico ("There isn't
+  a GitHub Pages site here").
+- **Arreglo**: el router ahora calcula un `BASE_PATH` (el prefijo real de
+  despliegue, `/tier-list/`) una sola vez a partir de la URL con la que se
+  cargó la página, y lo usa en todas las rutas que genera y que lee. Ya no
+  depende de estar en la raíz del dominio.
+- **De paso**: `404.html` era una copia manual (y ya desactualizada) de
+  `index.html` con rutas relativas, que además se rompía en rutas internas
+  profundas (p.ej. `/tier-list/editor/abc123`). Se ha sustituido por el
+  truco estándar de "SPA fallback" para GitHub Pages: `404.html` ahora solo
+  redirige al `index.html` real codificando la ruta pedida, e `index.html`
+  la decodifica y restaura antes de arrancar nada. Así el `index.html` que
+  se sirve siempre está al día (mismos ficheros, misma versión de caché) y
+  entrar directo (o recargar) en cualquier ruta interna de la app también
+  funciona.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

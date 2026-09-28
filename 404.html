@@ -2,133 +2,36 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>AnimeTier</title>
-
-<!-- Aplica el tema guardado (claro/oscuro) ANTES de que cargue nada más,
-     para que no haya un parpadeo del tema incorrecto al abrir la página. -->
 <script>
-(function(){
-  try{
-    var t = JSON.parse(localStorage.getItem('at4_theme')||'null') || 'dark';
-    document.documentElement.setAttribute('data-theme', t);
-    var ACCENTS = {
-      persona:  { magenta:'#ff0a2e', cyan:'#ffffff', gold:'#ffcf40' },
-      genshin:  { magenta:'#d4af37', cyan:'#8ec9ff', gold:'#fff2c8' },
-      cyber:    { magenta:'#00e5ff', cyan:'#ff2ea6', gold:'#f0f0f0' },
-      sakura:   { magenta:'#ff6fae', cyan:'#ffffff', gold:'#ffd166' },
-      toxic:    { magenta:'#39ff14', cyan:'#0affef', gold:'#e8ff59' },
-    };
-    var a = JSON.parse(localStorage.getItem('at4_accent')||'null') || 'persona';
-    var p = ACCENTS[a] || ACCENTS.persona;
-    document.documentElement.setAttribute('data-accent', a);
-    document.documentElement.style.setProperty('--neon-magenta', p.magenta);
-    document.documentElement.style.setProperty('--neon-cyan', p.cyan);
-    document.documentElement.style.setProperty('--neon-gold', p.gold);
-  }catch(e){}
-})();
+  // Truco clásico de "SPA fallback" para GitHub Pages (repos de proyecto,
+  // servidos bajo un subdirectorio como /tier-list/, no en la raíz del
+  // dominio). Antes este archivo era una copia manual (y desactualizada) de
+  // index.html con rutas relativas ("js/...", "css/..."): eso funcionaba
+  // solo por pura casualidad para la home, pero se rompía si alguien entraba
+  // (o recargaba) directo en una ruta interna de la app como
+  // /tier-list/tierlists o /tier-list/editor/abc123 — las rutas relativas
+  // "js/..." se resolvían mal (con un nivel de más) y además el contenido
+  // podía quedarse desactualizado respecto al index.html real.
+  //
+  // Ahora este archivo NO duplica nada: cuando GitHub Pages sirve esto (por
+  // no encontrar un archivo real en esa ruta), codificamos la ruta pedida
+  // como query string y redirigimos al index.html de verdad, que la
+  // decodifica y la restaura con history.replaceState ANTES de arrancar el
+  // resto de la app (ver el script correspondiente al principio de
+  // index.html). Así el index.html real siempre está al día (mismo
+  // ?v= de caché, mismos assets) y las rutas profundas también sobreviven a
+  // un F5.
+  var pathSegmentsToKeep = 1; // nº de segmentos de "/tier-list/" a conservar
+  var l = window.location;
+  l.replace(
+    l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+    l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
+    l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+    (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+    l.hash
+  );
 </script>
-
-<!-- Fuentes -->
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Playfair+Display:wght@500;600&family=Poppins:wght@300;400;600&family=Inter:wght@400;700&family=Rajdhani:wght@500;600;700&family=Cormorant+Garamond:ital,wght@1,600&display=swap" rel="stylesheet">
-
-<!-- PWA -->
-<link rel="icon" href="./favicon.ico" type="image/x-icon">
-<link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#0a0a0f">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-<!-- Iconos / librerías externas (idénticas al original) -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0/default.css">
-
-<!-- Hoja de estilos propia de la app (antes estaba inline, ahora en /css) -->
-<link rel="stylesheet" href="css/style.css">
-
-<!-- Supabase SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-main">
-
-<!--
-  Capa decorativa fija con el "campo de estrellas" cósmico y el resplandor
-  ambiental. Es 100% CSS (sin JS), puramente visual y con
-  aria-hidden/pointer-events:none, así que nunca puede interferir con la
-  lógica de la app ni con el drag & drop.
--->
-<div id="cosmic-fx" aria-hidden="true">
-  <div class="cosmic-glow cosmic-glow-a"></div>
-  <div class="cosmic-glow cosmic-glow-b"></div>
-  <div class="cosmic-glow cosmic-glow-c"></div>
-  <div class="cosmic-stars"></div>
-  <div class="cosmic-stars cosmic-stars-2"></div>
-</div>
-
-<!-- Toda la interfaz se construye dinámicamente en JS dentro de estos dos contenedores -->
-<div id="app"></div>
-<div class="tw" id="tw"></div>
-
-<!-- Cinta animada decorativa (100% CSS, sin JS) -->
-<div id="hype-ticker" aria-hidden="true">
-  <div class="hype-ticker-track">
-    <span>✦&nbsp;&nbsp;BIENVENIDO AL SANTUARIO DEFINITIVO DEL WAIFU TIER LIST&nbsp;&nbsp;✦&nbsp;&nbsp;CREA&nbsp;&nbsp;·&nbsp;&nbsp;RANKEA&nbsp;&nbsp;·&nbsp;&nbsp;PRESUME&nbsp;&nbsp;✦&nbsp;&nbsp;TU WAIFU. TU TROPA. TU LEYENDA.&nbsp;&nbsp;✦&nbsp;&nbsp;</span>
-    <span>✦&nbsp;&nbsp;BIENVENIDO AL SANTUARIO DEFINITIVO DEL WAIFU TIER LIST&nbsp;&nbsp;✦&nbsp;&nbsp;CREA&nbsp;&nbsp;·&nbsp;&nbsp;RANKEA&nbsp;&nbsp;·&nbsp;&nbsp;PRESUME&nbsp;&nbsp;✦&nbsp;&nbsp;TU WAIFU. TU TROPA. TU LEYENDA.&nbsp;&nbsp;✦&nbsp;&nbsp;</span>
-  </div>
-</div>
-
-<!--
-  ============================================================================
-  Carga de la lógica de la app en módulos clásicos (scripts normales, sin
-  type="module") para no tener que tocar ninguna función interna.
-  El ORDEN es importante: es exactamente el mismo orden en el que estaba
-  el código dentro del <script> único original, así que el comportamiento
-  en tiempo de ejecución es 100% idéntico.
-  ============================================================================
--->
-
-<!-- 1) Datos base (catálogo de personajes, tierlist de ejemplo, alias de búsqueda) -->
-<script src="js/data/characters.js"></script>
-<script src="js/data/tierlists-seed.js"></script>
-<script src="js/data/aliases.js"></script>
-
-<!-- 2) Capa de persistencia y estado global de la aplicación -->
-<script src="js/core/storage.js"></script>
-<script src="js/core/state.js"></script>
-<script src="js/core/profile-helpers.js"></script>
-<script src="js/core/save.js"></script>
-<script src="js/core/notifications.js"></script>
-<script src="js/core/editor-working-copy.js"></script>
-
-<!-- 3) Utilidades de interfaz -->
-<script src="js/ui/toast.js"></script>
-<script src="js/ui/theme.js"></script>
-<script src="js/core/char-helpers.js"></script>
-<script src="js/services/anilist.js"></script>
-<script src="js/ui/h-helper.js"></script>
-<script src="js/ui/drag.js"></script>
-
-<!-- 4) Vistas de la aplicación -->
-<script src="js/views/nav.js"></script>
-<script src="js/views/home.js"></script>
-<script src="js/views/editor.js"></script>
-<script src="js/views/modals.js"></script>
-
-<!-- 5) Funcionalidades y lógica de aplicación -->
-<script src="js/features/export-png.js"></script>
-<script src="js/features/comments.js"></script>
-<script src="js/features/reactions.js"></script>
-<script src="js/features/achievements.js"></script>
-<script src="js/features/extras.js"></script>
-<script src="js/features/levels.js"></script>
-<script src="js/core/actions.js"></script>
-<script src="js/core/router.js"></script>
-
-<!-- 6) Render inicial + autenticación Supabase (arranca la app al final) -->
-<script src="js/core/render.js"></script>
-<script src="js/core/supabase-auth.js"></script>
-
-</body>
+<body></body>
 </html>
