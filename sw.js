@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v25'; // v25: arreglo real del bloqueo de scroll al arrastrar en movil -- el scroll manual durante la espera de pulsacion larga dependia del mismo temporizador que decide si se arma el drag, asi que en cuanto el dedo se movia mas de 10px (casi al instante en cualquier deslizamiento real) ese temporizador se cancelaba y el scroll manual se apagaba con el, dejando la pagina congelada tras el primer "tick" de scroll; ahora el reenvio manual del scroll es independiente del temporizador de pulsacion larga y sigue funcionando en cualquier punto de la pantalla mientras no se haya agarrado una carta, verificado con test automatizado (5 movimientos consecutivos ahora desplazan la pagina completa en vez de solo el primero)
+const CACHE_NAME = 'at-v26'; // v26: avatar/perfil ya no se corta en el borde derecho del nav en moviles de ancho intermedio (nav ahora puede deslizarse en horizontal como red de seguridad + breakpoint ampliado de 360 a 480px); borde cromatico de los 3 paneles del home ya no se ve "raro" en movil (el circulo del degradado giratorio ahora es un cuadrado de verdad en vmax en vez de un porcentaje distinto por eje que salia elipse en paneles anchos y bajos); arrastrar personajes ya no va a tirones (imagen flotante movida con transform en vez de left/top, pointermove agrupado en un solo requestAnimationFrame por fotograma); scroll con inercia al soltar tras un deslizon (antes se frenaba en seco); la carta desaparece al instante al soltarla en vez de quedarse unos segundos congelada mientras se reconstruye la pantalla
 const ASSETS = [
   './',
   './index.html',

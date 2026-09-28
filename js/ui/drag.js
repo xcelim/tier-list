@@ -6,6 +6,12 @@ let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
 let scrollDir=0,scrollInt=null;
 let _md=false,_mdMoved=false,_mdX=0,_mdY=0,_mdImg='',_lastZoneKey='';
 let _pointerId=null, _lpT=null, _heldEl=null, _touchLastY=0, _touchWaiting=false;
+// FIX (Ronda 23 — "va to petao" / scroll "tosco"): variables para el
+// scroll con inercia (momentum) tras un deslizón, y para agrupar los
+// pointermove del drag ya armado en un único frame de pantalla (ver los
+// FIX grandes junto a donde se usan, más abajo).
+let _touchVelY=0, _touchLastT=0, _momentumRAF=null;
+let _dragRAF=null, _pendingCX=0, _pendingCY=0;
 // "Stepper" del hueco: si el ratón se mueve rápido y el índice de destino
 // salta más de una posición de golpe, en vez de mover 2+ cartas a la vez
 // en un solo fotograma (lo que se ve como si "se movieran juntas" sin
@@ -16,6 +22,34 @@ let _pointerId=null, _lpT=null, _heldEl=null, _touchLastY=0, _touchWaiting=false
 let _curTid=null,_curIdx=null,_targetTid=null,_targetIdx=null,_stepTimer=null;
 
 function updateScroll(){if(scrollDir!==0)window.scrollBy(0,scrollDir*60);}
+// FIX (Ronda 23 — "no puedo darle un deslizón y que avance mucho"): el
+// scroll a mano de más abajo movía la página EXACTAMENTE lo que se movía
+// el dedo y nada más, así que en cuanto se soltaba, se paraba en seco — un
+// "deslizón" rápido (flick) no seguía avanzando ni se iba frenando poco a
+// poco, como sí hace el scroll nativo del navegador. Esto reproduce ese
+// mismo frenado suave: parte de la velocidad que llevaba el dedo justo
+// antes de soltar (ver dónde se guarda _touchVelY, en el pointermove) y la
+// va reduciendo fotograma a fotograma hasta que es imperceptible.
+function _stopMomentumScroll(){ if(_momentumRAF){cancelAnimationFrame(_momentumRAF);_momentumRAF=null;} }
+function _startMomentumScroll(v0){
+ _stopMomentumScroll();
+ let v=Math.max(-3,Math.min(3,v0)); // px/ms, con tope para deslizones anómalos
+ let lastT=(typeof performance!=='undefined'?performance.now():Date.now());
+ const FRICTION=0.998; // decae ~a la mitad cada ~350ms, similar al scroll nativo
+ function step(){
+ const now=(typeof performance!=='undefined'?performance.now():Date.now());
+ const dt=now-lastT; lastT=now;
+ const dx=v*dt;
+ if(Math.abs(dx)>=0.5){
+ window.scrollBy(0,dx);
+ v*=Math.pow(FRICTION,dt);
+ _momentumRAF=requestAnimationFrame(step);
+ } else {
+ _momentumRAF=null;
+ }
+ }
+ _momentumRAF=requestAnimationFrame(step);
+}
 function createFloat(imgSrc){
  removeFloat();
  dragFloatEl=document.createElement('div');
@@ -30,8 +64,16 @@ function removeFloat(){
 }
 function _posFloat(cx,cy){
  if(!dragFloatEl)return;
- dragFloatEl.style.left=(cx-51)+'px';
- dragFloatEl.style.top=(cy-81)+'px';
+ // FIX (Ronda 23 — "al arrastrar personajes va to petao"): mover la carta
+ // flotante con "style.left/top" obliga al navegador a recalcular el
+ // LAYOUT en cada pointermove (puede disparar 60+ veces por segundo) antes
+ // de poder pintar el siguiente fotograma — en un móvil de gama media/baja
+ // eso se nota como tirones. "transform: translate3d(...)" en cambio solo
+ // afecta a la fase de composición (la GPU mueve una capa ya pintada, sin
+ // layout ni repintado), que es justo la técnica estándar para arrastrar
+ // elementos con fluidez. El elemento sigue siendo position:fixed en 0,0
+ // (ver .drag-float en css/style.css); aquí solo lo desplazamos.
+ dragFloatEl.style.transform=`translate3d(${cx-51}px,${cy-81}px,0)`;
  const th=100,wh=window.innerHeight;
  scrollDir=cy<th?-1:cy>wh-th?1:0;
  if(scrollDir&&!scrollInt)scrollInt=setInterval(updateScroll,16);
@@ -238,6 +280,7 @@ function _dragCleanup(){
  document.body.style.userSelect='';
  DG=null;DS=null;DGidx=-1;_md=false;_mdMoved=false;_lastZoneKey='';
  _stopStepper();_curTid=null;_curIdx=null;_targetTid=null;_targetIdx=null;
+ if(_dragRAF){cancelAnimationFrame(_dragRAF);_dragRAF=null;}
  removeFloat();lastZone=null;
  const ph=document.getElementById('drop-ph');if(ph)ph.remove();
  document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
@@ -299,8 +342,21 @@ document.addEventListener('pointermove',e=>{
  // — si no, cancelar ese temporizador (que solo decide si se arma el
  // drag) apaga también el scroll manual, que es un bug aparte.
  if(e.cancelable) e.preventDefault();
- window.scrollBy(0, _touchLastY - e.clientY);
+ const _scrollAmt = _touchLastY - e.clientY;
+ window.scrollBy(0, _scrollAmt);
  _touchLastY = e.clientY;
+ // FIX (Ronda 23 — "se scrollea muy tosco, se va frenando"): antes, este
+ // scroll a mano solo movía la página EXACTAMENTE lo que se movía el dedo,
+ // sin ninguna inercia al soltar — un scroll nativo real, en cambio, sigue
+ // deslizándose y frenando poco a poco tras un "deslizón" rápido. Sin esa
+ // inercia, cualquier deslizamiento se sentía corto y "tosco" comparado con
+ // el scroll normal del navegador. Aquí guardamos la velocidad reciente
+ // (px por milisegundo) para poder lanzar ese mismo efecto de frenado
+ // suave en cuanto se levante el dedo (ver el "pointerup" más abajo).
+ const _nowT=(typeof performance!=='undefined'?performance.now():Date.now());
+ const _dt=_nowT-_touchLastT;
+ if(_dt>0) _touchVelY=_scrollAmt/_dt;
+ _touchLastT=_nowT;
  if(_lpT && Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)>10){
  // El dedo se movió antes de que se cumpliera la pulsación larga: el
  // usuario quería hacer scroll normal de la página, no arrastrar. Se
@@ -366,29 +422,73 @@ document.addEventListener('pointermove',e=>{
  // Esperamos al siguiente movimiento real del ratón.
  return;
  }
- _posFloat(e.clientX,e.clientY);
- const zone=_getDropZone(e.clientX,e.clientY);
+ // FIX (Ronda 23 — "va to petao"): un dispositivo táctil puede disparar
+ // "pointermove" más veces por segundo de las que la pantalla puede pintar
+ // fotogramas — sin agrupar esas llamadas, _posFloat/_getDropZone/
+ // _requestZone (que leen y escriben el DOM) se ejecutaban varias veces
+ // entre un fotograma y el siguiente, trabajo desperdiciado que competía
+ // por el mismo hilo principal y se notaba como tirones. Aquí guardamos
+ // solo la ÚLTIMA posición conocida y pedimos UN único requestAnimationFrame
+ // que la aplique — como mucho una actualización por fotograma, igual que
+ // hace el propio navegador al pintar.
+ _pendingCX=e.clientX;_pendingCY=e.clientY;
+ if(_dragRAF===null){
+ _dragRAF=requestAnimationFrame(()=>{
+ _dragRAF=null;
+ _posFloat(_pendingCX,_pendingCY);
+ const zone=_getDropZone(_pendingCX,_pendingCY);
  _requestZone(zone);
+ });
+ }
 },{passive:false}); // FIX (Ronda 21): "passive:false" es imprescindible para que el preventDefault() de arriba tenga efecto de verdad (si no, el navegador lo ignora y sigue haciendo scroll)
 
 document.addEventListener('pointerup',e=>{
  if(_lpT){clearTimeout(_lpT); _lpT=null;}
+ const _wasWaiting=_touchWaiting;
  _touchWaiting=false;
  if (_pointerId !== null && e.target.hasPointerCapture && e.target.hasPointerCapture(_pointerId)) {
  e.target.releasePointerCapture(_pointerId);
  }
  _pointerId = null;
- if(!_md || !_mdMoved){_dragCleanup();return;}
+ if(!_md || !_mdMoved){
+ // FIX (Ronda 23 — "se scrollea muy tosco, se va frenando"): si soltamos
+ // el dedo justo después de haber estado reenviando scroll a mano (un
+ // deslizamiento normal, sin llegar a agarrar ninguna carta) y llevaba
+ // velocidad reciente de verdad, seguimos el scroll con inercia — igual
+ // que un "deslizón" nativo, en vez de frenar en seco al soltar.
+ if(e.pointerType==='touch' && _wasWaiting){
+ const _nowT=(typeof performance!=='undefined'?performance.now():Date.now());
+ if(_nowT-_touchLastT<120 && Math.abs(_touchVelY)>0.02) _startMomentumScroll(_touchVelY);
+ }
+ _dragCleanup();return;
+ }
  const zone=_getDropZone(e.clientX,e.clientY);
+ // FIX (Ronda 23 — "cuando la suelto tarda unos segundos en colocarse"):
+ // _executeDrop() marca la tierlist como no guardada, lo que dispara un
+ // render() completo (reconstruye TODA la pantalla desde cero — ver el FIX
+ // grande en js/core/render.js). En una tierlist con muchos personajes eso
+ // puede tardar un poco, y hasta ahora la carta flotante y el hueco se
+ // quedaban a la vista, congelados, durante ese rato — pareciendo que el
+ // drag se "atascaba". Quitamos ya, ANTES de disparar ese render, todo
+ // rastro visual del arrastre (la carta flotante, el hueco, los
+ // resaltados), así que al soltar el dedo la carta desaparece al instante
+ // de donde estaba — el resto de _dragCleanup() (más barato) limpia el
+ // resto del estado justo después, sin que se note.
+ removeFloat();
+ const _ph=document.getElementById('drop-ph'); if(_ph)_ph.remove();
+ document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
+ _stopStepper();
  _executeDrop(zone);
  _dragCleanup();
 },{passive:true});
 
 function dgPointerDown(e,id,src,idx,imgSrc){
  if(e.button!==0)return;
+ _stopMomentumScroll(); // agarrar algo (o tocar de nuevo) corta cualquier inercia de scroll en marcha
  DG=id;DS=src;DGidx=idx;
  _mdX=e.clientX;_mdY=e.clientY;
  _touchLastY=e.clientY;
+ _touchVelY=0;_touchLastT=(typeof performance!=='undefined'?performance.now():Date.now());
  _mdImg=imgSrc||'';
  _pointerId = e.pointerId; // <-- GUARDAR EL ID DEL PUNTERO CORRECTAMENTE
  _heldEl = e.currentTarget || e.target;

@@ -1174,6 +1174,62 @@ en el repo remoto + tarball local), por si hacía falta restaurar.
   salvo cuando ya se ha agarrado una carta de verdad (tras completarse la
   pulsación larga), que es el comportamiento pedido.
 
+## 🆕 Ronda 24 — vídeo real en el móvil: nav cortado, borde raro, drag a tirones y scroll tosco
+
+Con un vídeo grabado directamente del móvil se confirmaron 4 problemas más,
+todos con causa real encontrada y arreglada:
+
+- **Avatar/perfil cortado en el borde derecho del nav**: el vídeo lo mostró
+  clarísimo — el círculo del avatar aparecía partido por la mitad justo en
+  el borde de la pantalla. La Ronda 22 solo compactaba el nav por debajo de
+  360px, asumiendo que la inmensa mayoría de móviles estaba por encima —
+  pero de hecho la mayoría de Android actuales miden entre 360 y 430px
+  (CSS px), justo donde el logo + "Mis Tierlists" + tema + campana + chat +
+  avatar no cabían en una fila y el avatar se salía. Arreglado: el umbral
+  de compactado se amplía a 480px, y además `<nav>` ahora puede deslizarse
+  en horizontal (`overflow-x:auto`, oculto visualmente) como red de
+  seguridad — si algún dispositivo concreto (fuente distinta, texto del
+  sistema más grande, etc.) todavía no cupiera entero, el avatar sigue
+  siendo alcanzable deslizando en vez de quedar cortado e imposible de
+  tocar, que es lo que pasaba antes.
+- **Borde cromático "raro" en los paneles del home en móvil** (correcto en
+  escritorio): el anillo animado usaba `inset:-60%`, un porcentaje que se
+  calcula distinto para cada eje (ancho para izquierda/derecha, alto para
+  arriba/abajo). En escritorio los paneles son altos y estrechos
+  (~cuadrados), así que salía casi un círculo perfecto y el degradado
+  giraba de forma uniforme. En móvil los paneles son muy anchos y bajos
+  (100% del ancho, 150px de alto) — el mismo cálculo generaba una elipse
+  muy achatada, y al girar se veía "correr" rápido por los bordes cortos y
+  casi no moverse por los largos: el "movimiento raro" reportado. Arreglo:
+  ahora es un cuadrado de verdad (mismo tamaño en ambos ejes, en `vmax`)
+  centrado en el panel, así que gira como un círculo perfecto sea cual sea
+  la forma del panel — verificado comparando capturas del anillo en varios
+  instantes, ahora rota de forma uniforme por los 4 lados.
+- **Arrastrar personajes "va to petao" (a tirones)**: la carta flotante se
+  movía cambiando `style.left/top` en cada `pointermove`, lo que obliga al
+  navegador a recalcular el layout antes de poder pintar — en un móvil de
+  gama media/baja se nota como tirones. Cambiado a
+  `transform:translate3d(...)`, que solo mueve una capa ya compuesta (GPU),
+  sin layout ni repintado — la técnica estándar para arrastrar con
+  fluidez. Además, ahora los `pointermove` del drag ya armado se agrupan en
+  un único `requestAnimationFrame` por fotograma en vez de procesar cada
+  evento por separado (el táctil puede disparar más eventos por segundo de
+  los que la pantalla pinta fotogramas).
+- **Al soltar la carta, tardaba unos segundos en colocarse**: el drop
+  dispara un `render()` completo (reconstruye toda la pantalla — el motor
+  de renderizado rehace todo el DOM en cada cambio), que en una tierlist
+  con muchos personajes puede tardar un poco: la carta flotante y el hueco
+  se quedaban a la vista, congelados, mientras tanto. Ahora se quita toda
+  huella visual del arrastre (carta flotante, hueco, resaltados) ANTES de
+  disparar ese render, así que la carta desaparece al instante al soltar
+  el dedo en vez de quedarse "atascada" en el aire.
+- **De regalo, se scrollea "muy tosco" al deslizar sobre una carta**: el
+  scroll a mano de Ronda 23 movía la página exactamente lo que se movía el
+  dedo y nada más — al soltar, se frenaba en seco, sin la inercia que sí
+  tiene el scroll nativo tras un "deslizón" rápido. Ahora se guarda la
+  velocidad del dedo justo antes de soltar y se sigue deslizando con un
+  frenado suave, igual que el scroll normal del navegador.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,
