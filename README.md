@@ -1503,6 +1503,23 @@ faltan".
   conexión, aunque se cierre y reabra la app o se haya añadido desde otro
   sitio.
 
+## 🆕 Ronda 36 — notificaciones que se pueden borrar (a mano o solas)
+
+Pedido explícito: "las notificaciones estaría bien que puedas eliminarlas
+con X o algo, o que se eliminen solas como más óptimo consideres".
+
+- **Borrado manual, uno a uno**: cada notificación de la sección "Actividad"
+  (comentarios, aceptaciones de amistad, etc.) tiene ahora su propia "✕" a
+  la derecha para borrarla al instante, sin tener que abrirla primero.
+- **Borrado manual, en bloque**: junto a "Marcar leído" aparece un botón
+  "Borrar leídas" que quita de golpe todas las ya leídas (las que aún no
+  se han visto se respetan, para no perder algo nuevo por accidente).
+- **Borrado solo, automático**: de paso, cualquier notificación que YA esté
+  leída y tenga más de 30 días se borra sola en segundo plano cada vez que
+  se abre el panel de la campana — así el panel no se llena para siempre de
+  cosas viejas aunque nunca se toque un botón de borrar. Solo afecta a las
+  ya leídas y antiguas; nunca borra nada sin leer.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

@@ -142,14 +142,31 @@ function Nav(){
         const label = nf.type==='comment' ? ' ha comentado tu tierlist.'
                     : nf.type==='friend_accept' ? ' ha aceptado tu solicitud de amistad.'
                     : (nf.message || ' ha interactuado con tu contenido.');
-        nm.appendChild(h('div',{
+        // FIX (Ronda 36 — pedido explícito: poder borrar las notificaciones
+        // "con una X o algo"): la fila entera pasa a ser flex (mensaje a la
+        // izquierda, X a la derecha) solo para esta fila de "Actividad" —
+        // las de solicitud de amistad, más arriba, siguen con su layout de
+        // siempre (mensaje arriba, botones Aceptar/Rechazar debajo).
+        const row = h('div',{
           class:'at-alert-row'+(nf.read?'':' at-alert-unread'),
+          style:{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'8px',cursor:'pointer'},
           onclick:()=>{ if(!nf.read) markNotificationRead(nf.id); if(nf.tierlist_id){ openEditor(nf.tierlist_id); render(); } }
-        }, h('div',{class:'at-alert-msg'}, h('strong',{},actorName), label)));
+        }, h('div',{class:'at-alert-msg',style:{marginBottom:'0'}}, h('strong',{},actorName), label));
+        row.appendChild(h('span',{
+          title:'Borrar notificación',
+          style:{cursor:'pointer',color:'var(--text3)',flexShrink:'0',padding:'0 2px'},
+          onclick:(e)=>{ e.stopPropagation(); deleteNotification(nf.id); }
+        }, '✕'));
+        nm.appendChild(row);
       });
+      const notifActions = h('div',{style:{display:'flex',gap:'6px',marginTop:'6px'}});
       if(appNotifs.some(n=>!n.read)){
-        nm.appendChild(h('button',{class:'btn bg bsm',style:{width:'100%',marginTop:'6px'},onclick:(e)=>{e.stopPropagation();markAllNotificationsRead();}},'Marcar todo como leído'));
+        notifActions.appendChild(h('button',{class:'btn bg bsm',style:{flex:'1'},onclick:(e)=>{e.stopPropagation();markAllNotificationsRead();}},'Marcar leído'));
       }
+      if(appNotifs.some(n=>n.read)){
+        notifActions.appendChild(h('button',{class:'btn bg bsm',style:{flex:'1'},onclick:(e)=>{e.stopPropagation();deleteReadNotifications();}},'Borrar leídas'));
+      }
+      if(notifActions.children.length) nm.appendChild(notifActions);
     }
     // FIX: antes se registraba un listener nuevo de "click fuera para
     // cerrar" en CADA render mientras el menú estaba abierto (y como

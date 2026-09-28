@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v37'; // v37: en el modo sin conexion faltaban personajes enteros que si salian conectado (ej. anadidos por un colaborador) -- el catalogo de esos personajes (nombre/foto) solo se guardaba en MEMORIA al abrir el editor/visor estando online, nunca en el dispositivo, asi que se perdia al cerrar la app y esa tarjeta desaparecia del todo sin conexion aunque su posicion en el tier si estuviera bien sincronizada; ahora ese catalogo tambien se guarda en el dispositivo (rememberChars) y sobrevive a cerrar y reabrir la app
+const CACHE_NAME = 'at-v38'; // v38: las notificaciones no se podian borrar -- se quedaban para siempre en el panel de la campana; ahora cada una tiene su propia "X" para borrarla a mano, hay un boton para borrar de golpe las ya leidas, y ademas cualquier notificacion leida con mas de 30 dias se borra sola en segundo plano cada vez que se abre el panel
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión
