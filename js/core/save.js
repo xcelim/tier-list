@@ -39,14 +39,18 @@ function collectTierImageUrls(tls){
 
 // Descarga (en paralelo, por tandas) la lista de URLs dada y la mete en la
 // caché de imágenes de personajes. "force=true" vuelve a pedir la imagen
-// aunque ya estuviera en caché (para el botón "Descargar" manual, que
-// quiere traer la versión más reciente de verdad); si no, se salta las que
-// ya están (para la precarga automática en segundo plano, más barata).
-// Devuelve cuántas se descargaron bien y cuántas fallaron.
-async function downloadImagesToCache(urls, force){
+// aunque ya estuviera en caché (traer la versión más reciente de verdad);
+// si no (el caso normal), se salta las que ya están en caché — así una
+// segunda descarga de la misma tierlist solo trae de verdad los personajes
+// NUEVOS que hayas añadido, no vuelve a bajar los que ya tenías. "onProgress"
+// (opcional) se llama con (hechas, total) según se van resolviendo, para
+// poder mostrar el progreso en pantalla. Devuelve cuántas están ok en total,
+// cuántas fallaron, y cuántas de esas "ok" eran de verdad NUEVAS (no ya
+// estaban en caché).
+async function downloadImagesToCache(urls, force, onProgress){
   const cache = await caches.open('at-char-imgs-v1');
   const list = Array.from(urls);
-  let ok = 0, fail = 0;
+  let ok = 0, fail = 0, done = 0, downloaded = 0;
   const CONCURRENCY = 8;
   let next = 0;
   async function worker(){
@@ -55,16 +59,18 @@ async function downloadImagesToCache(urls, force){
       try{
         if(!force){
           const already = await cache.match(url);
-          if(already){ ok++; continue; }
+          if(already){ ok++; done++; if(onProgress) onProgress(done, list.length); continue; }
         }
         const resp = await fetch(url, { mode:'cors', cache: force ? 'reload' : 'default' });
-        if(resp && resp.ok){ await cache.put(url, resp.clone()); ok++; }
+        if(resp && resp.ok){ await cache.put(url, resp.clone()); ok++; downloaded++; }
         else fail++;
       }catch(e){ fail++; /* una imagen suelta sin red/CORS no debe parar las demás */ }
+      done++;
+      if(onProgress) onProgress(done, list.length);
     }
   }
   await Promise.all(Array.from({length: Math.min(CONCURRENCY, list.length)}, worker));
-  return { ok, fail, total: list.length };
+  return { ok, fail, total: list.length, downloaded };
 }
 
 // FIX (Ronda 28 — botón "Descargar" manual en el modo Visor de tus propias
@@ -89,6 +95,18 @@ async function downloadImagesToCache(urls, force){
 // botón del ojo en la tarjeta). Ahora, si el modo Visor te está mostrando
 // una tierlist tuya (viewingRank), se descarga justo lo que ESO muestra —
 // que es siempre lo más reciente — en vez de volver a leer de p.tls.
+// FIX (Ronda 31 — pedido explícito: "a partir de la segunda vez no es
+// óptimo, deben descargarse solo los cambios, no descargar todo de
+// nuevo"): antes se forzaba a volver a traer TODAS las imágenes de la
+// tierlist cada vez, aunque ya estuvieran guardadas de una descarga
+// anterior — lento y de sobra en cuanto la tierlist tiene unos cuantos
+// personajes. Ahora se salta las que ya están en caché (solo se
+// descargan de verdad las que faltan: un personaje nuevo que hayas
+// añadido) y, como ya hacía antes, se limpian al final las que sobren (un
+// personaje que hayas quitado). Se guarda además el progreso en
+// S._downloadProgress mientras dura, para mostrar "Descargando... (x/y)"
+// en pantalla (ver Viewer() en home.js) en vez de un solo aviso que
+// desaparece.
 async function downloadTierlistForOffline(tlid){
   if (!('caches' in window)) { toast('Tu navegador no soporta guardar tierlists para verlas sin conexión', 'err'); return; }
   const localTl = getTLfromProfile(tlid);
@@ -101,19 +119,28 @@ async function downloadTierlistForOffline(tlid){
   const tlForUrls = { folder, customChars, tiers: tiersSource };
   const urls = collectTierImageUrls([tlForUrls]);
   if(!urls.size){ toast('Esta tierlist todavía no tiene personajes colocados', 'info'); return; }
-  toast(`Descargando ${urls.size} imagen${urls.size===1?'':'es'}...`, 'info');
+  S._downloadProgress = { tlid, done: 0, total: urls.size };
+  render();
   try{
-    const { ok, fail, total } = await downloadImagesToCache(urls, true);
+    const { ok, fail, total, downloaded } = await downloadImagesToCache(urls, false, (done, tot) => {
+      S._downloadProgress = { tlid, done, total: tot };
+      render();
+    });
     await gcCharImageCache();
+    S._downloadProgress = null;
     if(fail){
       toast(`Descargado (${ok}/${total}) — ${fail} imagen${fail===1?'':'es'} no se pudo${fail===1?'':'ieron'} traer`, 'info');
+    } else if(downloaded === 0){
+      toast(`✓ "${title}" ya estaba al día (sin cambios que descargar)`, 'ok');
     } else {
-      toast(`✓ "${title}" lista para verse sin conexión (${ok} imagen${ok===1?'':'es'})`, 'ok');
+      toast(`✓ "${title}" lista para verse sin conexión (${downloaded} imagen${downloaded===1?'':'es'} nueva${downloaded===1?'':'s'})`, 'ok');
     }
   }catch(e){
     console.error(e);
+    S._downloadProgress = null;
     toast('Error al descargar: '+e.message, 'err');
   }
+  render();
 }
 
 // Borra del almacén de imágenes cualquiera que ya no use NINGUNA de tus

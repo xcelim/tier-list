@@ -1386,6 +1386,25 @@ Quitada esa descarga automática por completo. Ahora:
   se pasa al modo Visor de solo lectura, tal cual se había quedado en
   pantalla.
 
+## 🆕 Ronda 31 — "Descargar" ya solo trae los cambios, no todo de nuevo
+
+Pedido explícito: "a partir de la segunda vez no es óptimo, deben
+descargarse solo los cambios — si se elimina una se quita, si se añade una
+se añade, no se descarga todo de nuevo".
+
+- El botón "Descargar" forzaba a volver a traer TODAS las imágenes de la
+  tierlist cada vez que se pulsaba, aunque ya estuvieran guardadas de una
+  descarga anterior sin haber cambiado nada. Ahora se salta las que ya
+  están en la caché (solo se pide de verdad la imagen de un personaje
+  NUEVO que hayas colocado desde la última descarga) y, como ya hacía
+  antes, limpia al terminar las que sobren (la de un personaje que hayas
+  quitado). Si no colocaste nada nuevo, avisa de que "ya estaba al día" sin
+  descargar nada.
+- Mientras dura, ahora se ve "⬇ Descargando imágenes... (x/y)" justo debajo
+  de la barra de arriba del modo Visor (y el propio botón "Descargar" se
+  queda con el mismo contador y deshabilitado), en vez de un solo aviso que
+  aparece y desaparece.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

@@ -463,7 +463,11 @@ function Viewer() {
   const r = S.viewingRank;
   const tlMeta = r.tierlists || {};
   const w = h('div', {});
-  
+  // FIX (Ronda 31): declarado aquí arriba (no dentro del "if" de más abajo)
+  // porque tanto el botón "Descargar" como la línea de progreso de debajo
+  // de la barra necesitan leerlo.
+  const dp = (S._viewerOwnTlId && S._downloadProgress && S._downloadProgress.tlid === S._viewerOwnTlId) ? S._downloadProgress : null;
+
   const tb = h('div', { class: 'etbar' });
   tb.appendChild(h('div', { class: 'etitle hf' }, `Observando: ${tlMeta.title || 'Ranking'}`));
   // Si estás viendo TU PROPIA tierlist en modo observador (viniste desde el
@@ -480,27 +484,34 @@ function Viewer() {
     // descargar de verdad son las imágenes (ver downloadTierlistForOffline
     // en save.js), así que el botón se limita a eso y a avisar cuándo
     // termina.
+    // FIX (Ronda 31): downloadTierlistForOffline() llama a render() varias
+    // veces mientras descarga (para actualizar el progreso), lo que
+    // reconstruye este botón de cero cada vez — por eso ya NO se manipula
+    // el botón a mano (guardar una referencia y cambiarle el texto no
+    // sirve si el propio botón se sustituye por uno nuevo en cada render).
+    // En su lugar, su texto y su estado "deshabilitado" salen directamente
+    // de S._downloadProgress, que es lo mismo que lee la línea de progreso
+    // de más abajo.
     if(!S.offline){
       tb.appendChild(h('button', {
-        class:'btn bsm', style:{marginLeft:'auto'},
-        onclick: async (e) => {
-          const btn = e.currentTarget;
-          const original = btn.innerHTML;
-          btn.disabled = true;
-          btn.innerHTML = '<i class="ti ti-loader-2"></i> Descargando...';
-          try{ await downloadTierlistForOffline(S._viewerOwnTlId); }
-          finally{ btn.disabled = false; btn.innerHTML = original; }
-        }
-      }, h('i',{class:'ti ti-download'}), ' Descargar'));
+        class:'btn bsm', style:{marginLeft:'auto'}, disabled: !!dp,
+        onclick: ()=>{ downloadTierlistForOffline(S._viewerOwnTlId); }
+      }, h('i',{class: dp ? 'ti ti-loader-2' : 'ti ti-download'}), dp ? ` Descargando... (${dp.done}/${dp.total})` : ' Descargar'));
     }
     tb.appendChild(h('button', {
-      class:'btn bp bsm', style:{marginLeft: S.offline ? 'auto' : '8px'},
+      class:'btn bp bsm', style:{marginLeft: S.offline ? 'auto' : '8px'}, disabled: !!dp,
       onclick:()=>{ const id=S._viewerOwnTlId; S._viewerOwnTlId=null; openEditor(id); }
     }, h('i',{class:'ti ti-pencil'}), ' Editar'));
   } else {
     tb.appendChild(h('div', { style:{marginLeft:'auto', color:'var(--text3)', fontSize:'12px'} }, `Ranking de ${S.viewingUser?.name}`));
   }
   w.appendChild(tb);
+  if(dp){
+    // Pedido explícito: mostrar "Descargando..." debajo de la barra de
+    // arriba, con el progreso, mientras dura.
+    w.appendChild(h('div', { class:'offline-banner', style:{marginBottom:'12px'} },
+      `⬇ Descargando imágenes... (${dp.done}/${dp.total})`));
+  }
 
   const tw = h('div', { class: 'twrap' });
   const tiers = r.tiers_data || [];
