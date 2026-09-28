@@ -1520,6 +1520,27 @@ con X o algo, o que se eliminen solas como más óptimo consideres".
   cosas viejas aunque nunca se toque un botón de borrar. Solo afecta a las
   ya leídas y antiguas; nunca borra nada sin leer.
 
+## 🆕 Ronda 37 — el botón "Borrar leídas" ahora sale arriba, y el borrado ya funciona de verdad
+
+Feedback explícito: "el botón de borrar leídas que salga arriba, y por
+cierto cuando le doy se borran pero si cierro y vuelvo a abrir notis
+vuelven a salir".
+
+- **Posición del botón**: "Marcar leído" y "Borrar leídas" salían DESPUÉS
+  de toda la lista de notificaciones, así que con varias había que bajar
+  hasta el final para encontrarlos. Ahora van justo debajo de "Actividad",
+  antes de la lista.
+- **El borrado no era de verdad**: faltaba la política de seguridad (RLS)
+  de `DELETE` en la tabla `notifications` — sin ella, Supabase bloquea
+  CUALQUIER borrado por defecto (no hay política = no hay permiso). El
+  botón sí quitaba la notificación de la pantalla al momento (por eso
+  "parecía" funcionar), pero la petición para borrarla de verdad en la nube
+  fallaba en silencio, así que seguía existiendo ahí y volvía a aparecer en
+  cuanto se recargaban (al reabrir el panel, o al cerrar y abrir la app).
+  Añadida la política que faltaba en `supabase-schema.sql`.
+
+### ⚠️ Vuelve a ejecutar `supabase-schema.sql` (solo hace falta la parte nueva, pero ejecutarlo entero no rompe nada)
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

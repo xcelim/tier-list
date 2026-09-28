@@ -137,6 +137,19 @@ function Nav(){
     const appNotifs = S.appNotifications || [];
     if(appNotifs.length){
       nm.appendChild(h('div',{class:'at-alert-sep'},'Actividad'));
+      // FIX (Ronda 37 — pedido explícito: "el botón de borrar leídas que
+      // salga arriba"): antes estos botones iban DESPUÉS de la lista
+      // entera, así que con unas cuantas notificaciones había que bajar
+      // hasta el final para encontrarlos. Ahora van justo debajo del
+      // separador "Actividad", antes de las filas.
+      const notifActions = h('div',{style:{display:'flex',gap:'6px',marginBottom:'8px'}});
+      if(appNotifs.some(n=>!n.read)){
+        notifActions.appendChild(h('button',{class:'btn bg bsm',style:{flex:'1'},onclick:(e)=>{e.stopPropagation();markAllNotificationsRead();}},'Marcar leído'));
+      }
+      if(appNotifs.some(n=>n.read)){
+        notifActions.appendChild(h('button',{class:'btn bg bsm',style:{flex:'1'},onclick:(e)=>{e.stopPropagation();deleteReadNotifications();}},'Borrar leídas'));
+      }
+      if(notifActions.children.length) nm.appendChild(notifActions);
       appNotifs.slice(0,12).forEach(nf=>{
         const actorName = nf.actor?.name || 'Alguien';
         const label = nf.type==='comment' ? ' ha comentado tu tierlist.'
@@ -159,14 +172,6 @@ function Nav(){
         }, '✕'));
         nm.appendChild(row);
       });
-      const notifActions = h('div',{style:{display:'flex',gap:'6px',marginTop:'6px'}});
-      if(appNotifs.some(n=>!n.read)){
-        notifActions.appendChild(h('button',{class:'btn bg bsm',style:{flex:'1'},onclick:(e)=>{e.stopPropagation();markAllNotificationsRead();}},'Marcar leído'));
-      }
-      if(appNotifs.some(n=>n.read)){
-        notifActions.appendChild(h('button',{class:'btn bg bsm',style:{flex:'1'},onclick:(e)=>{e.stopPropagation();deleteReadNotifications();}},'Borrar leídas'));
-      }
-      if(notifActions.children.length) nm.appendChild(notifActions);
     }
     // FIX: antes se registraba un listener nuevo de "click fuera para
     // cerrar" en CADA render mientras el menú estaba abierto (y como

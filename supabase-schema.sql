@@ -216,6 +216,17 @@ drop policy if exists "marcas tus notificaciones como leídas" on notifications;
 create policy "marcas tus notificaciones como leídas" on notifications for update
   using (user_id = auth.uid());
 
+-- FIX (Ronda 37 — "le doy a borrar leídas pero si cierro y vuelvo a abrir
+-- notis vuelven a salir"): faltaba esta política de DELETE. Sin ella, RLS
+-- bloquea CUALQUIER borrado por defecto (no hay política = no hay permiso),
+-- así que el "delete" de la app fallaba en la nube en silencio — parecía
+-- funcionar porque se quitaban de la pantalla al momento, pero seguían
+-- existiendo en Supabase, y volvían a aparecer en el siguiente fetch (al
+-- reabrir el panel, o al cerrar y abrir la app).
+drop policy if exists "borras tus propias notificaciones" on notifications;
+create policy "borras tus propias notificaciones" on notifications for delete
+  using (user_id = auth.uid());
+
 create index if not exists idx_notifications_user on notifications(user_id, created_at desc);
 
 

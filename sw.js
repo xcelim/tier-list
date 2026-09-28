@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v38'; // v38: las notificaciones no se podian borrar -- se quedaban para siempre en el panel de la campana; ahora cada una tiene su propia "X" para borrarla a mano, hay un boton para borrar de golpe las ya leidas, y ademas cualquier notificacion leida con mas de 30 dias se borra sola en segundo plano cada vez que se abre el panel
+const CACHE_NAME = 'at-v39'; // v39: el boton "Borrar leidas" ahora sale arriba de la lista (antes habia que bajar hasta el final) y, sobre todo, el borrado de notificaciones ya funciona de verdad en la nube -- faltaba la politica de RLS de DELETE en la tabla notifications, asi que antes se borraban solo en pantalla y volvian a aparecer al reabrir el panel o la app (requiere volver a ejecutar supabase-schema.sql)
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión
