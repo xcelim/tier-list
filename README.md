@@ -1013,6 +1013,23 @@ como debía. El problema tenía que ser, por tanto, puramente visual.
   verdad y dejan que el marco equipado se vea en la esquina, igual que en
   el resto de la app.
 
+## 🆕 Ronda 20 — la campana seguía parpadeando dos veces (causa real, take 3)
+
+- Esperar a que las dos peticiones terminaran antes de renderizar (Ronda 18)
+  ayudó pero no lo arregló del todo. La causa de fondo: al principio de
+  `Nav()` había un `if(_notifPanelEl){ _notifPanelEl.remove(); ... }` que
+  destruía y recreaba el nodo del panel en **cada** `render()` de la app
+  mientras estuviera abierto — no solo al llegar datos nuevos, sino con
+  cualquier interacción en cualquier otra parte de la app (la app entera se
+  vuelve a renderizar con casi cualquier click, ver el FIX sobre el foco en
+  `render.js`). Como `.at-alerts-panel` tiene una animación de entrada
+  (`slideDown`), recrear el nodo hacía que esa animación se repitiera cada
+  vez que un render() de cualquier tipo ocurría con el panel abierto — de
+  ahí el "aparece dos veces". Ahora, si el panel ya existe y sigue en el
+  DOM, se reutiliza el mismo nodo (solo se reemplazan sus hijos); el nodo
+  solo se crea e inserta de cero la primera vez que se abre, así la
+  animación de entrada juega una única vez por apertura.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

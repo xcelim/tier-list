@@ -17,7 +17,6 @@
 let _notifPanelEl = null;
 
 function Nav(){
-  if(_notifPanelEl){ _notifPanelEl.remove(); _notifPanelEl = null; }
   const n=h('nav',{});
   n.appendChild(h('span',{class:'logo',onclick:()=>{
     if(S.page === 'viewer' || S.page === 'user-view') {
@@ -155,10 +154,32 @@ function Nav(){
     }
     _closeNotifMenuHandler = () => { S.notifMenu = false; render(); };
     document.addEventListener('click', _closeNotifMenuHandler, { once: true });
-    // FIX (Ronda 17): document.body en vez de n (dentro de <nav>) — ver
-    // comentario grande al principio de este archivo.
-    _notifPanelEl = nm;
-    document.body.appendChild(nm);
+    // FIX (Ronda 20) — "las notis siguen saliendo dos veces con parpadeo":
+    // esto seguía pasando incluso después de esperar a los dos fetches
+    // (Ronda 18) porque, ANTES de este fix, el código de arriba del todo de
+    // esta función ("if(_notifPanelEl){ _notifPanelEl.remove(); ... }")
+    // destruía y recreaba el nodo del panel en TODAS Y CADA UNA de las
+    // llamadas a render() de la app mientras el panel estuviera abierto —
+    // no solo cuando llegaban datos nuevos, sino con CUALQUIER interacción
+    // en cualquier otra parte de la app (la app entera se re-renderiza en
+    // casi cualquier click). Como .at-alerts-panel tiene una animación de
+    // entrada (slideDown), recrear el nodo hacía que esa animación se
+    // repitiera cada vez — de ahí el "aparece dos veces". Ahora, si el
+    // panel YA existe y sigue en el DOM, se REUTILIZA el mismo nodo (solo
+    // se reemplaza su contenido); el nodo solo se crea/inserta de cero la
+    // primera vez que se abre, así la animación de entrada juega una única
+    // vez por apertura, no en cada render().
+    if (_notifPanelEl && _notifPanelEl.isConnected) {
+      _notifPanelEl.replaceChildren(...nm.childNodes);
+    } else {
+      _notifPanelEl = nm;
+      // FIX (Ronda 17): document.body en vez de n (dentro de <nav>) — ver
+      // comentario grande al principio de este archivo.
+      document.body.appendChild(nm);
+    }
+  } else if (_notifPanelEl) {
+    _notifPanelEl.remove();
+    _notifPanelEl = null;
   }
   return n;
 }

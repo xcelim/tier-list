@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v21'; // v21: arreglada de verdad la fuga de tierlists en perfiles ajenos (era una condición de carrera al navegar rápido entre perfiles, no el filtro de colaboradores — se ha devuelto el criterio de colaboradores, que sí debe salir a todos los que colaboran), y arreglado que el avatar de la esquina (nav) nunca mostraba el marco equipado por un conflicto de especificidad CSS con .profile-btn.active
+const CACHE_NAME = 'at-v22'; // v22: arreglado de verdad el parpadeo doble de la campana — el panel se destruía y recreaba en CADA render() de la app (no solo al llegar datos nuevos), y como tiene animación de entrada (slideDown), se repetía cada vez; ahora se reutiliza el mismo nodo del panel mientras esté abierto y solo se crea de cero al abrirlo
 const ASSETS = [
   './',
   './index.html',
