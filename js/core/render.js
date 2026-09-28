@@ -191,17 +191,18 @@ async function handleAuthSession(session) {
 
     S.profiles = S.profiles.filter(x => x.id === S.activeProfile);
     saveProfiles();
-    // FIX (Ronda 26): tras cargar/sincronizar las tierlists propias con
-    // conexión, adelanta la descarga de sus imágenes para el modo Visor sin
-    // conexión (ver precacheOwnTierImages en save.js) — en segundo plano,
-    // no bloquea nada de lo que sigue.
     fetchGlobalTemplates().then(() => {
-      if (typeof precacheOwnTierImages !== 'function') return;
-      // FIX (Ronda 28): de paso, limpia del almacén de imágenes cualquiera
-      // que ya no use ninguna tierlist tuya (por ejemplo si quitaste un
-      // personaje de un tier desde otro dispositivo) — así no solo el
-      // botón "Descargar" manual evita que la caché crezca sin límite.
-      precacheOwnTierImages().then(() => { if (typeof gcCharImageCache === 'function') gcCharImageCache(); });
+      // FIX (Ronda 29 — pedido explícito: "no se quiere tener todas
+      // descargadas, solo las que me interesen"): antes esto también
+      // descargaba solo, en segundo plano, las imágenes de TODAS tus
+      // tierlists — ya no. Desde ahora nada se descarga hasta que pulsas
+      // el botón "Descargar" en una tierlist concreta (ver
+      // downloadTierlistForOffline en save.js). Lo único que se sigue
+      // haciendo solo, aquí, es LIMPIAR el almacén de imágenes que ya no
+      // use ninguna tierlist tuya (por ejemplo si quitaste un personaje de
+      // un tier desde otro dispositivo) — nunca añade nada nuevo, solo
+      // borra sobrantes.
+      if (typeof gcCharImageCache === 'function') gcCharImageCache();
     });
     // Si hay una ruta pendiente (URL con hash al cargar), abrir el editor correspondiente
     await fetchAllUsers(); // Vital para que salgan los amigos en el chat

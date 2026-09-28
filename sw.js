@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v30'; // v30: nuevo boton "Descargar" en el modo Visor de tus propias tierlists (normales o colaborativas en las que participas), solo con conexion -- fuerza a traer de verdad las imagenes de esa tierlist para verla sin conexion, y de paso limpia del almacen cualquier imagen que ya no use ninguna de tus tierlists (para no acumular basura sin limite); esa misma limpieza se aplica tambien tras la descarga automatica en segundo plano al abrir la app
+const CACHE_NAME = 'at-v31'; // v31: quitada la descarga automatica en segundo plano de las imagenes de TODAS tus tierlists (Ronda 26/27) -- pedido explicito, "no se quiere tener todas descargadas, solo las que me interesen"; ahora NADA se descarga hasta que pulsas el boton "Descargar" en una tierlist concreta, la limpieza de imagenes sobrantes (que ya no usa ninguna tierlist) sigue pasando sola porque esa no descarga nada nuevo
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión

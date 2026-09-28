@@ -137,11 +137,6 @@ async function saveEditorChanges(){
     S.hasUnsaved=false;
     toast('\u2713 Guardado','ok');
   }
-  // FIX (Ronda 26): tras guardar, adelanta la descarga de las im\u00e1genes de
-  // los personajes reci\u00e9n colocados para que el modo Visor sin conexi\u00f3n
-  // pueda mostrarlos aunque nunca se haya vuelto a abrir esta tierlist
-  // con red desde entonces.
-  if (typeof precacheOwnTierImages === 'function') precacheOwnTierImages();
   render();
 }
 
@@ -214,9 +209,6 @@ async function saveEditorChangesCollab(friendIds){
     S.modal=null;
     subscribeCollabIfNeeded();
     toast('\u2713 Tierlist colaborativa guardada y compartida','ok');
-    // FIX (Ronda 26): igual que en el guardado normal, adelanta la cach\u00e9 de
-    // im\u00e1genes para el modo Visor sin conexi\u00f3n.
-    if (typeof precacheOwnTierImages === 'function') precacheOwnTierImages();
   }catch(e){
     console.error(e);
     toast('No se pudo compartir la tierlist: '+e.message,'err');

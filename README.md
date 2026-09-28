@@ -1337,6 +1337,26 @@ solo de la descarga automática en segundo plano (Ronda 26/27).
   automática en segundo plano al abrir la app, no solo al pulsar el botón.
   Una imagen que SÍ siga usando otra de tus tierlists nunca se borra.
 
+## 🆕 Ronda 29 — la descarga para sin conexión ya es 100% a tu elección
+
+Pedido explícito tras preguntar por el funcionamiento del botón "Descargar":
+"a lo mejor no se quiere tener todas descargadas, solo las que me
+interesen". Hasta ahora, aunque no pulsaras "Descargar", la app igualmente
+bajaba sola, en segundo plano, las imágenes de TODAS tus tierlists cada vez
+que abrías la app o guardabas algo (Rondas 26/27) — el botón solo lo
+forzaba al momento, no era el único disparador.
+
+Quitada esa descarga automática por completo. Ahora:
+
+- **Nada se descarga** hasta que pulsas "Descargar" en una tierlist
+  concreta, desde el modo Visor. Si no la descargas, esa tierlist saldrá
+  sin imágenes de personajes al verla sin conexión.
+- La limpieza de imágenes sobrantes (las de un personaje que ya no está
+  colocado en ninguna de tus tierlists) sigue pasando sola al abrir la
+  app, sin que haga falta pulsar nada — pero esto nunca descarga nada
+  nuevo, solo borra lo que ya no hace falta, así que no contradice el
+  "solo lo que me interesa".
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

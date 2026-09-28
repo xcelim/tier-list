@@ -7,26 +7,17 @@ async function saveProfiles() {
   DB.s('activeProfile', S.activeProfile);
 }
 
-// FIX (Ronda 26 — "no sale ninguna waifu" en el modo Visor sin conexión):
-// las imágenes de los personajes se piden a Supabase Storage según se
-// necesitan (al abrir una tierlist), y el Service Worker solo las guarda en
-// caché la PRIMERA vez que de verdad se piden con conexión — si nunca se
-// habían visto en este dispositivo, sin conexión salen en blanco. Como
-// pidió el usuario ("descarga en el móvil las tierlists de modo observar,
-// no creo que ocupen mucho"), esto se adelanta: mientras haya red, descarga
-// (y mete en la misma caché que usa el Service Worker, "at-char-imgs-v1")
-// la imagen de cada personaje que ya esté colocado en alguna tier de
-// CUALQUIERA de tus propias tierlists — no todo el catálogo/pool entero
-// (eso sí podría ser mucho), solo lo que de verdad puede verse en el modo
-// Visor. Es "best effort" en segundo plano: una imagen que falle no para
-// a las demás, y una imagen que ya esté en caché no se vuelve a pedir.
-// FIX (Ronda 27 — "he estado unos segundos y no me salían"): la primera
-// versión descargaba las imágenes UNA A UNA, en fila (esperando a que
-// terminase la anterior antes de pedir la siguiente) — con varias decenas
-// de personajes colocados y una conexión de móvil normal, eso puede tardar
-// bastantes segundos de sobra en total, aunque cada imagen individual sea
-// rápida. Ahora se piden en paralelo (varias a la vez, en tandas), varias
-// veces más rápido en total.
+// FIX (Ronda 29 — descarga solo lo que TÚ elijas, no todo automáticamente):
+// las Rondas 26/27 descargaban solas, en segundo plano, las imágenes de
+// TODAS tus tierlists cada vez que abrías la app o guardabas algo — pedido
+// explícito del usuario: "a lo mejor no se quiere tener todas descargadas,
+// solo las que me interesen". Se ha quitado esa descarga automática por
+// completo: ahora NADA se descarga hasta que pulsas el botón "Descargar" en
+// una tierlist concreta (ver downloadTierlistForOffline, más abajo) — si no
+// la descargas, esa tierlist saldrá sin imágenes en el modo Visor sin
+// conexión. Lo único que sigue pasando solo, sin descargar nada nuevo, es
+// la limpieza de imágenes que ya no use ninguna tierlist (gcCharImageCache),
+// porque eso solo borra, nunca añade.
 //
 // Recorre las tierlists indicadas (todas las propias, o solo una) y
 // devuelve el conjunto de URLs de imagen (solo las que de verdad son una
@@ -76,21 +67,9 @@ async function downloadImagesToCache(urls, force){
   return { ok, fail, total: list.length };
 }
 
-async function precacheOwnTierImages(){
-  if (!('caches' in window)) return;
-  try{
-    const p = activeProfile();
-    if(!p) return;
-    const urls = collectTierImageUrls(p.tls);
-    if(!urls.size) return;
-    await downloadImagesToCache(urls, false);
-  }catch(e){ console.warn('[precacheOwnTierImages]', e); }
-}
-
 // FIX (Ronda 28 — botón "Descargar" manual en el modo Visor de tus propias
-// tierlists): la precarga automática de arriba ya intenta mantener las
-// imágenes al día sola, en segundo plano, sin que se note ni se controle.
-// Este botón le da control explícito al usuario: "quiero estar seguro de
+// tierlists): único disparador de descargas desde la Ronda 29 (ver nota de
+// arriba). Le da control explícito al usuario: "quiero estar seguro de
 // que ESTA tierlist, tal y como se ve ahora mismo, está lista para verse
 // sin conexión", con aviso claro de cuándo termina (toasts). El nombre, el
 // color, el orden de los tiers y la posición de cada personaje YA se
