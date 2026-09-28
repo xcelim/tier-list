@@ -77,12 +77,13 @@ function CommentsSection(rankingId, ownerUserId) {
     list.forEach(c => {
       const mine = userSession && c.user_id === userSession.user.id;
       const item = h('div', { class: 'comment-item' });
-      const cFrame = typeof frameClassFor==='function' ? frameClassFor(c.author) : '';
-      // FIX: la imagen ya no lleva el border-radius directamente (se veía
-      // cortada/cuadrada en algunos navegadores) — ahora va envuelta en un
-      // contenedor con overflow:hidden que recorta de verdad, y el marco de
-      // color (si tiene) se pone en ese contenedor, no en la imagen.
-      item.appendChild(h('div', { class: 'comment-avatar-wrap' + (cFrame?(' '+cFrame):'') },
+      // FIX (pedido explícito): antes aquí se ponía el marco de color
+      // equipado (frameClassFor) sobre el avatar, con un anillo (box-shadow)
+      // alrededor del círculo — a tamaño tan pequeño (34px) se veía como un
+      // borde cuadrado/anguloso en vez de un aro fino, así que se ha quitado
+      // del todo: en los comentarios el avatar sale limpio, solo el círculo,
+      // sin marco (el marco de verdad, grande, se sigue viendo en el Perfil).
+      item.appendChild(h('div', { class: 'comment-avatar-wrap' },
         h('img', {
           src: c.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.author?.name || '?')}`
         })

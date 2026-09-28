@@ -25,17 +25,21 @@ function Nav(){
   }, currentTheme()==='dark' ? '☀️' : '🌙'));
   if(userSession) {
     const notifBtn = h('div', { 
-      class: 'nav-notif', 
-      onclick: (e) => { 
-        e.stopPropagation(); 
-        S.notifMenu = !S.notifMenu; S.profileMenu = null; 
+      class: 'at-bell', 
+      onclick: (e) => {
+        e.stopPropagation();
+        S.notifMenu = !S.notifMenu; S.profileMenu = null;
+        // DIAGNÓSTICO (por si el bloqueador de anuncios sigue sin dejarlo
+        // ver, aunque las clases ya no se llaman "notif-*"): esto confirma
+        // en la consola que el click SÍ se procesó y el estado cambió.
+        console.log('[campana]', S.notifMenu ? 'abriendo' : 'cerrando', 'menú de notificaciones');
         if(S.notifMenu){ fetchNotifications(); if(typeof fetchAppNotifications==='function') fetchAppNotifications(); } // Actualizar al abrir
-        render(); 
-      } 
+        render();
+      }
     },
       h('span', {style:{fontSize:'18px'}}, '🔔'),
       (S.pendingRequests.length + (typeof unreadAppNotifCount==='function'?unreadAppNotifCount():0)) > 0
-        ? h('div', { class: 'notif-badge' }, (S.pendingRequests.length + unreadAppNotifCount()) + '') : null
+        ? h('div', { class: 'at-bell-badge' }, (S.pendingRequests.length + unreadAppNotifCount()) + '') : null
     );
     nr.appendChild(notifBtn);
     
@@ -78,17 +82,17 @@ function Nav(){
   n.appendChild(nr);
 
   if(userSession && S.notifMenu) {
-    const nm = h('div', { class: 'notif-menu' }, h('div', { class: 'notif-title' }, 'Notificaciones', h('span', {style:{cursor:'pointer'}, onclick:(e)=>{e.stopPropagation();S.notifMenu=false;render();}}, '✕')));
+    const nm = h('div', { class: 'at-alerts-panel' }, h('div', { class: 'at-alerts-title' }, 'Notificaciones', h('span', {style:{cursor:'pointer'}, onclick:(e)=>{e.stopPropagation();S.notifMenu=false;render();}}, '✕')));
     if(S.pendingRequests.length === 0) {
-      nm.appendChild(h('div', { class: 'notif-empty' }, 'No tienes solicitudes pendientes.'));
+      nm.appendChild(h('div', { class: 'at-alerts-empty' }, 'No tienes solicitudes pendientes.'));
     } else {
       S.pendingRequests.forEach(req => {
-        const item = h('div', { class: 'notif-item' });
+        const item = h('div', { class: 'at-alert-row' });
         const senderName = req.sender?.name || 'Un usuario';
-        item.appendChild(h('div', { class: 'notif-msg' }, h('strong', {}, senderName), ' ha solicitado ser tu amigo.'));
-        const acts = h('div', { class: 'notif-actions' });
-        acts.appendChild(h('button', { class: 'btn bp bsm btn-notif', onclick: () => respondFriendRequest(req.id, 'accepted') }, '✓ Aceptar'));
-        acts.appendChild(h('button', { class: 'btn bd bsm btn-notif', onclick: () => respondFriendRequest(req.id, 'rejected') }, '✕'));
+        item.appendChild(h('div', { class: 'at-alert-msg' }, h('strong', {}, senderName), ' ha solicitado ser tu amigo.'));
+        const acts = h('div', { class: 'at-alert-actions' });
+        acts.appendChild(h('button', { class: 'btn bp bsm at-alert-btn', onclick: () => respondFriendRequest(req.id, 'accepted') }, '✓ Aceptar'));
+        acts.appendChild(h('button', { class: 'btn bd bsm at-alert-btn', onclick: () => respondFriendRequest(req.id, 'rejected') }, '✕'));
         item.appendChild(acts);
         nm.appendChild(item);
       });
@@ -96,16 +100,16 @@ function Nav(){
     // Notificaciones genéricas (comentarios en tus tierlists, etc.)
     const appNotifs = S.appNotifications || [];
     if(appNotifs.length){
-      nm.appendChild(h('div',{class:'notif-sep'},'Actividad'));
+      nm.appendChild(h('div',{class:'at-alert-sep'},'Actividad'));
       appNotifs.slice(0,12).forEach(nf=>{
         const actorName = nf.actor?.name || 'Alguien';
         const label = nf.type==='comment' ? ' ha comentado tu tierlist.'
                     : nf.type==='friend_accept' ? ' ha aceptado tu solicitud de amistad.'
                     : (nf.message || ' ha interactuado con tu contenido.');
         nm.appendChild(h('div',{
-          class:'notif-item'+(nf.read?'':' notif-unread'),
+          class:'at-alert-row'+(nf.read?'':' at-alert-unread'),
           onclick:()=>{ if(!nf.read) markNotificationRead(nf.id); if(nf.tierlist_id){ openEditor(nf.tierlist_id); render(); } }
-        }, h('div',{class:'notif-msg'}, h('strong',{},actorName), label)));
+        }, h('div',{class:'at-alert-msg'}, h('strong',{},actorName), label)));
       });
       if(appNotifs.some(n=>!n.read)){
         nm.appendChild(h('button',{class:'btn bg bsm',style:{width:'100%',marginTop:'6px'},onclick:(e)=>{e.stopPropagation();markAllNotificationsRead();}},'Marcar todo como leído'));

@@ -832,6 +832,33 @@ el número de versión en `index.html` (y en el nombre de `CACHE_NAME` de
 **Importante**: vuelve a subir el proyecto ENTERO (no solo algunos
 archivos) y haz un refresco forzado (Ctrl+Shift+R) al probarlo.
 
+## 🆕 Ronda 14 — repo conectado a GitHub directamente, avatar de comentarios sin marco, y posible causa real de la campana
+
+Desde esta ronda los cambios se suben directamente al repositorio de GitHub
+(`git push`), ya no hace falta bajar un zip y subirlo a mano.
+
+- **Avatar de los comentarios sin marco**: el anillo de color del marco
+  equipado (oro/plata/neón...) se veía anguloso/como un borde cuadrado a un
+  tamaño tan pequeño (34px). Se ha quitado del todo en los comentarios —
+  ahí solo sale el círculo limpio de la foto. El marco grande de verdad
+  sigue viéndose en la pantalla de Perfil, que es donde tiene sentido.
+- **Campana de notificaciones — posible causa real encontrada**: revisando
+  tus capturas se ve que tienes **AdBlock** activo en Chrome. Muchas listas
+  de filtros de bloqueadores de anuncios ocultan por nombre de clase CSS
+  cualquier cosa que "suene" a notificación/popup — es un patrón muy común
+  contra los típicos avisos de "activa las notificaciones" de las webs. Es
+  muy posible que el menú de la campana se estuviera creando y funcionando
+  perfectamente por dentro, pero el propio bloqueador lo escondiera sin
+  dar ningún error en consola (por eso no se veía nada raro al mirar el
+  código). Se han renombrado todas las clases CSS relacionadas
+  (`notif-menu`, `notif-badge`, `notif-item`, etc.) a nombres propios
+  (`at-alerts-panel`, `at-bell-badge`, `at-alert-row`...) que no deberían
+  coincidir con esos filtros. De paso se añadió una línea en la consola
+  (`[campana] abriendo/cerrando menú de notificaciones`) que confirma que
+  el click se procesa — si sigue sin verse el menú después de esto, esa
+  línea en consola (F12) dirá si el problema es del bloqueador (el log
+  aparece pero no se ve el menú) o de otra cosa (el log ni aparece).
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

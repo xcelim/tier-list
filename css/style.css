@@ -142,19 +142,19 @@ nav{background:linear-gradient(90deg,rgba(8,12,35,.92) 0%,rgba(12,18,50,.92) 50%
 .btn-save:hover{filter:brightness(1.1)}
 
 /* NOTIFICATIONS */
-.nav-notif{position:relative;cursor:pointer;padding:4px;display:flex;align-items:center;margin-right:10px}
-.notif-badge{position:absolute;top:-2px;right:-2px;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px;min-width:16px;text-align:center;border:1.5px solid var(--bg)}
-.notif-menu{position:absolute;top:58px;right:60px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;width:300px;z-index:400;box-shadow:0 12px 40px rgba(0,0,0,.6);animation:slideDown .18s ease}
-.notif-title{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;margin-bottom:10px;color:var(--text2);display:flex;justify-content:space-between}
-.notif-empty{padding:20px;text-align:center;color:var(--text3);font-size:12px}
-.notif-item{padding:10px;border-radius:8px;background:rgba(255,255,255,.03);margin-bottom:8px;font-size:12px;border:1px solid var(--border)}
-.notif-sep{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin:10px 0 6px;padding-top:8px;border-top:1px solid var(--border)}
-.notif-item.notif-unread{border-color:var(--neon-magenta,var(--accent2));box-shadow:0 0 0 1px rgba(255,46,166,.15)}
-.notif-item[onclick]{cursor:pointer;transition:.15s}
-.notif-item[onclick]:hover{background:rgba(255,255,255,.07)}
-.notif-msg{margin-bottom:8px;line-height:1.4}
-.notif-actions{display:flex;gap:6px;justify-content:flex-end}
-.btn-notif{padding:4px 10px;border-radius:5px;font-size:11px;font-weight:600}
+.at-bell{position:relative;cursor:pointer;padding:4px;display:flex;align-items:center;margin-right:10px}
+.at-bell-badge{position:absolute;top:-2px;right:-2px;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px;min-width:16px;text-align:center;border:1.5px solid var(--bg)}
+.at-alerts-panel{position:absolute;top:58px;right:60px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;width:300px;z-index:400;box-shadow:0 12px 40px rgba(0,0,0,.6);animation:slideDown .18s ease}
+.at-alerts-title{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;margin-bottom:10px;color:var(--text2);display:flex;justify-content:space-between}
+.at-alerts-empty{padding:20px;text-align:center;color:var(--text3);font-size:12px}
+.at-alert-row{padding:10px;border-radius:8px;background:rgba(255,255,255,.03);margin-bottom:8px;font-size:12px;border:1px solid var(--border)}
+.at-alert-sep{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin:10px 0 6px;padding-top:8px;border-top:1px solid var(--border)}
+.at-alert-row.at-alert-unread{border-color:var(--neon-magenta,var(--accent2));box-shadow:0 0 0 1px rgba(255,46,166,.15)}
+.at-alert-row[onclick]{cursor:pointer;transition:.15s}
+.at-alert-row[onclick]:hover{background:rgba(255,255,255,.07)}
+.at-alert-msg{margin-bottom:8px;line-height:1.4}
+.at-alert-actions{display:flex;gap:6px;justify-content:flex-end}
+.at-alert-btn{padding:4px 10px;border-radius:5px;font-size:11px;font-weight:600}
 
 /* MAIN */
 main{padding:14px;max-width:1320px;margin:0 auto}

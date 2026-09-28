@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v15'; // v15: menú de "..." en el chat (eliminar chat/grupo, salir del grupo), ticks de leído estilo WhatsApp, arreglado que un chat te saliera "sin leer" al enviar tú un mensaje, arreglados canales de Realtime duplicados al reabrir un chat, y "?v=15" en todos los <script>/<link> de index.html para que el navegador/hosting no sirva JS/CSS viejos en caché cuando se sube una versión nueva
+const CACHE_NAME = 'at-v16'; // v16: quitado el marco/anillo de color del avatar de los comentarios (se veía anguloso a ese tamaño pequeño, ahora es solo el círculo limpio), y renombradas las clases CSS de "notif-*" a "at-alert-*"/"at-bell" por si un bloqueador de anuncios (AdBlock etc.) las estaba ocultando por su nombre — es un patrón conocido de las listas de filtros anti-popup/anti-notificación
 const ASSETS = [
   './',
   './index.html',
