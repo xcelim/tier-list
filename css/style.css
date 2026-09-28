@@ -144,7 +144,15 @@ nav{background:linear-gradient(90deg,rgba(8,12,35,.92) 0%,rgba(12,18,50,.92) 50%
 /* NOTIFICATIONS */
 .at-bell{position:relative;cursor:pointer;padding:4px;display:flex;align-items:center;margin-right:10px}
 .at-bell-badge{position:absolute;top:-2px;right:-2px;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px;min-width:16px;text-align:center;border:1.5px solid var(--bg)}
-.at-alerts-panel{position:absolute;top:58px;right:60px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;width:300px;z-index:400;box-shadow:0 12px 40px rgba(0,0,0,.6);animation:slideDown .18s ease}
+/* FIX (Ronda 15): la campana SÍ abría/cerraba bien (confirmado por consola:
+   "[campana] abriendo/cerrando" alternaba perfecto en cada click), así que
+   el bug no era de JS — era que este panel usaba position:absolute, que se
+   posiciona relativo al <nav>, y <nav> tiene position:sticky + backdrop-
+   filter:blur(), lo que en algunos navegadores crea un "containing block"/
+   stacking context raro que puede dejar el panel invisible o mal recortado.
+   Ahora usa position:fixed (siempre relativo a la ventana, sin depender de
+   nav) y un z-index mucho más alto para no quedar nunca detrás de nada. */
+.at-alerts-panel{position:fixed;top:56px;right:16px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;width:300px;max-width:calc(100vw - 32px);max-height:70vh;overflow-y:auto;z-index:9999;box-shadow:0 12px 40px rgba(0,0,0,.6);animation:slideDown .18s ease}
 .at-alerts-title{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;margin-bottom:10px;color:var(--text2);display:flex;justify-content:space-between}
 .at-alerts-empty{padding:20px;text-align:center;color:var(--text3);font-size:12px}
 .at-alert-row{padding:10px;border-radius:8px;background:rgba(255,255,255,.03);margin-bottom:8px;font-size:12px;border:1px solid var(--border)}

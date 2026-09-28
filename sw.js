@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v16'; // v16: quitado el marco/anillo de color del avatar de los comentarios (se veía anguloso a ese tamaño pequeño, ahora es solo el círculo limpio), y renombradas las clases CSS de "notif-*" a "at-alert-*"/"at-bell" por si un bloqueador de anuncios (AdBlock etc.) las estaba ocultando por su nombre — es un patrón conocido de las listas de filtros anti-popup/anti-notificación
+const CACHE_NAME = 'at-v17'; // v17: bug real de la campana de notificaciones encontrado y arreglado — el JS estaba bien (confirmado por consola), era el panel .at-alerts-panel con position:absolute dependiendo del <nav> (sticky + backdrop-filter), ahora usa position:fixed con z-index muy alto para que se vea siempre
 const ASSETS = [
   './',
   './index.html',

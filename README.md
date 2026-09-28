@@ -859,6 +859,35 @@ Desde esta ronda los cambios se suben directamente al repositorio de GitHub
   línea en consola (F12) dirá si el problema es del bloqueador (el log
   aparece pero no se ve el menú) o de otra cosa (el log ni aparece).
 
+## 🆕 Ronda 15 — causa REAL de la campana encontrada y arreglada (era CSS, no JS ni AdBlock)
+
+Con la línea de consola de la Ronda 14 se pudo confirmar (captura de pantalla
+del propio usuario) que el `[campana] abriendo menú de notificaciones` /
+`[campana] cerrando menú de notificaciones` alternaba perfectamente en cada
+click. Eso demuestra al 100% que el JavaScript y el estado (`S.notifMenu`)
+funcionan bien — el panel se estaba creando en el DOM en cada click, tal y
+como debía. El problema tenía que ser, por tanto, puramente visual.
+
+- **Causa real**: el panel `.at-alerts-panel` usaba `position:absolute`, que
+  se posiciona en relación al ancestro con posición "sticky/relative/fixed"
+  más cercano — en este caso el `<nav>`, que además tiene
+  `backdrop-filter:blur(14px)`. Esa combinación (`position:sticky` +
+  `backdrop-filter`) crea en algunos navegadores un nuevo "contexto de
+  apilamiento" (stacking context) que puede hacer que elementos hijos
+  posicionados de forma absoluta se rendericen de forma inconsistente,
+  detrás de otras capas, o con recortes raros — sin dar ningún error, ya
+  que no es un fallo de JavaScript sino puramente de composición visual del
+  navegador.
+- **Arreglo**: `.at-alerts-panel` ahora usa `position:fixed` (siempre
+  relativo a la ventana del navegador, nunca depende de ningún ancestro) con
+  coordenadas fijas (`top:56px;right:16px`) y un `z-index` mucho más alto
+  (`9999` en vez de `400`), además de `max-height:70vh` y scroll propio para
+  que quepa bien en pantallas pequeñas. Así el menú no puede volver a
+  quedar invisible por ninguna interacción con el `<nav>`.
+- Esto también descarta definitivamente la teoría de AdBlock de la Ronda
+  14 como causa — las clases ya se habían renombrado y el bug seguía sin
+  arreglarse, así que confirmaba que la causa era otra (esta de aquí).
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,
