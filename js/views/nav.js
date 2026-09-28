@@ -96,8 +96,18 @@ function Nav(){
     nr.appendChild(chatBtn);
 
     const p = currentUserProfile || { name: '...', color: '#888' };
+    // FIX (Ronda 39 — pedido explícito, con captura: "el mío de mi perfil de
+    // plata está como cortado"): antes la foto era una <img> con
+    // border-radius+object-fit directamente encima de .profile-btn (que
+    // además lleva el marco equipado, dibujado con box-shadow) — en varios
+    // navegadores/WebViews esa combinación no recorta la imagen en un
+    // círculo perfecto y se ve "a medias", con una esquina cuadrada
+    // asomando por detrás. Mismo arreglo que en los comentarios (Ronda 38):
+    // la foto va ahora en un div interior aparte con overflow:hidden
+    // (profile-btn-clip) que SÍ recorta siempre, dejando el marco intacto
+    // en el elemento de fuera.
     const btnContent = p.avatar_url
-      ? h('img', { src: p.avatar_url, style: { width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' } })
+      ? h('div', { class: 'profile-btn-clip' }, h('img', { src: p.avatar_url }))
       : p.name.charAt(0).toUpperCase();
     // FIX: antes, pulsar el avatar solo abría un menú desplegable (con
     // "Editar perfil" y "Cerrar sesión" dentro) en vez de llevarte

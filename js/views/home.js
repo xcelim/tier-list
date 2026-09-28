@@ -338,9 +338,16 @@ function UsersPage() {
       const avWrap = h('div', { class: 'user-avatar-wrap' });
       avWrap.appendChild(h('div', { class: 'user-avatar-ring' }));
       avWrap.appendChild(h('div', { class: 'user-avatar-border' }));
+      // FIX (Ronda 39 — marco cortado): la foto (con border-radius+
+      // object-fit) va en un div interior con overflow:hidden aparte
+      // (user-avatar-clip), separado del marco (user-avatar-frame, sin
+      // overflow) — mismo motivo que en comentarios/chat/nav.
       const uFrame = typeof frameClassFor==='function' ? frameClassFor(u) : '';
-      const av = h('img', { class: 'user-avatar' + (uFrame?(' '+uFrame):''), src: u.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${u.name}` });
-      avWrap.appendChild(av);
+      const avFrame = h('div', { class: 'user-avatar-frame' + (uFrame?(' '+uFrame):'') },
+        h('div', { class: 'user-avatar-clip' },
+          h('img', { class: 'user-avatar', src: u.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${u.name}` }))
+      );
+      avWrap.appendChild(avFrame);
       card.appendChild(avWrap);
 
       // Nombre sin @
@@ -835,9 +842,14 @@ function ProfilePage() {
       const avWrap2 = h('div', { class: 'user-avatar-wrap' });
       avWrap2.appendChild(h('div', { class: 'user-avatar-ring' }));
       avWrap2.appendChild(h('div', { class: 'user-avatar-border' }));
+      // FIX (Ronda 39 — marco cortado): ver el mismo comentario más arriba,
+      // en el grid de "Usuarios".
       const fFrame = typeof frameClassFor==='function' ? frameClassFor(f) : '';
-      const av = h('img', { class: 'user-avatar' + (fFrame?(' '+fFrame):''), src: f.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${f.name}` });
-      avWrap2.appendChild(av);
+      const avFrame2 = h('div', { class: 'user-avatar-frame' + (fFrame?(' '+fFrame):'') },
+        h('div', { class: 'user-avatar-clip' },
+          h('img', { class: 'user-avatar', src: f.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${f.name}` }))
+      );
+      avWrap2.appendChild(avFrame2);
       fc.appendChild(avWrap2);
       
       fc.appendChild(h('span', { class: 'user-name' }, f.name));

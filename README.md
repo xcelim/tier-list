@@ -1562,6 +1562,26 @@ cortado".
   círculo pasa a un nuevo div de dentro (que no lleva marco). Así ninguno
   de los dos estropea al otro.
 
+## 🆕 Ronda 39 — el marco seguía cortado en más sitios (perfil, chats, compartir, Usuarios)
+
+Feedback explícito con nueva captura: "sigue igual tío, no es un círculo
+perfecto, se corta".
+
+- El arreglo de la Ronda 38 solo tocó el avatar de los COMENTARIOS. El
+  mismo problema de fondo (la foto, con `border-radius`+`object-fit`
+  directamente debajo del marco, sin una capa de `overflow:hidden` propia
+  y separada) seguía presente en:
+  - Tu propio avatar arriba a la derecha (botón de perfil, junto a la
+    campana).
+  - La lista de chats (tanto conversaciones individuales como el aviso de
+    "amigos" — de paso, esta última tampoco mostraba el marco del amigo en
+    absoluto, ahora sí).
+  - El selector de amigos al compartir/gestionar una tierlist colaborativa.
+  - Las tarjetas de "Usuarios" y "Amigos" (el círculo con nombre debajo).
+- **Arreglados los cuatro** con el mismo patrón de dos capas ya usado en
+  comentarios: una capa de fuera con el marco (sin recortar nada) y una de
+  dentro que recorta la foto en círculo (sin marco).
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

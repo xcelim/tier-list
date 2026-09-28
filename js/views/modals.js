@@ -96,7 +96,17 @@ function renderChatAvatarItem(c) {
   if (!c.is_group) {
     const p = members[0]?.profiles;
     const fc = typeof frameClassFor==='function' ? frameClassFor(p) : '';
-    if (p?.avatar_url) return h('img', { src: p.avatar_url, class: 'chat-avatar-single' + (fc?(' '+fc):'') });
+    // FIX (Ronda 39 — "el marco de mi perfil de plata está cortado"): igual
+    // que en comentarios (Ronda 38) y en el avatar del propio perfil arriba
+    // en la campana/nav (ver nav.js), la <img> del chat llevaba
+    // border-radius+object-fit directamente encima del marco — se separa en
+    // un div de fuera con el marco (sin recortar nada) y uno de dentro
+    // (chat-avatar-clip) que SÍ recorta siempre la foto en círculo.
+    if (p?.avatar_url) {
+      return h('div', { class: 'chat-avatar-single' + (fc?(' '+fc):'') },
+        h('div', { class: 'chat-avatar-clip' }, h('img', { src: p.avatar_url }))
+      );
+    }
     const initEl = h('div', { class: 'chat-avatar-single', style: { background: '#1e2a5a', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'10px', fontWeight:'bold', color:'var(--accent2)' } }, (p?.name||'?').charAt(0).toUpperCase());
     return initEl;
   }
@@ -264,7 +274,11 @@ function MChat() {
       class: 'chat-item' + (S.activeChat && existing && S.activeChat.id === existing.id ? ' active' : ''),
       onclick: () => openChat(chatRef)
     });
-    if (f.avatar_url) item.appendChild(h('img', { src: f.avatar_url, class: 'chat-avatar-single' }));
+    // FIX (Ronda 39): mismo arreglo del marco cortado que en renderChatAvatarItem
+    // de más arriba (ver su comentario) — de paso, esta fila nunca aplicaba
+    // el marco equipado del amigo (solo la de los chats de grupo lo hacía).
+    const fFrame = typeof frameClassFor==='function' ? frameClassFor(f) : '';
+    if (f.avatar_url) item.appendChild(h('div', { class: 'chat-avatar-single' + (fFrame?(' '+fFrame):'') }, h('div', { class: 'chat-avatar-clip' }, h('img', { src: f.avatar_url }))));
     else item.appendChild(h('div', { class: 'chat-avatar-single', style: { background:'#1e2a5a', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'10px', fontWeight:'bold', color:'var(--accent2)' } }, (f.name||'?').charAt(0).toUpperCase()));
     const info = h('div', { class: 'chat-item-info' });
     info.appendChild(h('div', { class: 'chat-item-name' }, f.name));
@@ -499,8 +513,14 @@ function MCollabSave(){
       chk.checked = selected.has(f.id);
       chk.onchange=()=>{ if(chk.checked) selected.add(f.id); else selected.delete(f.id); };
       row.appendChild(chk);
+      // FIX (Ronda 39 — marco cortado): mismo arreglo que en comentarios y
+      // el chat — la foto (con border-radius+object-fit) va en un div
+      // interior con overflow:hidden aparte, separado del marco.
       const fc = typeof frameClassFor==='function' ? frameClassFor(f) : '';
-      row.appendChild(h('img',{class:fc,src:f.avatar_url||`https://api.dicebear.com/7.x/initials/svg?seed=${f.name}`,style:{width:'28px',height:'28px',borderRadius:'50%',objectFit:'cover'}}));
+      row.appendChild(h('div',{class:'collab-pick-avatar'+(fc?(' '+fc):'')},
+        h('div',{class:'collab-pick-avatar-clip'},
+          h('img',{src:f.avatar_url||`https://api.dicebear.com/7.x/initials/svg?seed=${f.name}`}))
+      ));
       row.appendChild(h('span',{},f.name));
       list.appendChild(row);
     });

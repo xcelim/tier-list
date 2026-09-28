@@ -148,6 +148,12 @@ nav::-webkit-scrollbar{display:none}
   .profile-btn:hover{transform:scale(1.1);border-color:var(--accent2)}
 }
 .profile-btn.active{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,.2)}
+/* FIX (Ronda 39 — "mi perfil de plata está cortado"): la foto real dentro
+   de .profile-btn va en este div interior, que SÍ recorta siempre con
+   overflow:hidden; .profile-btn (que lleva el marco, dibujado con
+   box-shadow) se queda sin overflow para no recortarse a sí mismo. */
+.profile-btn-clip{width:100%;height:100%;border-radius:50%;overflow:hidden;display:block}
+.profile-btn-clip img{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
 .profile-btn .online-dot{position:absolute;bottom:0;right:0;width:8px;height:8px;border-radius:50%;background:var(--green);border:2px solid var(--bg2)}
 .profile-menu{position:absolute;top:58px;right:16px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:8px;min-width:180px;z-index:400;box-shadow:0 12px 40px rgba(0,0,0,.6);animation:slideDown .18s ease}
 @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
@@ -454,7 +460,19 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .chat-input { flex: 1; background: #101c41 !important; border: 1px solid rgba(120,80,230,0.3) !important; padding: 3px 7px; border-radius: 6px; color: #fff; font-size: 10px; outline: none; }
 .chat-send-btn { background: var(--violet); border: none; color: white; padding: 3px 9px; border-radius: 6px; cursor: pointer; font-size: 10px; font-weight: bold; }
 /* Avatares compuestos */
-.chat-avatar-single { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+/* FIX (Ronda 39 — marco cortado): igual que .profile-btn/.comment-avatar-wrap,
+   .chat-avatar-single lleva el marco (box-shadow) y ya NO recorta nada; el
+   recorte real de la foto vive en .chat-avatar-clip, de dentro. (Sigue
+   valiendo tal cual para la variante "iniciales", un div sin foto.) */
+.chat-avatar-single { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; display:block; }
+.chat-avatar-clip { width:100%; height:100%; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+.chat-avatar-clip img { width:100%; height:100%; object-fit:cover; display:block; border-radius:50%; }
+/* Avatares del selector de amigos para compartir/gestionar una tierlist
+   colaborativa (ver MCollabSave en modals.js) — mismo patrón marco/recorte
+   separados que arriba, para que el marco equipado no salga cortado. */
+.collab-pick-avatar{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:block}
+.collab-pick-avatar-clip{width:100%;height:100%;border-radius:50%;overflow:hidden;display:block}
+.collab-pick-avatar-clip img{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
 .group-avatars-container { position: relative; width: 30px; height: 24px; flex-shrink: 0; }
 .group-avatar-stacked { width: 17px; height: 17px; border-radius: 50%; object-fit: cover; position: absolute; border: 1.5px solid #0a1128; }
 .group-avatar-stacked:nth-child(1) { left: 0; top: 3px; z-index: 3; }
@@ -600,7 +618,17 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 .user-avatar-wrap{position:relative !important;z-index:1 !important;width:88px !important;height:88px !important;margin-bottom:14px !important}
 .user-avatar-ring{position:absolute !important;inset:-6px !important;border-radius:50% !important;background:linear-gradient(135deg,#cfe4ff,#4a6cff) !important;opacity:.35 !important;filter:blur(10px) !important}
 .user-avatar-border{position:absolute !important;inset:-3px !important;border-radius:50% !important;padding:3px !important;box-sizing:border-box !important;background:linear-gradient(160deg,#eaf2ff 0%,#8fb0ff 50%,#3a4ad6 100%) !important;-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0) !important;-webkit-mask-composite:xor !important;mask-composite:exclude !important;z-index:1 !important;border:none !important}
-.user-avatar{position:relative !important;width:100% !important;height:100% !important;border-radius:50% !important;object-fit:cover !important;z-index:2 !important;display:block !important;border:none !important;background:none !important}
+/* FIX (Ronda 39 — marco cortado): antes el marco equipado (box-shadow) iba
+   directamente en la propia <img> .user-avatar, que se recorta a círculo
+   solo con border-radius+object-fit (sin overflow:hidden de por medio) —
+   en varios navegadores/WebViews esa combinación deja una esquina cuadrada
+   asomando por detrás. Se separa en dos capas: .user-avatar-frame (sin
+   overflow, lleva el marco) por fuera, y .user-avatar-clip (con
+   overflow:hidden, sin marco) por dentro, envolviendo ya sí de verdad la
+   imagen — mismo patrón que en comentarios/chat/nav.*/
+.user-avatar-frame{position:relative !important;width:100% !important;height:100% !important;border-radius:50% !important;z-index:2 !important;display:block !important}
+.user-avatar-clip{width:100% !important;height:100% !important;border-radius:50% !important;overflow:hidden !important;display:block !important}
+.user-avatar{position:static !important;width:100% !important;height:100% !important;border-radius:50% !important;object-fit:cover !important;display:block !important;border:none !important;background:none !important}
 .user-name{position:relative !important;z-index:1 !important;font-family:'Cinzel',serif !important;font-size:14px !important;font-weight:600 !important;color:#e8eeff !important;margin-bottom:4px !important;text-align:center !important;display:block !important}
 .user-stats{position:relative !important;z-index:1 !important;font-size:10.5px !important;color:var(--text2) !important;text-align:center !important;margin-bottom:14px !important;line-height:1.6 !important}
 .user-add-btn{position:relative;z-index:1;width:38px;height:38px;border-radius:50%;background:#3ec47a;border:none;color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s;box-shadow:0 0 12px rgba(62,196,122,.35);line-height:1;margin-top:auto}
