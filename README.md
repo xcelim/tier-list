@@ -780,6 +780,58 @@ hiciera falta en el futuro — no molesta ni afecta al rendimiento.
   siempre (el mismo truco que ya se usaba en el círculo grande de Perfil),
   así que sale perfectamente redonda sin importar el navegador.
 
+## 🆕 Ronda 13 — menú de opciones del chat, ticks de leído, y arreglo de caché
+
+### El chat de verdad ya iba (confirmado) — se añaden las opciones que faltaban
+
+- **Menú de "⋮" en la cabecera del chat abierto**, con opciones distintas
+  según el tipo de conversación:
+  - **Chat privado** → "Eliminar chat" (lo borra para las dos personas; no
+    hay forma de deshacerlo, así que pide confirmación).
+  - **Grupo, si tú lo creaste** → "Eliminar grupo" (borra el grupo entero
+    para todos).
+  - **Grupo, si NO lo creaste** → "Salir del grupo" (solo te quita a ti;
+    el grupo sigue existiendo para el resto).
+  - Nota: los grupos creados ANTES de esta ronda no tienen guardado quién
+    los creó (esa columna es nueva), así que para esos de momento todo el
+    mundo ve "Salir del grupo" — los grupos que crees a partir de ahora sí
+    recuerdan quién es el creador.
+  - Hacen falta permisos nuevos en Supabase para poder borrar — están en
+    `supabase-schema.sql` (hay que volver a pegarlo entero, es seguro
+    re-ejecutarlo).
+- **Ticks de "leído" estilo WhatsApp** en tus propios mensajes: un check
+  gris = enviado, doble check azul = leído por la otra persona (en un
+  grupo, leído por TODOS). Se actualizan solos, en vivo, en cuanto la otra
+  persona abre la conversación — no hace falta recargar nada.
+- **Arreglado: "me sale el chat sin leer aunque el último mensaje sea
+  mío"**. El cálculo de "no leído" comparaba la hora del último mensaje del
+  chat contra la última vez que TÚ lo habías abierto — pero al enviar un
+  mensaje esa hora no se actualizaba, así que tu propio mensaje "te
+  aparecía a ti" como no leído. Ahora, al enviar, también se refresca tu
+  propia marca de "leído hasta aquí".
+- **Arreglado otro caso de canales de Realtime duplicados**: si abrías el
+  mismo chat más de una vez (o cambiabas de chat y volvías), se repetía el
+  mismo error de consola "cannot add postgres_changes callbacks... after
+  subscribe()" que ya se había arreglado para las notificaciones — mismo
+  problema, sitio distinto. Arreglado con el mismo patrón (quitar la
+  suscripción vieja antes de crear una nueva).
+
+### Arreglo importante de caché — probablemente la causa de que varios arreglos "no se notaran"
+
+Se ha añadido `?v=15` al final de cada archivo `.js`/`.css` que carga
+`index.html`. Motivo: sin esto, si tu hosting o el propio navegador cachean
+agresivamente los archivos estáticos (algo muy típico en GitHub
+Pages/Netlify/Vercel por defecto), puede que siguieras recibiendo una
+versión antigua de un archivo aunque ya hubieras subido el nuevo — lo que
+encajaría con que algunos arreglos de rondas anteriores (como el de la
+campana de notificaciones) parecieran no aplicarse pese a estar bien
+subidos. A partir de ahora, cada ronda que cambie algo debe subir también
+el número de versión en `index.html` (y en el nombre de `CACHE_NAME` de
+`sw.js`) para forzar la descarga de los archivos nuevos.
+
+**Importante**: vuelve a subir el proyecto ENTERO (no solo algunos
+archivos) y haz un refresco forzado (Ctrl+Shift+R) al probarlo.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

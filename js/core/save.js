@@ -256,20 +256,25 @@ async function saveProfileChanges() {
 
 async function fetchChats() {
   if (!userSession) return;
-  // Traemos los chats donde el usuario es miembro, incluyendo la info del chat y de los otros miembros
+  // Traemos los chats donde el usuario es miembro, incluyendo la info del chat y de los otros miembros.
+  // FIX (Ronda 12): pedimos también "last_read_at" de CADA miembro (no solo
+  // el tuyo) — antes solo se traía para calcular tu propio "no leído", pero
+  // hace falta el de los DEMÁS para poder pintar los ticks de "leído" estilo
+  // WhatsApp (un mensaje tuyo está "leído" cuando el last_read_at del otro
+  // es posterior a la hora en que lo enviaste).
   const { data, error } = await sbClient.from('chat_members')
-    .select('last_read_at, chats(*, chat_members(user_id, profiles(name, avatar_url, avatar_frame)))')
+    .select('last_read_at, chats(*, chat_members(user_id, last_read_at, profiles(name, avatar_url, avatar_frame)))')
     .eq('user_id', userSession.user.id);
-  
+
   if (!error) {
     let globalUnread = 0;
     S.chats = data.map(d => {
       const chat = d.chats;
       // Un chat no está leído si el last_message_at del chat es posterior al last_read_at del miembro
       const hasUnread = chat.last_message_at && (!d.last_read_at || new Date(chat.last_message_at) > new Date(d.last_read_at));
-      
+
       if (hasUnread) globalUnread++;
-      
+
       return {
         ...chat,
         has_unread: hasUnread,
@@ -277,6 +282,15 @@ async function fetchChats() {
       };
     });
     S.totalUnread = globalUnread;
+    // FIX: S.activeChat es una referencia al objeto de chat que se estaba
+    // usando ANTES de este refetch — como aquí arriba se reemplaza
+    // S.chats entero por objetos nuevos, si no re-enganchamos S.activeChat
+    // al objeto nuevo correspondiente, se queda "congelado" con datos
+    // viejos (importante para que los ticks de leído se actualicen).
+    if (S.activeChat) {
+      const updated = S.chats.find(c => c.id === S.activeChat.id);
+      if (updated) S.activeChat = updated;
+    }
     render();
   } else {
     console.warn('[chat] fetchChats:', error.message);
@@ -387,16 +401,45 @@ async function openChat(chat) {
     .eq('user_id', userSession.user.id);
   fetchChats(); // Refrescar para actualizar el badge de no leídos
 
+  // FIX (Ronda 12): antes, cada vez que se abría un chat (incluso el MISMO
+  // chat otra vez) se llamaba a sbClient.channel(`chat:${chat.id}`) sin
+  // quitar la suscripción anterior. Como Supabase reutiliza el canal si ya
+  // existe uno con ese nombre, la segunda vez fallaba igual que el bug de
+  // "cannot add postgres_changes callbacks... after subscribe()" que ya se
+  // arregló para las notificaciones. Ahora se quita cualquier suscripción
+  // de chat anterior antes de crear las nuevas.
+  if (_activeChatChannel) { sbClient.removeChannel(_activeChatChannel); _activeChatChannel = null; }
+  if (_activeMembersChannel) { sbClient.removeChannel(_activeMembersChannel); _activeMembersChannel = null; }
+
   // Suscribirse a nuevos mensajes en tiempo real
-  sbClient.channel(`chat:${chat.id}`)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chat.id}` }, 
+  _activeChatChannel = sbClient.channel(`chat:${chat.id}:${Date.now()}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chat.id}` },
     payload => {
       if (!S.messages.find(m => m.id === payload.new.id)) {
         S.messages.push({ ...payload.new, profiles: { name: currentUserProfile.name } }); // Asumimos que el perfil del sender es el nuestro
         render();
       }
     }).subscribe();
+
+  // NUEVO (Ronda 12): ticks de "leído" estilo WhatsApp. Nos suscribimos a
+  // cambios en chat_members de ESTE chat — cuando la otra persona abre la
+  // conversación, su last_read_at se actualiza (ver más arriba), y aquí
+  // reflejamos ese cambio al momento en S.activeChat.chat_members para que
+  // el tick de tus mensajes pase de "enviado" a "leído" sin recargar nada.
+  _activeMembersChannel = sbClient.channel(`chat-members:${chat.id}:${Date.now()}`)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_members', filter: `chat_id=eq.${chat.id}` },
+    payload => {
+      if (!S.activeChat || S.activeChat.id !== chat.id) return;
+      const members = S.activeChat.chat_members || [];
+      const m = members.find(mm => mm.user_id === payload.new.user_id);
+      if (m) { m.last_read_at = payload.new.last_read_at; render(); }
+    }).subscribe();
 }
+
+// Referencias a los canales de tiempo real del chat abierto actualmente,
+// para poder quitarlos antes de suscribirse a otros (ver openChat arriba).
+let _activeChatChannel = null;
+let _activeMembersChannel = null;
 
 async function sendChatMessage(content) {
   if (!content.trim() || !S.activeChat) return;
@@ -421,7 +464,64 @@ async function sendChatMessage(content) {
   }
 
   // Actualizar last_message_at en el chat (para ordenar/mostrar hora, no crítico)
-  await sbClient.from('chats').update({ last_message_at: new Date().toISOString() }).eq('id', S.activeChat.id);
+  const nowIso = new Date().toISOString();
+  await sbClient.from('chats').update({ last_message_at: nowIso }).eq('id', S.activeChat.id);
+
+  // FIX (Ronda 12): "cuando envío un mensaje me sale el chat sin leer a
+  // veces". Esto pasaba porque fetchChats() marca un chat como "no leído"
+  // comparando chats.last_message_at (que se acaba de actualizar arriba,
+  // con TU mensaje) contra TU PROPIO last_read_at en chat_members — que
+  // seguía teniendo la hora de la última vez que abriste el chat, ANTES de
+  // enviar este mensaje. Al mandar un mensaje obviamente lo "has leído" (lo
+  // acabas de escribir tú), así que hay que refrescar también tu propio
+  // last_read_at aquí, no solo al abrir el chat.
+  await sbClient.from('chat_members')
+    .update({ last_read_at: nowIso })
+    .eq('chat_id', S.activeChat.id)
+    .eq('user_id', userSession.user.id);
+  const myMember = (S.activeChat.chat_members || []).find(m => m.user_id === userSession.user.id);
+  if (myMember) myMember.last_read_at = nowIso;
+  const idxSelf = S.chats.findIndex(c => c.id === S.activeChat.id);
+  if (idxSelf !== -1) { S.chats[idxSelf].has_unread = false; S.chats[idxSelf].last_message_at = nowIso; }
+}
+
+// NUEVO (Ronda 12): estado de "leído" de un mensaje propio, estilo
+// WhatsApp. Un chat privado está "leído" si el otro miembro tiene un
+// last_read_at posterior a cuándo se envió el mensaje; un grupo se marca
+// "leído" solo cuando TODOS los demás miembros ya lo han leído (igual que
+// hace WhatsApp con el doble check azul en grupos).
+function chatMsgReadState(msg, chat) {
+  if (!chat || !Array.isArray(chat.chat_members)) return 'sent';
+  const others = chat.chat_members.filter(m => m.user_id !== msg.sender_id);
+  if (!others.length) return 'sent';
+  const msgTime = new Date(msg.created_at).getTime();
+  const allRead = others.every(m => m.last_read_at && new Date(m.last_read_at).getTime() >= msgTime);
+  return allRead ? 'read' : 'sent';
+}
+
+// NUEVO (Ronda 12): opciones del menú de "..." dentro de un chat.
+async function deleteChat(chatId) {
+  if (!confirm('¿Seguro que quieres eliminar esta conversación? Se borrará para todos los participantes y no se puede deshacer.')) return;
+  const { error } = await sbClient.from('chats').delete().eq('id', chatId);
+  if (error) { toast('No se pudo eliminar la conversación: ' + error.message, 'err'); return; }
+  if (_activeChatChannel) { sbClient.removeChannel(_activeChatChannel); _activeChatChannel = null; }
+  if (_activeMembersChannel) { sbClient.removeChannel(_activeMembersChannel); _activeMembersChannel = null; }
+  if (S.activeChat?.id === chatId) { S.activeChat = null; S.messages = []; }
+  toast('Conversación eliminada');
+  render();
+  await fetchChats();
+}
+
+async function leaveGroup(chatId) {
+  if (!confirm('¿Seguro que quieres salir de este grupo? Podrás volver a entrar solo si alguien vuelve a añadirte.')) return;
+  const { error } = await sbClient.from('chat_members').delete().eq('chat_id', chatId).eq('user_id', userSession.user.id);
+  if (error) { toast('No se pudo salir del grupo: ' + error.message, 'err'); return; }
+  if (_activeChatChannel) { sbClient.removeChannel(_activeChatChannel); _activeChatChannel = null; }
+  if (_activeMembersChannel) { sbClient.removeChannel(_activeMembersChannel); _activeMembersChannel = null; }
+  if (S.activeChat?.id === chatId) { S.activeChat = null; S.messages = []; }
+  toast('Has salido del grupo');
+  render();
+  await fetchChats();
 }
 
 async function createGroup(name, friendIds) {

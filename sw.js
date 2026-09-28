@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v14'; // v14: causa real del error de RLS en "chats" encontrada y arreglada (created_by + política de SELECT, ver supabase-schema.sql — HAY QUE re-ejecutar el SQL en Supabase), icono de perfil lleva directo al perfil, campana de notificaciones sin acumulación de listeners, quitado error de canales de Realtime duplicados al cambiar de pestaña, avatares de comentarios recortados en círculo de verdad en todos los navegadores
+const CACHE_NAME = 'at-v15'; // v15: menú de "..." en el chat (eliminar chat/grupo, salir del grupo), ticks de leído estilo WhatsApp, arreglado que un chat te saliera "sin leer" al enviar tú un mensaje, arreglados canales de Realtime duplicados al reabrir un chat, y "?v=15" en todos los <script>/<link> de index.html para que el navegador/hosting no sirva JS/CSS viejos en caché cuando se sube una versión nueva
 const ASSETS = [
   './',
   './index.html',
@@ -73,6 +73,14 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
+    // FIX (Ronda 12): index.html ahora pide los .js/.css con un "?v=" al
+    // final (para forzar que el navegador y el hosting no sirvan una copia
+    // vieja en caché cuando se sube una versión nueva — esto explica que
+    // varios arreglos "no se notaran" en rondas anteriores pese a estar
+    // bien subidos). Como la lista ASSETS de aquí abajo se guardó SIN esa
+    // query, hay que decirle a caches.match que ignore la query al
+    // comparar ("ignoreSearch"), si no, el fallback offline nunca
+    // encontraría coincidencia y se quedaría sin nada que servir.
+    fetch(e.request).catch(() => caches.match(e.request, { ignoreSearch: true }))
   );
 });

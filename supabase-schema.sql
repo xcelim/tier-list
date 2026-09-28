@@ -141,6 +141,25 @@ drop policy if exists "miembros actualizan sus chats" on chats;
 create policy "miembros actualizan sus chats" on chats for update
   using (is_chat_member(id, auth.uid()) or created_by = auth.uid());
 
+-- ----------------------------------------------------------------------------
+-- NUEVO (Ronda 12) — borrar chats/grupos desde el menú de "..." del chat.
+-- Un chat privado lo puede borrar cualquiera de los dos (created_by puede
+-- ser NULL en chats muy antiguos, así que para privados no dependemos solo
+-- de eso). Un GRUPO solo lo puede borrar entero quien lo creó — el resto de
+-- miembros usan "Salir del grupo", que solo borra SU PROPIA fila de
+-- chat_members (no afecta al grupo para los demás).
+-- ----------------------------------------------------------------------------
+drop policy if exists "borras el chat si eres el creador o es un privado tuyo" on chats;
+create policy "borras el chat si eres el creador o es un privado tuyo" on chats for delete
+  using (
+    created_by = auth.uid()
+    or (is_group = false and is_chat_member(id, auth.uid()))
+  );
+
+drop policy if exists "sales de un chat borrando tu propia membresía" on chat_members;
+create policy "sales de un chat borrando tu propia membresía" on chat_members for delete
+  using (user_id = auth.uid());
+
 drop policy if exists "ves las membresías de tus chats" on chat_members;
 create policy "ves las membresías de tus chats" on chat_members for select
   using (is_chat_member(chat_id, auth.uid()));

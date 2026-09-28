@@ -318,8 +318,18 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 }
 .chat-header-left { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; }
 .chat-window-title { font-size: 11px; font-weight: 600; color: var(--accent2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-header-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .chat-close-btn { color: #7a90bb; cursor: pointer; display: flex; align-items: center; flex-shrink: 0; transition: color 0.2s; }
 .chat-close-btn:hover { color: var(--red); }
+/* NUEVO (Ronda 12): menú de "..." (opciones) dentro de la cabecera del chat */
+.chat-options-wrap { position: relative; }
+.chat-options-btn { background: none; border: none; color: #7a90bb; cursor: pointer; display: flex; align-items: center; padding: 3px; border-radius: 5px; transition: 0.15s; }
+.chat-options-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.chat-options-dropdown { position: absolute; top: 24px; right: 0; background: var(--bg2); border: 1px solid var(--border2); border-radius: 8px; padding: 5px; min-width: 160px; z-index: 50; box-shadow: 0 10px 30px rgba(0,0,0,.6); cursor: default; animation: slideDown .15s ease; }
+.chat-options-item { display: flex; align-items: center; gap: 7px; padding: 7px 8px; font-size: 10.5px; border-radius: 6px; cursor: pointer; color: #dfe4f5; white-space: nowrap; }
+.chat-options-item:hover { background: rgba(255,255,255,0.08); }
+.chat-options-item.danger { color: var(--red, #e05555); }
+.chat-options-item.danger:hover { background: rgba(224,85,84,0.12); }
 /* Body */
 .chat-container-body { display: flex; flex: 1; min-height: 0; }
 /* Sidebar */
@@ -344,7 +354,13 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .msg { max-width: 85%; padding: 5px 9px; border-radius: 10px; font-size: 10px; line-height: 1.35; word-break: break-word; }
 .msg.sent { align-self: flex-end; background: var(--violet); color: white; border-bottom-right-radius: 2px; }
 .msg.received { align-self: flex-start; background: #1e2a5a; color: #e8e8f0; border-bottom-left-radius: 2px; }
-.msg-info { font-size: 8px; opacity: 0.6; margin-top: 2px; display: block; text-align: right; }
+.msg-info { font-size: 8px; margin-top: 2px; display: flex; align-items: center; justify-content: flex-end; gap: 3px; }
+.msg-time { opacity: 0.6; }
+/* NUEVO (Ronda 12): ticks de "leído" estilo WhatsApp en tus propios mensajes.
+   Ojo: la opacidad NO va en .msg-info (afectaría también al tick azul y lo
+   apagaría), va solo en .msg-time — el check en sí lleva su propio color. */
+.msg-tick { font-size: 11px; opacity: 0.6; }
+.msg-tick-read { color: #53bdeb; opacity: 1; }
 .chat-sender-name { font-size: 8px; font-weight: bold; margin-bottom: 2px; color: var(--accent2); }
 .chat-input-area { padding: 5px; border-top: 1px solid rgba(120,80,230,0.2); display: flex; gap: 4px; background: #0a1128; flex-shrink: 0; }
 .chat-input { flex: 1; background: #101c41 !important; border: 1px solid rgba(120,80,230,0.3) !important; padding: 3px 7px; border-radius: 6px; color: #fff; font-size: 10px; outline: none; }

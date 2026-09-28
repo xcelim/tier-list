@@ -117,6 +117,58 @@ function renderChatAvatarItem(c) {
   return wrap;
 }
 
+// NUEVO (Ronda 12): botón de "..." en la cabecera del chat, con las
+// opciones que pidió el usuario (borrar chat / eliminar grupo / salir del
+// grupo), cambiando según el tipo de conversación abierta y si el que mira
+// es quien creó el grupo o no.
+let _chatOptionsCloseHandler = null;
+function buildChatOptionsMenu(chat) {
+  const wrap = h('div', { class: 'chat-options-wrap' });
+  const btn = h('button', {
+    class: 'chat-options-btn', title: 'Opciones',
+    onclick: (e) => {
+      e.stopPropagation();
+      S._chatOptionsOpen = S._chatOptionsOpen === chat.id ? null : chat.id;
+      render();
+    }
+  }, h('i', { class: 'ti ti-dots-vertical', style: { fontSize: '16px' } }));
+  wrap.appendChild(btn);
+
+  if (S._chatOptionsOpen === chat.id) {
+    const dd = h('div', { class: 'chat-options-dropdown' });
+    const isCreator = chat.created_by && userSession && chat.created_by === userSession.user.id;
+    if (chat.is_group) {
+      if (isCreator) {
+        dd.appendChild(h('div', {
+          class: 'chat-options-item danger',
+          onclick: (e) => { e.stopPropagation(); S._chatOptionsOpen = null; deleteChat(chat.id); }
+        }, h('i', { class: 'ti ti-trash' }), ' Eliminar grupo'));
+      } else {
+        dd.appendChild(h('div', {
+          class: 'chat-options-item danger',
+          onclick: (e) => { e.stopPropagation(); S._chatOptionsOpen = null; leaveGroup(chat.id); }
+        }, h('i', { class: 'ti ti-door-exit' }), ' Salir del grupo'));
+      }
+    } else {
+      dd.appendChild(h('div', {
+        class: 'chat-options-item danger',
+        onclick: (e) => { e.stopPropagation(); S._chatOptionsOpen = null; deleteChat(chat.id); }
+      }, h('i', { class: 'ti ti-trash' }), ' Eliminar chat'));
+    }
+    wrap.appendChild(dd);
+
+    // Cerrar el desplegable al hacer click fuera — con el mismo patrón de
+    // "un solo listener vivo" que ya se usó para arreglar la campana de
+    // notificaciones (evita que se acumulen varios y se comporte raro).
+    if (typeof _chatOptionsCloseHandler === 'function') {
+      document.removeEventListener('click', _chatOptionsCloseHandler);
+    }
+    _chatOptionsCloseHandler = () => { S._chatOptionsOpen = null; render(); };
+    document.addEventListener('click', _chatOptionsCloseHandler, { once: true });
+  }
+  return wrap;
+}
+
 function MChat() {
   // IMPORTANTE: Si no tenemos los usuarios cargados, los traemos para que el modal de grupo funcione
   if (S.allUsers.length === 0) fetchAllUsers();
@@ -148,9 +200,18 @@ function MChat() {
   const closeBtn = h('div', { class: 'chat-close-btn', onclick: closeChatModal });
   closeBtn.appendChild(h('i', { class: 'ti ti-x', style: { fontSize: '14px' } }));
 
+  const headerRight = h('div', { class: 'chat-header-right' });
+  // NUEVO (Ronda 12): menú de "..." con opciones según el tipo de chat
+  // abierto — eliminar la conversación (privado), eliminar el grupo entero
+  // (solo si lo creaste tú) o salir del grupo (el resto de miembros).
+  if (activeChat && !activeChat.is_temp) {
+    headerRight.appendChild(buildChatOptionsMenu(activeChat));
+  }
+  headerRight.appendChild(closeBtn);
+
   const header = h('div', { class: 'chat-window-header' });
   header.appendChild(headerLeft);
-  header.appendChild(closeBtn);
+  header.appendChild(headerRight);
   m.appendChild(header);
 
   // ---- DRAG ----
@@ -252,7 +313,19 @@ function MChat() {
         el.appendChild(h('div', { class: 'chat-sender-name' }, senderName));
       }
       el.appendChild(h('span', {}, msg.content));
-      if (msg.created_at) el.appendChild(h('small', { class: 'msg-info' }, new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})));
+      const info = h('small', { class: 'msg-info' });
+      if (msg.created_at) info.appendChild(h('span', { class: 'msg-time' }, new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})));
+      // NUEVO (Ronda 12): ticks de "leído" estilo WhatsApp, solo en tus
+      // propios mensajes — un check gris = enviado, doble check azul =
+      // leído por la otra persona (o por todos, si es un grupo).
+      if (isMe && typeof chatMsgReadState === 'function') {
+        const state = chatMsgReadState(msg, S.activeChat);
+        info.appendChild(h('i', {
+          class: 'ti ' + (state === 'read' ? 'ti-checks msg-tick msg-tick-read' : 'ti-check msg-tick'),
+          title: state === 'read' ? 'Leído' : 'Enviado'
+        }));
+      }
+      el.appendChild(info);
       msgs.appendChild(el);
     });
     if (!S.messages?.length) msgs.appendChild(h('div', { style: { color:'rgba(255,255,255,0.25)', fontSize:'10px', textAlign:'center', marginTop:'20px' } }, 'Inicio de la conversación'));

@@ -35,6 +35,7 @@ let S={
   totalUnread: 0, // Nuevo: para el badge global
   chatModalPosition: { x: null, y: null }, // Nuevo: para la posición del modal arrastrable
   activeChat: null,
+  _chatOptionsOpen: null, // id del chat cuyo menú de "..." está abierto (Ronda 12)
   messages: [],
   hasUnsaved:false,
   saveT:null,
