@@ -14,6 +14,7 @@
   --red:#e05555;--green:#55c87d;--gold:#f0b429;
   --glass:rgba(18,18,26,0.8);
 }
+html{overflow-x:hidden}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 body.bg-main{background:none}
 body.bg-main::before{content:"";position:fixed;inset:0;background:#0a0a0f url('../resources/homebkg.png') center/cover;filter:blur(1px) brightness(0.5);z-index:-1}
@@ -67,7 +68,9 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--a
 .color-dot { width: 38px; height: 38px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.15s, box-shadow 0.15s; border: none; padding: 0; position: relative;}
 .color-dot i { font-size: 16px; color: #fff; display: none; }
 .color-dot.active i { display: block; }
-.color-dot:hover { transform: scale(1.12); }
+@media (hover:hover) and (pointer:fine){
+  .color-dot:hover { transform: scale(1.12); }
+}
 .action-row { display: flex; gap: 12px; margin-bottom: 2.2rem; }
 .logout-btn, .delete-btn { flex: 1; border-radius: 13px; padding: 14px; font-size: 14.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s, transform 0.1s; background: transparent; }
 .logout-btn { 
@@ -76,14 +79,18 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--a
   border: 1.5px solid transparent !important;
   color: #a0b8e8; 
 }
-.logout-btn:hover { background: linear-gradient(150deg, #60a5fa, #3d7bff) !important; color: #fff; transform: translateY(-2px); }
+@media (hover:hover) and (pointer:fine){
+  .logout-btn:hover { background: linear-gradient(150deg, #60a5fa, #3d7bff) !important; color: #fff; transform: translateY(-2px); }
+}
 .delete-btn { 
   background: linear-gradient(var(--bg), var(--bg)) padding-box,
               linear-gradient(150deg, #f87171, #ef4444) border-box !important;
   border: 1.5px solid transparent !important;
   color: #f87171; 
 }
-.delete-btn:hover { background: linear-gradient(150deg, #f87171, #ef4444) !important; color: #fff; transform: translateY(-2px); }
+@media (hover:hover) and (pointer:fine){
+  .delete-btn:hover { background: linear-gradient(150deg, #f87171, #ef4444) !important; color: #fff; transform: translateY(-2px); }
+}
 .divider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 1.4rem; }
 .div-line { flex: 1; height: 1px; background: rgba(80,130,220,0.28); }
 .div-diamond { width: 9px; height: 9px; background: #3b6fd4; transform: rotate(45deg); flex-shrink: 0; }
@@ -103,7 +110,9 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--a
 .color-dot.c7 { background: #f87171; }
 .friend-btns { display: flex; justify-content: center; gap: 8px; position: relative; z-index: 10; margin-top: auto; padding-bottom: 5px; }
 .fb-add, .fb-remove { width: 26px; height: 26px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.15s, opacity 0.2s; }
-.fb-add:hover, .fb-remove:hover { transform: scale(1.15); }
+@media (hover:hover) and (pointer:fine){
+  .fb-add:hover, .fb-remove:hover { transform: scale(1.15); }
+}
 .fb-add { background: #3b6fd4; }
 .fb-remove { background: #ef4444; }
 .fb-add i, .fb-remove i { font-size: 14px; color: #fff; }
@@ -119,7 +128,9 @@ nav{background:linear-gradient(90deg,rgba(8,12,35,.92) 0%,rgba(12,18,50,.92) 50%
 
 /* PROFILES */
 .profile-btn{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;cursor:pointer;border:2px solid var(--border);transition:.2s;flex-shrink:0;position:relative}
-.profile-btn:hover{transform:scale(1.1);border-color:var(--accent2)}
+@media (hover:hover) and (pointer:fine){
+  .profile-btn:hover{transform:scale(1.1);border-color:var(--accent2)}
+}
 .profile-btn.active{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,.2)}
 .profile-btn .online-dot{position:absolute;bottom:0;right:0;width:8px;height:8px;border-radius:50%;background:var(--green);border:2px solid var(--bg2)}
 .profile-menu{position:absolute;top:58px;right:16px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:8px;min-width:180px;z-index:400;box-shadow:0 12px 40px rgba(0,0,0,.6);animation:slideDown .18s ease}
@@ -178,11 +189,18 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .profile-notice h2{font-size:22px;margin-bottom:8px;font-family:'Rajdhani',sans-serif;color:var(--text2)}
 .tlg{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:16px}
 .tlc{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:.2s;position:relative}
-.tlc:hover{border-color:var(--border2);background:var(--bg3);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
+@media (hover:hover) and (pointer:fine){
+  .tlc:hover{border-color:var(--border2);background:var(--bg3);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
+}
 .tlc h3{font-size:16px;font-weight:600;font-family:'Rajdhani',sans-serif;margin-bottom:4px}
 .tlc .meta{font-size:10px;color:var(--text3);display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
 .tlca{position:absolute;top:10px;right:10px;display:flex;gap:3px;opacity:0;transition:.15s}
-.tlc:hover .tlca{opacity:1}
+@media (hover:hover) and (pointer:fine){
+  .tlc:hover .tlca{opacity:1}
+}
+@media (hover:none) or (pointer:coarse){
+  .tlca{opacity:1}
+}
 .nc{border:2px dashed var(--border);background:none;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;min-height:110px;border-radius:10px;cursor:pointer;color:var(--text3);transition:.2s}
 .nc:hover{border-color:var(--accent);color:var(--accent2);background:var(--accentbg)}
 .nc .plus{font-size:30px;font-weight:300}
@@ -214,11 +232,35 @@ main{padding:14px;max-width:1320px;margin:0 auto}
   transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s; touch-action: auto;}
 .tc{width:100px;height:160px}
 .pc{width:102px;height:162px;border-color:var(--border)}
-.tc:hover{border-color:var(--accent2);transform:scale(1.1) translateY(-3px) rotate(1deg);z-index:20;box-shadow:0 10px 24px rgba(0,0,0,.55)}
-.pc:hover{border-color:var(--accent2);transform:scale(1.08) translateY(-2px);z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.5)}
+/* FIX (Ronda 21): estos ":hover" son solo para ratón (escritorio) — en
+   pantallas táctiles, tocar una carta puede dejar el estado ":hover"
+   "pegado" (el navegador lo activa con el tap y no lo quita hasta tocar
+   otro sitio), así que la carta se quedaba agrandada/rotada mientras se
+   intentaba arrastrar, interfiriendo visualmente con el drag. Con este
+   guard, solo se aplican en dispositivos que de verdad tienen un puntero
+   con hover (ratón) — el comportamiento en escritorio no cambia en nada. */
+@media (hover:hover) and (pointer:fine){
+  .tc:hover{border-color:var(--accent2);transform:scale(1.1) translateY(-3px) rotate(1deg);z-index:20;box-shadow:0 10px 24px rgba(0,0,0,.55)}
+  .pc:hover{border-color:var(--accent2);transform:scale(1.08) translateY(-2px);z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.5)}
+}
 
 .del-btn{position:absolute;top:1px;right:1px;background:rgba(224,85,84,.85);color:#fff;border:none;border-radius:3px;width:14px;height:14px;font-size:9px;display:none;align-items:center;justify-content:center;cursor:pointer;padding:0;line-height:1;z-index:10}
-.tc:hover .del-btn,.pc:hover .del-btn{display:flex!important}
+@media (hover:hover) and (pointer:fine){
+  .tc:hover .del-btn,.pc:hover .del-btn{display:flex!important}
+}
+/* En táctil no hay ":hover" para revelar el botón de eliminar al pasar el
+   ratón por encima (no hay ratón) — se deja siempre visible pero pequeño,
+   para que se pueda borrar sin necesidad de mantener pulsado. */
+@media (hover:none) or (pointer:coarse){
+  .del-btn{display:flex}
+}
+
+/* FIX (Ronda 21): pequeño "pulso" visual al agarrar una carta en táctil
+   (justo cuando se cumple la pulsación larga, ver dgPointerDown en
+   js/ui/drag.js) — confirma que la carta ya está lista para arrastrarse,
+   además de la vibración. Se quita en cuanto empieza el arrastre real
+   (se sustituye por la imagen flotante) o si se suelta/cancela antes. */
+.tc.drag-armed,.pc.drag-armed{transform:scale(1.08);border-color:var(--accent2);box-shadow:0 0 0 3px var(--accent2),0 10px 26px rgba(0,0,0,.5);z-index:21;transition:transform .12s ease,box-shadow .12s ease}
 
 /* DRAGGING STATE - wobble */
 .tc.is-dragging,.pc.is-dragging{width:0!important;height:0!important;margin:0!important;padding:0!important;border:none!important;opacity:0!important;pointer-events:none!important;position:absolute!important}
@@ -278,7 +320,10 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 .fg input,.fg select{width:100%}
 .crow{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
 .csw{width:28px;height:28px;border-radius:5px;cursor:pointer;border:2px solid transparent;transition:.15s}
-.csw.sel,.csw:hover{border-color:#fff;transform:scale(1.2)}
+.csw.sel{border-color:#fff;transform:scale(1.2)}
+@media (hover:hover) and (pointer:fine){
+  .csw:hover{border-color:#fff;transform:scale(1.2)}
+}
 .uarea{border:2px dashed var(--border);border-radius:8px;padding:22px;text-align:center;cursor:pointer;color:var(--text3);font-size:12px;transition:.15s;position:relative;overflow:hidden}
 .uarea:hover{border-color:var(--accent);color:var(--accent2);background:var(--accentbg)}
 .uarea input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
@@ -423,8 +468,14 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
    visible alrededor sin que ninguna de las dos capas se tape entre sí. */
 .mb-bg::before{content:'';position:absolute;inset:0;background-image:var(--card-bg);background-size:cover;background-position:center;opacity:.32;transition:.3s}
 .mb-bg::after{content:'';position:absolute;inset:0;background:var(--card-gradient);opacity:.82}
-.menu-box:hover{transform:translateY(-10px) scale(1.03);box-shadow:var(--card-glow-hover)}
-.menu-box:hover .mb-bg::before{opacity:.48}
+/* FIX (Ronda 21): solo ratón — ver el comentario grande junto al
+   ".menu-box:hover{transform:translateY(-12px)...}" más abajo en este
+   archivo (es el mismo problema de ":hover pegado" en pantallas táctiles). */
+@media (hover:hover) and (pointer:fine){
+  .menu-box:hover{transform:translateY(-10px) scale(1.03);box-shadow:var(--card-glow-hover)}
+  .menu-box:hover .mb-bg::before{opacity:.48}
+  .menu-box:hover .mb-icon{box-shadow:0 0 14px var(--icon-border)}
+}
 .menu-box .mb-content{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;gap:18px}
 .menu-box .mb-icon svg{width:28px;height:28px;stroke:rgba(255,255,255,.9);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .menu-box h2{font-size:22px;font-weight:600;font-family:'Cinzel',serif;color:#fff;letter-spacing:.5px}
@@ -434,7 +485,6 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 .menu-box .mb-sep::before,.menu-box .mb-sep::after{content:'';flex:1;height:1px;background:var(--sep-color)}
 .menu-box .mb-sep .mb-diamond{width:6px;height:6px;background:var(--sep-color);transform:rotate(45deg);flex-shrink:0;box-shadow:0 0 6px var(--sep-color)}
 .menu-box .mb-icon{width:56px;height:56px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:2px solid var(--icon-border);box-shadow:0 0 0 0 var(--icon-border);transition:box-shadow .35s}
-.menu-box:hover .mb-icon{box-shadow:0 0 14px var(--icon-border)}
 
 /* Tierlists — rosa fucsia vibrante, totalmente opaco */
 .mb-tierlists{
@@ -508,8 +558,10 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
   filter:blur(1.2px);
   transition:0.3s;
 }
-.user-card:hover{transform:translateY(-6px) !important;box-shadow:0 0 26px rgba(110,150,255,.28),0 16px 40px rgba(0,0,0,.4) !important}
-.user-card:hover::before{filter:blur(0);opacity:0.9}
+@media (hover:hover) and (pointer:fine){
+  .user-card:hover{transform:translateY(-6px) !important;box-shadow:0 0 26px rgba(110,150,255,.28),0 16px 40px rgba(0,0,0,.4) !important}
+  .user-card:hover::before{filter:blur(0);opacity:0.9}
+}
 .user-avatar-wrap{position:relative !important;z-index:1 !important;width:88px !important;height:88px !important;margin-bottom:14px !important}
 .user-avatar-ring{position:absolute !important;inset:-6px !important;border-radius:50% !important;background:linear-gradient(135deg,#cfe4ff,#4a6cff) !important;opacity:.35 !important;filter:blur(10px) !important}
 .user-avatar-border{position:absolute !important;inset:-3px !important;border-radius:50% !important;padding:3px !important;box-sizing:border-box !important;background:linear-gradient(160deg,#eaf2ff 0%,#8fb0ff 50%,#3a4ad6 100%) !important;-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0) !important;-webkit-mask-composite:xor !important;mask-composite:exclude !important;z-index:1 !important;border:none !important}
@@ -519,7 +571,9 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 .user-add-btn{position:relative;z-index:1;width:38px;height:38px;border-radius:50%;background:#3ec47a;border:none;color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s;box-shadow:0 0 12px rgba(62,196,122,.35);line-height:1;margin-top:auto}
 .user-add-btn.pending{background:var(--bg4);color:var(--text3);cursor:default;box-shadow:none}
 .user-add-btn.remove{background:var(--red);font-size:16px}
-.user-add-btn:hover{transform:scale(1.12);box-shadow:0 0 22px rgba(62,196,122,.55)}
+@media (hover:hover) and (pointer:fine){
+  .user-add-btn:hover{transform:scale(1.12);box-shadow:0 0 22px rgba(62,196,122,.55)}
+}
 .users-footer{text-align:center;margin-top:40px;color:var(--text3);font-size:12px;display:flex;align-items:center;gap:8px;justify-content:center}
 .users-footer::before,.users-footer::after{content:'';flex:1;max-width:80px;height:1px;background:linear-gradient(90deg,transparent,rgba(120,150,255,.3))}
 .users-footer::after{background:linear-gradient(90deg,rgba(120,150,255,.3),transparent)}
@@ -727,7 +781,9 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
 nav{position:sticky;box-shadow:0 1px 32px rgba(124,92,191,.18),0 1px 0 rgba(240,180,41,.08)}
 nav::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,var(--accent2) 20%,var(--gold) 50%,var(--accent2) 80%,transparent);opacity:.55}
 .logo{position:relative;filter:drop-shadow(0 0 10px rgba(155,125,212,.55));transition:filter .25s,transform .25s}
-.logo:hover{filter:drop-shadow(0 0 18px rgba(240,180,41,.75));transform:scale(1.04)}
+@media (hover:hover) and (pointer:fine){
+  .logo:hover{filter:drop-shadow(0 0 18px rgba(240,180,41,.75));transform:scale(1.04)}
+}
 .ntab{position:relative}
 .ntab.on::after{content:'';position:absolute;left:14%;right:14%;bottom:-7px;height:2px;background:linear-gradient(90deg,var(--accent2),var(--gold));border-radius:2px;box-shadow:0 0 8px var(--accent2)}
 
@@ -738,7 +794,9 @@ nav::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;ba
 /* --- Botones con brillo tipo "cristal encantado" --- */
 .btn{position:relative;overflow:hidden}
 .btn.bp{background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);box-shadow:0 4px 18px rgba(124,92,191,.35);transition:box-shadow .25s,transform .15s,filter .25s}
-.btn.bp:hover{box-shadow:0 6px 26px rgba(124,92,191,.55),0 0 0 1px rgba(240,180,41,.25);transform:translateY(-1px);filter:brightness(1.08)}
+@media (hover:hover) and (pointer:fine){
+  .btn.bp:hover{box-shadow:0 6px 26px rgba(124,92,191,.55),0 0 0 1px rgba(240,180,41,.25);transform:translateY(-1px);filter:brightness(1.08)}
+}
 .btn.bp:active{transform:translateY(0) scale(.98)}
 .btn.bg:hover{box-shadow:inset 0 0 0 1px var(--border2)}
 
@@ -789,7 +847,9 @@ nav::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;ba
 
 /* Botón de alternar tema */
 .theme-toggle{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:1px solid var(--border);background:var(--bg2);transition:.2s;margin-right:6px;flex-shrink:0}
-.theme-toggle:hover{transform:rotate(18deg) scale(1.08);border-color:var(--accent2);box-shadow:0 0 12px rgba(155,125,212,.4)}
+@media (hover:hover) and (pointer:fine){
+  .theme-toggle:hover{transform:rotate(18deg) scale(1.08);border-color:var(--accent2);box-shadow:0 0 12px rgba(155,125,212,.4)}
+}
 
 /* ============================================================================
    CAMBIO RADICAL DE ESTÉTICA — "Grimorio Neón"
@@ -871,7 +931,21 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
   border-width:1.5px!important;
 }
 .mb-bg::after{mix-blend-mode:normal}
-.menu-box:hover{transform:translateY(-12px) scale(1.045) rotate(-.6deg)!important}
+/* FIX (Ronda 21) — causa principal de "los bordes cromáticos se mueven
+   raro" en móvil: este transform (con !important) se activaba con el
+   :hover, pero en pantallas táctiles el navegador activa (y deja "pegado")
+   el estado :hover nada más tocar la tarjeta, hasta que se toca otra cosa.
+   Como esto viene con !important, ninguna media query de móvil conseguía
+   anularlo sin usar también !important (y no lo hacía) — así que la
+   tarjeta se quedaba rotada/desplazada sobre un diseño pensado para verse
+   sin ese transform, descolocando sus bordes de color. Con este guard,
+   "(hover:hover) and (pointer:fine)" solo es cierto en dispositivos con un
+   puntero real (ratón) — en táctil esta regla directamente no se aplica
+   nunca, así que no hay nada que se pueda quedar "pegado". El hover de
+   escritorio con ratón no cambia en nada. */
+@media (hover:hover) and (pointer:fine){
+  .menu-box:hover{transform:translateY(-12px) scale(1.045) rotate(-.6deg)!important}
+}
 .menu-box h2{font-family:'Cinzel',serif!important;letter-spacing:2px!important;text-transform:uppercase}
 .menu-box{isolation:isolate}
 
@@ -881,7 +955,9 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
   clip-path:polygon(0 14px,14px 0,100% 0,100% 100%,0 100%);
 }
 .tlc::before{background:linear-gradient(120deg,var(--neon-cyan),var(--neon-magenta) 50%,var(--neon-gold))!important}
-.tlc:hover{transform:translateY(-6px)}
+@media (hover:hover) and (pointer:fine){
+  .tlc:hover{transform:translateY(-6px)}
+}
 
 /* --- Títulos de sección: display gigante con contorno neón --- */
 .users-page-title,.page-title{
@@ -905,7 +981,9 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
   box-shadow:0 4px 22px rgba(255,46,166,.35)!important;
   text-transform:uppercase;letter-spacing:1px;font-family:'Rajdhani',sans-serif;font-weight:700;
 }
-.btn.bp:hover{box-shadow:0 8px 32px rgba(255,46,166,.55),0 0 0 1px var(--neon-gold)!important}
+@media (hover:hover) and (pointer:fine){
+  .btn.bp:hover{box-shadow:0 8px 32px rgba(255,46,166,.55),0 0 0 1px var(--neon-gold)!important}
+}
 
 /* --- Scrollbar a juego con la nueva paleta --- */
 ::-webkit-scrollbar-thumb{background:linear-gradient(180deg,var(--neon-cyan),var(--neon-magenta))!important}
@@ -955,7 +1033,9 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 .ach-badge.unlocked .ach-icon{filter:none;text-shadow:0 0 12px rgba(255,203,61,.6)}
 .ach-badge.unlocked .ach-title{color:var(--text)}
 .ach-badge.locked{opacity:.55}
-.ach-badge:hover{transform:translateY(-3px)}
+@media (hover:hover) and (pointer:fine){
+  .ach-badge:hover{transform:translateY(-3px)}
+}
 
 /* ============================================================================
    TOQUES FINALES "PERSONA" — tramas de puntos (halftone), franjas
@@ -986,8 +1066,12 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
   border:2.5px solid rgba(255,255,255,.92)!important;
   box-shadow:6px 6px 0 var(--neon-magenta), 6px 6px 0 3px rgba(0,0,0,.5)!important;
 }
-.menu-box:hover{
-  box-shadow:9px 9px 0 var(--neon-magenta), 9px 9px 0 3px rgba(0,0,0,.5)!important;
+/* FIX (Ronda 21): solo ratón — ver el comentario grande junto al primer
+   ".menu-box:hover{transform:...}" de este archivo. */
+@media (hover:hover) and (pointer:fine){
+  .menu-box:hover{
+    box-shadow:9px 9px 0 var(--neon-magenta), 9px 9px 0 3px rgba(0,0,0,.5)!important;
+  }
 }
 
 /* Tarjetas de tierlists: mismo lenguaje gráfico, más discreto */
@@ -1034,9 +1118,16 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 .menu-box:nth-child(1){z-index:3;clip-path:polygon(0 0,100% 0,68% 100%,0 100%)}
 .menu-box:nth-child(2){z-index:2}
 .menu-box:nth-child(3){z-index:1;clip-path:polygon(32% 0,100% 0,100% 100%,0 100%)}
-.menu-box:hover{flex:1.35 1 0;filter:brightness(1.2) saturate(1.15)}
+/* FIX (Ronda 21): solo ratón — ver el comentario grande junto a la línea
+   ".menu-box:hover{transform:translateY(-12px)...}" más arriba en este
+   archivo. Sin este guard, tocar una tarjeta en móvil dejaba el ":hover"
+   pegado y el "flex:1.35" descolocaba el ancho de las 3 franjas (y con
+   ellas sus clip-path en %, calculados sobre ese ancho) de forma errática. */
+@media (hover:hover) and (pointer:fine){
+  .menu-box:hover{flex:1.35 1 0;filter:brightness(1.2) saturate(1.15)}
+  .menu-box:hover .mb-bg::before{opacity:.55!important}
+}
 .mb-bg::before{opacity:.4!important}
-.menu-box:hover .mb-bg::before{opacity:.55!important}
 /* Borde de neón en el filo diagonal, vía un segundo capa detrás */
 .menu-box .mb-content{transform:translateX(0);padding:0 30px}
 .menu-box:nth-child(1) .mb-content{padding-right:60px}
@@ -1071,7 +1162,16 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
   .menu-grid{flex-direction:column;height:auto;min-height:0;max-height:none;margin:28px 0 0;gap:14px}
   .menu-box{flex:none!important;width:100%!important;height:150px!important;margin:0;
     clip-path:polygon(0 14%, 100% 0, 100% 86%, 0 100%)!important}
-  .menu-box:hover{flex:none!important;transform:scale(1.02)}
+  /* FIX (Ronda 21): aquí había un ".menu-box:hover{flex:none!important;
+     transform:scale(1.02)}" pensado para anular, en móvil, el
+     transform:...!important del :hover de escritorio (más abajo en este
+     archivo) — pero en pantallas táctiles el propio ":hover" se queda
+     "pegado" nada más tocar (hasta tocar otra cosa), así que esto seguía
+     dando un efecto raro de movimiento. Ahora esos :hover de escritorio
+     están dentro de "@media (hover:hover) and (pointer:fine)" (solo
+     ratón), así que en táctil no llega a haber NINGÚN :hover que anular:
+     esta línea ya no hacía falta y se ha quitado, para no dejar ningún
+     resto de comportamiento ":hover" en pantallas táctiles. */
   .menu-box .mb-content{padding:0 24px!important;flex-direction:row!important;gap:16px!important;justify-content:flex-start!important}
   .menu-box .mb-sep{display:none}
   .menu-box .mb-icon{width:48px!important;height:48px!important;flex-shrink:0}
@@ -1156,7 +1256,9 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 /* --- Reacciones con emoji (modo Visor) --- */
 .reactions-bar{max-width:900px;margin:24px auto 0;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .reaction-pill{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1.5px solid var(--border);border-radius:20px;padding:6px 14px;font-size:15px;cursor:pointer;transition:.15s}
-.reaction-pill:hover{border-color:var(--neon-magenta,var(--accent2));transform:translateY(-2px)}
+@media (hover:hover) and (pointer:fine){
+  .reaction-pill:hover{border-color:var(--neon-magenta,var(--accent2));transform:translateY(-2px)}
+}
 .reaction-pill:disabled{cursor:not-allowed;opacity:.5}
 .reaction-pill.reaction-active{background:rgba(255,10,46,.12);border-color:var(--neon-magenta,var(--accent2));box-shadow:0 0 10px rgba(255,10,46,.25)}
 .reaction-count{font-size:11px;font-weight:700;color:var(--text2)}
@@ -1164,7 +1266,9 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 /* --- Selector de paleta de la app (Ajustes) --- */
 .accent-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;justify-content:center}
 .accent-swatch{width:38px;height:38px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:.2s}
-.accent-swatch:hover{transform:scale(1.1)}
+@media (hover:hover) and (pointer:fine){
+  .accent-swatch:hover{transform:scale(1.1)}
+}
 .accent-swatch.active{border-color:#fff;box-shadow:0 0 0 2px var(--neon-gold,var(--gold)),0 0 14px rgba(255,255,255,.4)}
 
 /* ============================================================================

@@ -5,7 +5,7 @@
 let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
 let scrollDir=0,scrollInt=null;
 let _md=false,_mdMoved=false,_mdX=0,_mdY=0,_mdImg='',_lastZoneKey='';
-let _pointerId=null, _lpT=null;
+let _pointerId=null, _lpT=null, _heldEl=null;
 // "Stepper" del hueco: si el ratón se mueve rápido y el índice de destino
 // salta más de una posición de golpe, en vez de mover 2+ cartas a la vez
 // en un solo fotograma (lo que se ve como si "se movieran juntas" sin
@@ -243,20 +243,64 @@ function _dragCleanup(){
  document.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
  document.querySelectorAll('.tc').forEach(el=>el.style.transform='');
  document.querySelectorAll('.dov').forEach(el=>el.classList.remove('dov'));
+ // FIX (Ronda 21 — pulsación larga en móvil): si había un temporizador de
+ // "mantener pulsado" pendiente, o una carta marcada visualmente como
+ // "agarrada" (.drag-armed, ver dgPointerDown), hay que limpiarlos siempre
+ // que se limpie el drag, venga de donde venga (soltar, cancelar, etc.).
+ if(_lpT){clearTimeout(_lpT);_lpT=null;}
+ if(_heldEl){_heldEl.classList.remove('drag-armed');_heldEl=null;}
 }
+
+// FIX (Ronda 21) — "se queda congelado en medio de la pantalla": en móvil,
+// si mientras se arrastra el navegador decide de todas formas tomar el
+// gesto para sí (por el motivo que sea: multitáctil, gesto del sistema...),
+// dispara "pointercancel" en vez de "pointerup". Como antes NUNCA se
+// escuchaba ese evento, _dragCleanup() no se ejecutaba nunca en ese caso:
+// la imagen flotante del personaje se quedaba clavada exactamente donde
+// estaba el dedo en ese instante, sin posibilidad de soltarla en ningún
+// sitio. Con este listener, cualquier cancelación del navegador limpia el
+// drag igual que si se hubiera soltado (sin ejecutar el drop, ya que no
+// sabemos dónde quería soltarlo el usuario).
+document.addEventListener('pointercancel',e=>{
+ if (_pointerId !== null && e.pointerId !== _pointerId) { return; }
+ if (_pointerId !== null && e.target.hasPointerCapture && e.target.hasPointerCapture(_pointerId)) {
+ try{ e.target.releasePointerCapture(_pointerId); }catch(err){}
+ }
+ _pointerId = null;
+ _dragCleanup();
+});
 
 document.addEventListener('pointermove',e=>{
  if (_pointerId !== null && e.pointerId !== _pointerId) { return; }
  if(_lpT && !_md){
  if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)>10){
+ // El dedo se movió antes de que se cumpliera la pulsación larga: el
+ // usuario quería hacer scroll normal de la página, no arrastrar. Se
+ // cancela el temporizador y NO se llama a preventDefault en ningún
+ // momento de este gesto, así que el navegador puede hacer scroll con
+ // total normalidad (ver también el "return" de aquí abajo).
  clearTimeout(_lpT);
  _lpT=null;
+ if(_heldEl){_heldEl.classList.remove('drag-armed');_heldEl=null;}
  }
+ return; // seguimos esperando a que se cumpla el tiempo de pulsación larga
  }
  if(!_md)return;
+ // FIX (Ronda 21): una vez el drag está "armado" (ratón: al instante;
+ // táctil: tras la pulsación larga), hay que impedir que el navegador
+ // decida por su cuenta que esto es un gesto de scroll — si no, el drag se
+ // interrumpe a medias (ver el pointercancel de arriba) y el personaje se
+ // queda flotando congelado sin poder soltarlo. preventDefault() en un
+ // pointermove NO puede deshacer un scroll que ya empezó, pero si se llama
+ // desde el primer movimiento tras armar el drag (que es justo lo que pasa
+ // aquí, gracias al temporizador) evita que el navegador llegue a
+ // iniciarlo. No se toca nada para ratón/lápiz — preventDefault() en un
+ // pointermove de ratón no tiene ningún efecto sobre el scroll.
+ if(e.pointerType!=='mouse' && e.cancelable) e.preventDefault();
  if(!_mdMoved){
  if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)<5)return;
  _mdMoved=true;
+ if(_heldEl){_heldEl.classList.remove('drag-armed');_heldEl=null;}
  document.body.style.userSelect='none';
 
  // EL FIX DE VERDAD (por fin): medimos la posición de las cartas vecinas
@@ -296,7 +340,7 @@ document.addEventListener('pointermove',e=>{
  _posFloat(e.clientX,e.clientY);
  const zone=_getDropZone(e.clientX,e.clientY);
  _requestZone(zone);
-});
+},{passive:false}); // FIX (Ronda 21): "passive:false" es imprescindible para que el preventDefault() de arriba tenga efecto de verdad (si no, el navegador lo ignora y sigue haciendo scroll)
 
 document.addEventListener('pointerup',e=>{
  if(_lpT){clearTimeout(_lpT); _lpT=null;}
@@ -313,11 +357,33 @@ document.addEventListener('pointerup',e=>{
 function dgPointerDown(e,id,src,idx,imgSrc){
  if(e.button!==0)return;
  DG=id;DS=src;DGidx=idx;
- _md=true;_mdMoved=false;
  _mdX=e.clientX;_mdY=e.clientY;
  _mdImg=imgSrc||'';
  _pointerId = e.pointerId; // <-- GUARDAR EL ID DEL PUNTERO CORRECTAMENTE
+ _heldEl = e.currentTarget || e.target;
  if(e.target.setPointerCapture) { e.target.setPointerCapture(e.pointerId); }
+
+ // FIX (Ronda 21 — pedido explícito): en móvil, antes el drag se armaba al
+ // instante con solo tocar (igual que con el ratón), así que era imposible
+ // hacer scroll pasando el dedo por encima de un personaje: el primer
+ // toque siempre "ganaba" para el drag. Ahora, en táctil, hay que MANTENER
+ // PULSADO un momento para "agarrar" la carta (con una vibración corta de
+ // confirmación) — si el dedo se mueve antes de eso, se entiende que
+ // querías hacer scroll y no se arma nada (ver el guard correspondiente en
+ // el listener de pointermove, más arriba). El ratón/lápiz no cambia: sigue
+ // armándose al instante, exactamente como siempre.
+ if(e.pointerType==='mouse'){
+ _md=true;_mdMoved=false;
+ return;
+ }
+ _md=false;_mdMoved=false;
+ if(_lpT) clearTimeout(_lpT);
+ _lpT=setTimeout(()=>{
+ _lpT=null;
+ _md=true;
+ if(navigator.vibrate) navigator.vibrate(35);
+ if(_heldEl) _heldEl.classList.add('drag-armed');
+ }, 400);
 }
 
 function dgstart(e){e.preventDefault();}

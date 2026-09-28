@@ -1030,6 +1030,55 @@ como debía. El problema tenía que ser, por tanto, puramente visual.
   solo se crea e inserta de cero la primera vez que se abre, así la
   animación de entrada juega una única vez por apertura.
 
+## 🆕 Ronda 21 — móvil a fondo (sin tocar el comportamiento de escritorio)
+
+Copia de seguridad tomada antes de empezar (rama `backup-before-mobile-round21`
+en el repo remoto + tarball local), por si hacía falta restaurar.
+
+- **Ningún efecto `:hover` con movimiento se queda "pegado" al tocar en
+  móvil**: en una pantalla táctil no existe un puntero "encima" en reposo —
+  el navegador activa `:hover` con el primer toque y no lo quita hasta que
+  tocas otra cosa, así que cualquier tarjeta/botón con `transform` en su
+  regla `:hover` se quedaba visualmente desplazado/rotado/agrandado después
+  de tocarlo una vez. Esto era la causa de "los bordes cromáticos se mueven
+  raro" en las tarjetas de Inicio, y pasaba también (en menor medida) en
+  tarjetas de tierlist, tarjetas de usuario, botones, el interruptor de
+  tema, el avatar de perfil, las reacciones, etc. Se han revisado TODAS las
+  reglas `:hover` del CSS que mueven algo (`transform`) y se han envuelto en
+  `@media (hover:hover) and (pointer:fine)`, que solo es verdad en
+  dispositivos con un puntero real tipo ratón. En escritorio no cambia
+  absolutamente nada (mismas reglas, mismo comportamiento); en táctil esas
+  reglas directamente no existen, así que no hay nada que se pueda quedar
+  "pegado".
+- **`html{overflow-x:hidden}`** añadido junto al ya existente
+  `body{overflow-x:hidden}`, para que ningún resto de desplazamiento lateral
+  pueda colarse en un móvil que use `<html>` como elemento de scroll en vez
+  de `<body>`.
+- **Arrastrar y soltar personajes en el editor, rehecho para táctil**:
+  - Antes, tocar una carta para hacer scroll por la página empezaba un
+    "drag" al instante (igual que con el ratón), así que era imposible
+    desplazarse por una tierlist larga sin mover personajes sin querer.
+    Ahora, en pantallas táctiles, hay que **mantener pulsado un momento**
+    (con una vibración corta de confirmación y la carta iluminándose) antes
+    de que se "agarre" de verdad; si el dedo se mueve antes de eso, se
+    entiende que querías hacer scroll y no se arma ningún arrastre. El
+    ratón no cambia: se sigue agarrando al instante, como siempre.
+  - Una vez agarrada, se bloquea el scroll del navegador solo durante ese
+    gesto concreto (con `preventDefault` en el primer movimiento tras
+    armarse, y no antes), para que el propio navegador no le "robe" el
+    gesto al drag a medio camino.
+  - **Arreglado "se queda congelado en medio de la pantalla"**: si el
+    navegador cancelaba el gesto por su cuenta (`pointercancel`, típico en
+    móvil ante un gesto del sistema o multitáctil), antes nunca se escuchaba
+    ese evento y el personaje flotante se quedaba clavado donde estaba el
+    dedo, sin poder soltarlo en ningún sitio. Ahora ese evento limpia el
+    arrastre igual que si se hubiera soltado.
+- El botón de eliminar carta de una tierlist (antes solo visible al pasar
+  el ratón por encima) y los botones de acción de las tarjetas de tierlist
+  (`.tlca`, editar/eliminar) ahora se quedan siempre visibles en pantallas
+  táctiles, ya que ahí no existe forma de "pasar el ratón por encima" para
+  revelarlos.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

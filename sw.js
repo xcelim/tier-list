@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v22'; // v22: arreglado de verdad el parpadeo doble de la campana — el panel se destruía y recreaba en CADA render() de la app (no solo al llegar datos nuevos), y como tiene animación de entrada (slideDown), se repetía cada vez; ahora se reutiliza el mismo nodo del panel mientras esté abierto y solo se crea de cero al abrirlo
+const CACHE_NAME = 'at-v23'; // v23: movil a fondo, sin romper escritorio -- todos los :hover con transform/movimiento (home, tarjetas, botones, avatar, etc.) ahora solo se aplican en dispositivos con raton real (@media hover:hover and pointer:fine), asi en tactil no queda ningun efecto pegado tras tocar; drag-and-drop tactil rehecho con pulsacion larga (400ms + vibracion) para armar el arrastre sin bloquear el scroll normal, mas limpieza en pointercancel para que el personaje ya no se quede congelado a medio arrastre; anadido html{overflow-x:hidden} junto al de body para evitar cualquier resto de scroll lateral
 const ASSETS = [
   './',
   './index.html',
