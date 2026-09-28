@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v20'; // v20: parpadeo doble de la campana arreglado (dos fetches independientes ya no disparan cada uno su propio render), el perfil de "ver como usuario" ya no mezcla tierlists ajenas donde solo eras colaborador, el marco de avatar en comentarios ha vuelto (ya no se ve cuadrado gracias al recorte circular), y el selector de marco en Perfil ahora previsualiza al instante y solo se aplica de verdad al pulsar "Guardar cambios"
+const CACHE_NAME = 'at-v21'; // v21: arreglada de verdad la fuga de tierlists en perfiles ajenos (era una condición de carrera al navegar rápido entre perfiles, no el filtro de colaboradores — se ha devuelto el criterio de colaboradores, que sí debe salir a todos los que colaboran), y arreglado que el avatar de la esquina (nav) nunca mostraba el marco equipado por un conflicto de especificidad CSS con .profile-btn.active
 const ASSETS = [
   './',
   './index.html',

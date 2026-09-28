@@ -251,27 +251,36 @@ async function removeFriend(relId, isCancel = false) {
 async function viewUser(userId) {
   const u = S.allUsers.find(x => x.id === userId);
   if(!u) return;
-  
+
   S.prevPage = S.page;
   S.viewingUser = { ...u, rankings: [] };
   S.page = 'user-view';
   render();
 
   toast("Cargando rankings de " + u.name + "...", "info");
-  // FIX (Ronda 18): antes esto incluía también (con el OR de más abajo) las
-  // tierlists donde este usuario es simplemente COLABORADOR de una tierlist
-  // de OTRA persona — con la intención de que, si alguien te comparte una
-  // tierlist para editarla juntos, también saliera en su perfil. Pero eso
-  // hacía que en el perfil de "Usuario B" salieran tierlists que en
-  // realidad son tuyas (las creaste tú, él solo colabora), como si él las
-  // hubiera guardado — cosa confusa y no deseada ("no deberia pasar porque
-  // el no ha guardado ninguna de esas dos nunca"). Ahora solo se traen los
-  // rankings que ESTE usuario ha guardado de verdad (user_id = el suyo),
-  // igual que ya funcionaba bien en la vista de "perfil de un amigo".
+  // FIX (Ronda 18, corregido tras aclaración): esto SÍ debe incluir (vía el
+  // OR de abajo) las tierlists donde este usuario es colaborador de una
+  // tierlist de OTRA persona — si A guarda una tierlist y añade a B como
+  // colaborador, debe salirle a LOS DOS (tanto en "Usuarios" como en
+  // "amigo"), pero a nadie más. La ronda anterior quitó esto por error,
+  // pensando que ahí estaba el bug — pero el bug real era otro (ver el
+  // guard de más abajo): una condición de carrera. Al navegar rápido de un
+  // perfil a otro (p.ej. verte a ti mismo en "Usuarios" y luego entrar al
+  // perfil de otra cuenta antes de que la primera petición terminase), la
+  // respuesta de la petición VIEJA podía llegar tarde y pisar los datos del
+  // perfil que se está viendo ahora — así que unas tierlists tuyas podían
+  // acabar apareciendo en el perfil de otra persona. Por eso "prueba" y
+  // "Animes Temporada 2026" (tuyas) se colaban en el perfil ajeno.
   const { data, error } = await sbClient
     .from('user_rankings')
     .select('*, tierlists(title, folder, cover_url)')
-    .eq('user_id', userId);
+    .or(`user_id.eq.${userId},collaborators.cs.{${userId}}`);
+
+  // FIX (Ronda 19) — condición de carrera real: si mientras se esperaba esta
+  // respuesta ya se navegó a OTRO perfil (o se salió de la vista), S.viewingUser
+  // ya no es "u"/"userId" — en ese caso esta respuesta está desactualizada y
+  // NO debe aplicarse, o pisaría los datos del perfil que se ve ahora mismo.
+  if (!S.viewingUser || S.viewingUser.id !== userId) return;
 
   if(!error && data) {
     S.viewingUser.rankings = data;

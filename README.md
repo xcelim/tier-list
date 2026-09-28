@@ -987,6 +987,32 @@ como debía. El problema tenía que ser, por tanto, puramente visual.
   borrador en memoria) y solo se aplica de verdad al pulsar "Guardar
   cambios" (que ahora sí incluye `avatar_frame` en el update a Supabase).
 
+## 🆕 Ronda 19 — corregido: la fuga de tierlists SÍ era otra cosa, y el marco de la esquina nunca se veía
+
+- **La "fuga" de tierlists en el perfil de otro usuario no era el filtro de
+  colaboradores** (la Ronda 18 se equivocó ahí): si A guarda una tierlist y
+  añade a B como colaborador, DEBE salirle a los dos, tanto en "Usuarios"
+  como viendo su perfil "como amigo" — se ha devuelto ese criterio. La
+  causa real era una **condición de carrera** en `viewUser()`: al navegar
+  rápido de un perfil a otro (p.ej. verte a ti mismo en la lista de
+  "Usuarios" y entrar enseguida al perfil de otra cuenta), la respuesta de
+  la petición del perfil ANTERIOR podía llegar tarde y pisar los datos del
+  perfil que se está viendo ahora — así que tierlists tuyas podían acabar
+  apareciendo en el perfil de otra persona sin que él tuviera nada que ver.
+  Ahora, si la respuesta llega cuando ya se está viendo OTRO perfil
+  distinto, se descarta en vez de aplicarse.
+- **El avatar de la esquina (arriba a la derecha, en la barra de
+  navegación) nunca mostraba el marco equipado, fuera cual fuera**: la
+  causa era un conflicto de especificidad en CSS. Ese círculo lleva las
+  clases `profile-btn active`, y la regla `.profile-btn.active` (dos
+  clases) tiene MÁS especificidad que `.frame-gold`/`.frame-neon`/etc. (una
+  clase) — así que siempre ganaba ella para la propiedad `box-shadow`
+  (que es la que dibuja el aro de color del marco), sin importar el orden
+  en la hoja de estilos ni qué marco tuvieras puesto. Se han añadido
+  reglas de tres clases (`.profile-btn.active.frame-XXX`) que sí ganan de
+  verdad y dejan que el marco equipado se vea en la esquina, igual que en
+  el resto de la app.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

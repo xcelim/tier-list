@@ -1130,6 +1130,29 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 }
 @keyframes frame-legendary-spin{from{filter:hue-rotate(0deg)}to{filter:hue-rotate(360deg)}}
 
+/* FIX (Ronda 19): el avatar de la esquina (arriba a la derecha, en <nav>)
+   NUNCA mostraba el marco equipado, fuera cual fuera. Causa: ese círculo
+   usa las clases "profile-btn active" (ver js/views/nav.js), y la regla
+   ".profile-btn.active" (dos clases → especificidad 0,2,0) siempre gana en
+   CSS sobre ".frame-gold"/".frame-neon"/etc. (una clase → especificidad
+   0,1,0) para la propiedad box-shadow, SIN IMPORTAR el orden en la hoja de
+   estilos — la especificidad manda antes que el orden. Como las dos reglas
+   fijan box-shadow por completo (no se suman), la de mayor especificidad
+   "gana entera" y el aro de color del marco quedaba tapado del todo por el
+   halo dorado por defecto de "active". Estas reglas de TRES clases (0,3,0)
+   ganan a las dos anteriores y dejan que el marco equipado mande de verdad
+   cuando hay uno puesto. */
+.profile-btn.active.frame-bronze{box-shadow:0 0 0 3px #a9713f, 0 0 14px rgba(169,113,63,.5); border-color:transparent}
+.profile-btn.active.frame-silver{box-shadow:0 0 0 3px #cfd6de, 0 0 16px rgba(207,214,222,.55); border-color:transparent}
+.profile-btn.active.frame-gold{box-shadow:0 0 0 3px var(--neon-gold,#ffcf40), 0 0 20px rgba(255,207,64,.6); border-color:transparent}
+.profile-btn.active.frame-neon{box-shadow:0 0 0 3px var(--neon-magenta,#ff0a2e), 0 0 24px rgba(255,10,46,.65), 0 0 40px rgba(255,10,46,.3); border-color:transparent}
+.profile-btn.active.frame-legendary{
+  box-shadow:0 0 0 3px var(--neon-gold,#ffcf40), 0 0 28px rgba(255,207,64,.5);
+  animation:frame-legendary-spin 3s linear infinite;
+  animation-delay:calc(var(--legendary-epoch,0) * -1s);
+  border-color:transparent;
+}
+
 /* --- Reacciones con emoji (modo Visor) --- */
 .reactions-bar{max-width:900px;margin:24px auto 0;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .reaction-pill{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1.5px solid var(--border);border-radius:20px;padding:6px 14px;font-size:15px;cursor:pointer;transition:.15s}
