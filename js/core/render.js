@@ -191,19 +191,25 @@ async function handleAuthSession(session) {
 
     S.profiles = S.profiles.filter(x => x.id === S.activeProfile);
     saveProfiles();
-    fetchGlobalTemplates().then(() => {
-      // FIX (Ronda 29 — pedido explícito: "no se quiere tener todas
-      // descargadas, solo las que me interesen"): antes esto también
-      // descargaba solo, en segundo plano, las imágenes de TODAS tus
-      // tierlists — ya no. Desde ahora nada se descarga hasta que pulsas
-      // el botón "Descargar" en una tierlist concreta (ver
-      // downloadTierlistForOffline en save.js). Lo único que se sigue
-      // haciendo solo, aquí, es LIMPIAR el almacén de imágenes que ya no
-      // use ninguna tierlist tuya (por ejemplo si quitaste un personaje de
-      // un tier desde otro dispositivo) — nunca añade nada nuevo, solo
-      // borra sobrantes.
-      if (typeof gcCharImageCache === 'function') gcCharImageCache();
-    });
+    // FIX (Ronda 29 — pedido explícito: "no se quiere tener todas
+    // descargadas, solo las que me interesen"): nada se descarga
+    // automáticamente — solo al pulsar "Descargar" en una tierlist
+    // concreta (ver downloadTierlistForOffline en save.js).
+    // FIX (Ronda 34 — "cada vez que cierro la app y la abro y le doy a
+    // descargar me descarga 81 fotos [de nuevo]"): aquí se llamaba también
+    // a gcCharImageCache() en CADA inicio de sesión, que borra del almacén
+    // cualquier imagen que "ya no haga falta" según la copia local en ese
+    // momento. El problema es que fetchGlobalTemplates() depende de red
+    // (plantillas + tu ranking en Supabase) y, si esa respuesta llega
+    // incompleta o con la estructura sin terminar de fusionar bien con lo
+    // local, la limpieza podía borrar por error imágenes que SÍ hacían
+    // falta — justo antes de que el usuario llegase a pulsar "Descargar",
+    // así que parecía "que no recordaba nada" cada vez que se reabría la
+    // app. Esa limpieza automática al iniciar sesión queda quitada:
+    // gcCharImageCache() ahora solo se ejecuta dentro de
+    // downloadTierlistForOffline, como parte de una descarga que el propio
+    // usuario ha pedido, nunca sola en segundo plano.
+    fetchGlobalTemplates();
     // Si hay una ruta pendiente (URL con hash al cargar), abrir el editor correspondiente
     await fetchAllUsers(); // Vital para que salgan los amigos en el chat
     fetchChats(); // Cargar chats al iniciar sesión

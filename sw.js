@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v35'; // v35: el boton del ojo DENTRO del editor mostraba la copia de trabajo (con cambios sin guardar) en modo Visor -- mover una carta sin guardar y pulsar el ojo mostraba esa posicion como si estuviera guardada, y hacia falta refrescar (perdiendo el cambio) para que se corrigiera; ahora ese boton muestra siempre lo REALMENTE guardado, igual que el ojo de la tarjeta en Mis Tierlists, evitando tambien descargas de mas al pulsar Descargar justo despues
+const CACHE_NAME = 'at-v36'; // v36: cada vez que se cerraba y reabria la app y se pulsaba Descargar, volvia a descargar TODAS las fotos (ej. 81 de nuevo) en vez de solo los cambios -- la causa era que al iniciar sesion se limpiaba en segundo plano el almacen de imagenes offline (gcCharImageCache) justo despues de traer plantillas/ranking desde Supabase, y si esa respuesta de red no llegaba completa a tiempo, esa limpieza borraba por error imagenes que si hacian falta, antes de que le diera tiempo a pulsar Descargar; ahora esa limpieza SOLO ocurre como parte de pulsar Descargar (accion pedida por el propio usuario), nunca sola al iniciar sesion
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión

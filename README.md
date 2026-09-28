@@ -1444,6 +1444,37 @@ corrige pero eso está mal".
   reordenó una carta entre tiers ya existentes, sin añadir ni quitar
   ningún personaje.
 
+## 🆕 Ronda 34 — cerrar y reabrir la app hacía que "Descargar" volviera a bajar TODAS las fotos
+
+Pedido explícito: "Si descargo dos veces seguidas o salgo de esa ruta,
+vuelvo y descargo incluso cambiando cosas va bien, pero cada vez que cierro
+la app y la abro y le doy a descargar me descarga 81 fotos".
+
+- **Lo raro del síntoma**: dentro de una misma sesión (sin cerrar la app)
+  todo funcionaba perfecto — descargar dos veces seguidas, cambiar cosas,
+  navegar a otra pantalla y volver... siempre detectaba bien los cambios
+  reales. El problema aparecía SOLO al cerrar la app (o la pestaña) y
+  volver a abrirla.
+- **Causa real**: cada vez que se iniciaba sesión, justo después de traer
+  las plantillas y tu ranking desde Supabase (`fetchGlobalTemplates`), se
+  lanzaba también en segundo plano una limpieza del almacén de imágenes
+  offline (`gcCharImageCache`) que borra cualquier imagen que "ya no haga
+  falta" según lo que hay guardado en este dispositivo en ese momento. El
+  problema es que esa limpieza depende de una respuesta de red (plantillas +
+  tu ranking en la nube) que se pide justo al abrir la app — si esa
+  respuesta tardaba, llegaba incompleta, o la fusión con lo local no
+  terminaba de estar lista en ese instante exacto, la limpieza podía borrar
+  por error imágenes que sí hacían falta, momentos antes de que le diera
+  tiempo a pulsar "Descargar". Por eso parecía que la app "no se acordaba de
+  nada" cada vez que se reabría, aunque dentro de la misma sesión todo
+  funcionara bien.
+- **Arreglado**: esa limpieza automática al iniciar sesión queda quitada
+  del todo. Ahora `gcCharImageCache` SOLO se ejecuta como parte de pulsar
+  "Descargar" en una tierlist — una acción que el propio usuario ha pedido a
+  propósito — nunca sola en segundo plano al abrir la app. Así, las
+  imágenes ya descargadas sobreviven a cerrar y reabrir la app, y
+  "Descargar" vuelve a comparar solo contra lo que de verdad falta.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,
