@@ -950,6 +950,43 @@ como debía. El problema tenía que ser, por tanto, puramente visual.
   recién creado arranca ya en el punto de giro que le toca, y el efecto se
   ve continuo aunque el elemento se esté recreando por debajo.
 
+## 🆕 Ronda 18 — probado con 2 cuentas: campana con parpadeo doble, fuga de tierlists ajenas, marco perdido en comentarios y selector de marco sin vista previa
+
+- **Campana con "parpadeo doble"**: al abrir el panel, `fetchNotifications()`
+  (solicitudes de amistad) y `fetchAppNotifications()` (actividad) se
+  disparaban en paralelo, y cada una llamaba a su propio `render()` en
+  cuanto terminaba — como no siempre resuelven en el mismo instante, el
+  panel (que ahora vive fuera de `<nav>`, ver Ronda 17) se destruía y volvía
+  a crearse dos veces seguidas, un parpadeo visible (el mismo tipo de bug
+  que hubo con el chat por duplicar renders). Ahora ambas aceptan un
+  parámetro `quiet` para no renderizar ellas solas, y el click de la
+  campana espera (`Promise.all`) a que las dos terminen antes de
+  renderizar una única vez.
+- **Ver el perfil de otro usuario (no como amigo) mostraba tierlists que él
+  nunca ha guardado**: la consulta de `viewUser()` traía, además de sus
+  propios rankings, cualquier tierlist donde ese usuario fuera simplemente
+  COLABORADOR de una tierlist de OTRA persona (con la idea de mostrar
+  tierlists compartidas) — así que en el perfil de la cuenta B aparecían
+  tierlists que en realidad son tuyos (tú las creaste, él solo colabora),
+  como si él las hubiera guardado. Se ha quitado esa parte: ahora solo
+  salen los rankings que esa persona ha guardado de verdad, igual que ya
+  funcionaba bien en la vista de "perfil de un amigo".
+- **El marco de avatar volvió a los comentarios**: en la Ronda 14 se había
+  quitado del todo porque se veía como un borde cuadrado — pero eso pasaba
+  porque entonces la foto todavía no se recortaba en un círculo de verdad.
+  Ahora que el recorte circular funciona bien, se ha vuelto a añadir sin
+  ese problema.
+- **El selector de marco en Perfil no se previsualizaba, había que "Guardar
+  cambios" para verlo**: la causa real era que el selector aplicaba el
+  cambio DIRECTAMENTE en Supabase al momento (bien guardado, pero la
+  vista previa en pantalla usa una copia aparte — `S.profileDraft` — para
+  poder deshacer cambios de nombre/color con "Descartar", y esa copia
+  nunca se enteraba del cambio hasta que "Guardar cambios" la tiraba y
+  creaba una nueva ya actualizada). Ahora el marco se comporta exactamente
+  igual que el nombre o el color: se previsualiza al clicar (actualiza el
+  borrador en memoria) y solo se aplica de verdad al pulsar "Guardar
+  cambios" (que ahora sí incluye `avatar_frame` en el update a Supabase).
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

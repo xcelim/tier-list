@@ -235,10 +235,16 @@ async function saveProfileChanges() {
   }
 
   // 2. Update de campos en la base de datos
+  // FIX (Ronda 18): "avatar_frame" faltaba aquí — el marco elegido en
+  // AvatarFramePicker ahora solo se guarda en el borrador (S.profileDraft,
+  // para poder previsualizarlo antes de aplicarlo de verdad, ver
+  // js/features/levels.js), así que hay que incluirlo también aquí para que
+  // "Guardar cambios" lo persista en Supabase.
   const updates = {
     name: S.profileDraft.name,
     color: S.profileDraft.color,
-    avatar_url: finalAvatarUrl
+    avatar_url: finalAvatarUrl,
+    avatar_frame: S.profileDraft.avatar_frame
   };
 
   const { error } = await sbClient.from('profiles').update(updates).eq('id', userSession.user.id);

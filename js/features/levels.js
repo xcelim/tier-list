@@ -55,7 +55,26 @@ function AvatarFramePicker(p, level){
     const equipped = (p.avatar_frame || 'none') === f.id;
     const item = h('div', {
       class: 'frame-option' + (unlocked ? '' : ' frame-locked') + (equipped ? ' frame-equipped' : ''),
-      onclick: () => { if (unlocked && typeof updateProfileField==='function') updateProfileField('avatar_frame', f.id); }
+      // FIX (Ronda 18): antes esto llamaba a updateProfileField(), que
+      // guarda en Supabase Y actualiza currentUserProfile/activeProfile() al
+      // instante. El problema real no era de guardado (ya se guardaba bien)
+      // sino de VISTA PREVIA: tanto este selector como el círculo de arriba
+      // en Perfil leen de "p", que aquí es S.profileDraft — una COPIA aparte
+      // pensada para poder "Descartar" cambios de nombre/color sin tocar el
+      // perfil real — y esa copia nunca se enteraba del cambio de marco
+      // hasta que "Guardar cambios" la tiraba y creaba una nueva a partir
+      // del perfil real (ya actualizado). Por eso no se preseleccionaba ni
+      // se previsualizaba hasta guardar. Pedido explícito: que el marco se
+      // comporte IGUAL que el nombre o el color — se previsualiza al clicar,
+      // y solo se aplica de verdad al pulsar "Guardar cambios". Así que
+      // ahora esto solo actualiza el borrador en memoria; el guardado real
+      // se hace en saveProfileChanges() (js/core/save.js).
+      onclick: () => {
+        if (!unlocked) return;
+        p.avatar_frame = f.id;
+        S.profileUnsaved = true;
+        render();
+      }
     });
     const preview = h('div', { class: 'frame-preview ' + f.css });
     preview.appendChild(h('img', { src: p.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${p.name}` }));

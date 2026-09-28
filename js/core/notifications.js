@@ -7,7 +7,15 @@
 // funciones simplemente no traen nada (fallan en silencio), no rompen la
 // app.
 
-async function fetchAppNotifications() {
+// FIX (Ronda 18): "quiet" (opcional) evita el render() interno — lo usa el
+// click de la campana (js/views/nav.js) para esperar a que ESTA función Y
+// fetchNotifications() (solicitudes de amistad) terminen las DOS antes de
+// renderizar una sola vez. Antes cada una llamaba a su propio render() al
+// terminar, y como no siempre resuelven en el mismo instante, el panel
+// (que ahora vive fuera de <nav>, ver Ronda 17) se destruía y recreaba dos
+// veces seguidas — un parpadeo visible, el mismo tipo de bug que hubo en su
+// día con el chat por duplicar renders/suscripciones.
+async function fetchAppNotifications(quiet) {
   if (!userSession || !sbClient) return;
   try {
     const { data, error } = await sbClient.from('notifications')
@@ -17,7 +25,7 @@ async function fetchAppNotifications() {
       .limit(30);
     if (error) throw error;
     S.appNotifications = data || [];
-    render();
+    if (!quiet) render();
   } catch (e) {
     // Tabla todavía no creada u otro problema — no interrumpimos al usuario.
     console.warn('[notifications] no disponibles todavía:', e.message || e);

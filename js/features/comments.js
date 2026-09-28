@@ -77,13 +77,16 @@ function CommentsSection(rankingId, ownerUserId) {
     list.forEach(c => {
       const mine = userSession && c.user_id === userSession.user.id;
       const item = h('div', { class: 'comment-item' });
-      // FIX (pedido explícito): antes aquí se ponía el marco de color
-      // equipado (frameClassFor) sobre el avatar, con un anillo (box-shadow)
-      // alrededor del círculo — a tamaño tan pequeño (34px) se veía como un
-      // borde cuadrado/anguloso en vez de un aro fino, así que se ha quitado
-      // del todo: en los comentarios el avatar sale limpio, solo el círculo,
-      // sin marco (el marco de verdad, grande, se sigue viendo en el Perfil).
-      item.appendChild(h('div', { class: 'comment-avatar-wrap' },
+      // FIX (Ronda 18, pedido explícito): en la Ronda 14 se había quitado
+      // aquí el marco equipado por completo, porque se veía como un borde
+      // cuadrado/anguloso — pero eso pasaba porque entonces la foto todavía
+      // no se recortaba en un círculo de verdad. Ahora que
+      // .comment-avatar-wrap ya recorta correctamente (overflow:hidden +
+      // border-radius:50%, ver su CSS), el marco (box-shadow) se puede
+      // volver a aplicar sin ese problema — se pone en el DIV contenedor
+      // (comment-avatar-wrap), no en la <img>, igual que en el resto de la
+      // app (avatar-ring, profile-btn...).
+      item.appendChild(h('div', { class: 'comment-avatar-wrap' + (typeof frameClassFor==='function' ? ' '+frameClassFor(c.author) : '') },
         h('img', {
           src: c.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.author?.name || '?')}`
         })

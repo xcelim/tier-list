@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v19'; // v19: campana de notificaciones arreglada de verdad (el panel vivía dentro de <nav>, y backdrop-filter en <nav> creaba un "containing block" que atrapaba también al position:fixed — ahora se cuelga directo de <body>), arreglado el parpadeo Home->página real al recargar en /usuarios /tierlists /ajustes (ruta aplicada de forma optimista antes de saber si hay sesión), y arreglado que los marcos animados (legendario, aura cromática) parecían "reiniciarse" en cada click (animation-delay sincronizado con el reloj real)
+const CACHE_NAME = 'at-v20'; // v20: parpadeo doble de la campana arreglado (dos fetches independientes ya no disparan cada uno su propio render), el perfil de "ver como usuario" ya no mezcla tierlists ajenas donde solo eras colaborador, el marco de avatar en comentarios ha vuelto (ya no se ve cuadrado gracias al recorte circular), y el selector de marco en Perfil ahora previsualiza al instante y solo se aplica de verdad al pulsar "Guardar cambios"
 const ASSETS = [
   './',
   './index.html',

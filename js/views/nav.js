@@ -45,12 +45,22 @@ function Nav(){
       onclick: (e) => {
         e.stopPropagation();
         S.notifMenu = !S.notifMenu; S.profileMenu = null;
-        // DIAGNÓSTICO (por si el bloqueador de anuncios sigue sin dejarlo
-        // ver, aunque las clases ya no se llaman "notif-*"): esto confirma
-        // en la consola que el click SÍ se procesó y el estado cambió.
-        console.log('[campana]', S.notifMenu ? 'abriendo' : 'cerrando', 'menú de notificaciones');
-        if(S.notifMenu){ fetchNotifications(); if(typeof fetchAppNotifications==='function') fetchAppNotifications(); } // Actualizar al abrir
-        render();
+        if(S.notifMenu){
+          // FIX (Ronda 18): antes fetchNotifications() y
+          // fetchAppNotifications() llamaban CADA UNA a su propio render()
+          // en cuanto terminaban — y como no siempre resuelven en el mismo
+          // instante, el panel (que vive fuera de <nav>, ver Ronda 17) se
+          // destruía y volvía a crearse dos veces seguidas: un parpadeo
+          // visible, muy parecido al bug que hubo con el chat por duplicar
+          // renders. Ahora se les pasa "true" (modo silencioso, no
+          // renderizan ellas solas) y se espera a que las DOS terminen para
+          // renderizar una única vez con los datos ya completos.
+          Promise.all([
+            fetchNotifications(true),
+            typeof fetchAppNotifications==='function' ? fetchAppNotifications(true) : Promise.resolve()
+          ]).then(render);
+        }
+        render(); // abre el panel al instante (con los datos que ya hubiera)
       }
     },
       h('span', {style:{fontSize:'18px'}}, '🔔'),
@@ -157,7 +167,9 @@ let _closeNotifMenuHandler = null;
 
 let isProcessingFriendship = false;
 
-async function fetchNotifications() {
+// FIX (Ronda 18): "quiet" opcional — ver el comentario en fetchAppNotifications
+// (js/core/notifications.js), es la misma solución para el mismo problema.
+async function fetchNotifications(quiet) {
   if (!userSession) return;
   try {
     // Traemos el ID de la relación y el nombre del perfil del 'user_id' (el que envió)
@@ -165,10 +177,10 @@ async function fetchNotifications() {
       .select('id, user_id, sender:profiles!user_id(name)')
       .eq('friend_id', userSession.user.id)
       .eq('status', 'pending');
-    
+
     if(error) throw error;
     S.pendingRequests = data || [];
-    render();
+    if(!quiet) render();
   } catch(e) { console.error("Error notifs:", e); }
 }
 
@@ -246,15 +258,20 @@ async function viewUser(userId) {
   render();
 
   toast("Cargando rankings de " + u.name + "...", "info");
-  // Traer los rankings del usuario junto con el título de la tierlist
-  // OR incluye también las tierlists colaborativas en las que este usuario
-  // es colaborador (no dueño) — antes solo se traían las suyas propias, así
-  // que una tierlist compartida con él no aparecía aquí aunque sí pudiera
-  // editarla.
+  // FIX (Ronda 18): antes esto incluía también (con el OR de más abajo) las
+  // tierlists donde este usuario es simplemente COLABORADOR de una tierlist
+  // de OTRA persona — con la intención de que, si alguien te comparte una
+  // tierlist para editarla juntos, también saliera en su perfil. Pero eso
+  // hacía que en el perfil de "Usuario B" salieran tierlists que en
+  // realidad son tuyas (las creaste tú, él solo colabora), como si él las
+  // hubiera guardado — cosa confusa y no deseada ("no deberia pasar porque
+  // el no ha guardado ninguna de esas dos nunca"). Ahora solo se traen los
+  // rankings que ESTE usuario ha guardado de verdad (user_id = el suyo),
+  // igual que ya funcionaba bien en la vista de "perfil de un amigo".
   const { data, error } = await sbClient
     .from('user_rankings')
     .select('*, tierlists(title, folder, cover_url)')
-    .or(`user_id.eq.${userId},collaborators.cs.{${userId}}`);
+    .eq('user_id', userId);
 
   if(!error && data) {
     S.viewingUser.rankings = data;

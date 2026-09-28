@@ -510,9 +510,14 @@ function ProfilePage() {
   if (S.allUsers.length === 0) fetchAllUsers();
 
   const markProfileDirty = () => {
-    // Comparar con el original para ver si realmente ha cambiado
-    const isChanged = p.name !== currentUserProfile.name || 
-                     p.color !== currentUserProfile.color || 
+    // Comparar con el original para ver si realmente ha cambiado.
+    // FIX (Ronda 18): se añade avatar_frame a la comparación — si no, elegir
+    // un marco y LUEGO tocar el nombre/color (sin cambiarlo de verdad)
+    // podía dejar S.profileUnsaved en false y esconder la barra de "cambios
+    // sin guardar" aunque el marco elegido siguiera pendiente de guardar.
+    const isChanged = p.name !== currentUserProfile.name ||
+                     p.color !== currentUserProfile.color ||
+                     p.avatar_frame !== currentUserProfile.avatar_frame ||
                      p._newAvatarBlob;
     S.profileUnsaved = isChanged; render();
   };
