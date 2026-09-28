@@ -1,7 +1,23 @@
 // Barra de navegación / menú principal de la aplicación.
 
 // ============ NAV ============
+
+// FIX (Ronda 17) — BUG REAL de la campana, take 2: cambiar .at-alerts-panel
+// a position:fixed (Ronda 15) NO fue suficiente, porque el panel se seguía
+// añadiendo DENTRO de <nav> (n.appendChild(nm) más abajo), y <nav> tiene
+// backdrop-filter — que, igual que transform/filter/perspective, crea un
+// "containing block" TAMBIÉN para los descendientes position:fixed (no solo
+// para position:absolute). O sea: el panel seguía posicionándose en
+// relación a <nav>, nunca llegó a escapar de verdad a la ventana. La
+// solución real es sacarlo del todo del árbol de <nav> y colgarlo
+// directamente de <body>, que no tiene ningún filter/transform. Como
+// render() solo destruye y reconstruye el contenido de #app (no el de
+// <body> entero), hay que quitar/añadir este panel a mano en cada llamada a
+// Nav() para que no se quede duplicado ni huérfano.
+let _notifPanelEl = null;
+
 function Nav(){
+  if(_notifPanelEl){ _notifPanelEl.remove(); _notifPanelEl = null; }
   const n=h('nav',{});
   n.appendChild(h('span',{class:'logo',onclick:()=>{
     if(S.page === 'viewer' || S.page === 'user-view') {
@@ -129,7 +145,10 @@ function Nav(){
     }
     _closeNotifMenuHandler = () => { S.notifMenu = false; render(); };
     document.addEventListener('click', _closeNotifMenuHandler, { once: true });
-    n.appendChild(nm);
+    // FIX (Ronda 17): document.body en vez de n (dentro de <nav>) — ver
+    // comentario grande al principio de este archivo.
+    _notifPanelEl = nm;
+    document.body.appendChild(nm);
   }
   return n;
 }

@@ -58,6 +58,31 @@ function render(){
     }
   }
 }
+
+// FIX (Ronda 17) — "el marco cromático se reinicia cada vez que hago algo":
+// es un efecto secundario real (no algo nuevo, pasaba siempre) de que
+// render() destruye y reconstruye TODO el DOM en cada llamada (ver el FIX
+// de arriba sobre el foco perdido): cualquier avatar con marco animado
+// (.frame-legendary, el aura de .mb-aura) es un elemento NUEVO cada vez que
+// se pulsa cualquier cosa que llame a render() — no solo la campana — así
+// que su animación CSS (una rotación infinita) vuelve a arrancar desde el
+// principio cada vez, y se ve como si el marco "se reiniciara" en vez de
+// girar de forma continua. Arreglo sin tocar el motor de renderizado:
+// mantenemos dos variables CSS con la fase actual (según el reloj real) de
+// cada animación, y en el CSS (.frame-legendary / .mb-aura::before en
+// style.css) se usan como "animation-delay" negativo — así, cualquier marco
+// recién creado arranca ya en el punto de giro que le corresponde según la
+// hora real, en vez de siempre en el mismo sitio, y el efecto parece
+// continuo aunque el elemento se esté recreando por debajo.
+(function syncFrameAnimEpochs(){
+  const root = document.documentElement.style;
+  setInterval(() => {
+    const now = Date.now() / 1000;
+    root.setProperty('--legendary-epoch', (now % 3).toFixed(3));
+    root.setProperty('--chromatic-epoch', (now % 14).toFixed(3));
+  }, 200);
+})();
+
 // === GLOBALS SUPABASE ===
 let userSession = null;
 let currentUserProfile = null;

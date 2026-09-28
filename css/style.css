@@ -1108,6 +1108,10 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 .frame-legendary{
   box-shadow:0 0 0 3px var(--neon-gold,#ffcf40), 0 0 28px rgba(255,207,64,.5);
   animation:frame-legendary-spin 3s linear infinite;
+  /* FIX (Ronda 17): arranca ya en la fase que le toca según el reloj real
+     (ver syncFrameAnimEpochs en render.js), para que no se note el "reinicio"
+     cuando este elemento se recrea en cada render(). */
+  animation-delay:calc(var(--legendary-epoch,0) * -1s);
 }
 /* FIX: en el círculo grande de Perfil (.avatar-ring), el marco antes se
    sumaba al degradado azul por defecto que YA tiene ese círculo (padding +
@@ -1263,6 +1267,8 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
     var(--neon-magenta) 0deg, var(--neon-gold) 90deg,
     var(--neon-cyan) 180deg, var(--neon-magenta) 270deg, var(--neon-magenta) 360deg);
   animation:chromatic-spin 14s linear infinite;
+  /* FIX (Ronda 17): ver el mismo comentario en .frame-legendary de arriba */
+  animation-delay:calc(var(--chromatic-epoch,0) * -1s);
 }
 @keyframes chromatic-spin{to{transform:rotate(360deg)}}
 /* .mb-bg: la misma silueta, 5px más pequeña por cada lado — deja ver un

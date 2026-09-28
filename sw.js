@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v18'; // v18: bug real de "al recargar me va a la home / 404" encontrado y arreglado — el router generaba rutas absolutas de dominio raíz ("/", "/tierlists"...) en vez de rutas relativas al subdirectorio real de despliegue ("/tier-list/"), así que cada render() reescribía la URL a la raíz del dominio y un F5 ahí daba 404 de GitHub Pages; ahora usa BASE_PATH calculado dinámicamente, y 404.html usa el truco estándar de redirección de SPA para que las rutas internas también sobrevivan a un F5 o a entrar directo por esa URL
+const CACHE_NAME = 'at-v19'; // v19: campana de notificaciones arreglada de verdad (el panel vivía dentro de <nav>, y backdrop-filter en <nav> creaba un "containing block" que atrapaba también al position:fixed — ahora se cuelga directo de <body>), arreglado el parpadeo Home->página real al recargar en /usuarios /tierlists /ajustes (ruta aplicada de forma optimista antes de saber si hay sesión), y arreglado que los marcos animados (legendario, aura cromática) parecían "reiniciarse" en cada click (animation-delay sincronizado con el reloj real)
 const ASSETS = [
   './',
   './index.html',

@@ -916,6 +916,40 @@ como debía. El problema tenía que ser, por tanto, puramente visual.
   entrar directo (o recargar) en cualquier ruta interna de la app también
   funciona.
 
+## 🆕 Ronda 17 — campana arreglada de verdad, parpadeo al recargar en páginas internas, y marcos que "se reiniciaban"
+
+- **Campana de notificaciones — causa real (take 2)**: el cambio de la
+  Ronda 15 (`position:fixed` en vez de `absolute`) no fue suficiente. El
+  panel se seguía añadiendo como hijo de `<nav>`, y `<nav>` tiene
+  `backdrop-filter` — que, igual que `transform`/`filter`/`perspective`,
+  crea un "containing block" **también** para los descendientes
+  `position:fixed` (no solo para `position:absolute`, como se pensaba). Es
+  decir: el panel nunca llegó a escapar de verdad de `<nav>`, así que seguía
+  posicionándose (mal, o invisible) en relación a él. Arreglo de verdad:
+  el panel ahora se cuelga directamente de `<body>` (que no tiene ningún
+  `filter`/`transform`), fuera del todo del árbol de `<nav>`, así que
+  `position:fixed` funciona tal cual se espera.
+- **Parpadeo Home → página real al recargar en `/usuarios`, `/tierlists` o
+  `/ajustes`**: antes, la ruta de la URL se guardaba para aplicarse solo
+  DESPUÉS de confirmar la sesión de Supabase (que es asíncrono y tarda un
+  instante) — mientras tanto, el primer render() pintaba Home siempre, por
+  eso se veía el salto. Ahora esa ruta se aplica de forma optimista nada
+  más leer la URL, antes de saber si hay sesión, así el primer render ya
+  sale bien; si al final resulta que no había sesión iniciada, se deshace
+  automáticamente.
+- **Los marcos animados (legendario, aura cromática) parecían "reiniciarse"
+  con cualquier click**: esto no era nuevo ni un efecto secundario de los
+  cambios anteriores — pasa siempre, porque `render()` destruye y
+  reconstruye TODO el DOM en cada llamada (cualquier botón lo dispara), así
+  que un avatar con marco es un elemento nuevo cada vez y su animación CSS
+  (un giro infinito) vuelve a arrancar desde el principio. Se notaba más al
+  abrir/cerrar notificaciones porque se estaba comparando el antes/después
+  rápido. Arreglo sin tocar el motor de render: dos variables CSS se
+  mantienen sincronizadas con la fase actual de cada animación según el
+  reloj real, y se usan como `animation-delay` negativo — así un marco
+  recién creado arranca ya en el punto de giro que le toca, y el efecto se
+  ve continuo aunque el elemento se esté recreando por debajo.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

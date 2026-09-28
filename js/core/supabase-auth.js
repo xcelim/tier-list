@@ -105,6 +105,14 @@ function initSupabase() {
       // Activar la escucha en tiempo real de Supabase discretamente de fondo
       if (typeof setupRealtimeListeners === 'function') setupRealtimeListeners();
     } else {
+      // FIX (Ronda 17): si capturarRutaInicial() aplicó de forma optimista
+      // una ruta protegida (ver más abajo) pero resulta que NO hay sesión
+      // iniciada, hay que deshacerla — si no, alguien sin sesión que entra
+      // por /usuarios se quedaría viendo esa página en vez de Home.
+      if (S._pendingRoute || S.page !== 'home') {
+        S.page = 'home'; S.cid = null; S.workingTL = null; S._pendingRoute = null;
+        if (typeof setRoute === 'function') setRoute('home');
+      }
       render();
     }
   });
@@ -135,12 +143,30 @@ function initSupabase() {
 // directo por /tierlists o /editor/abc123) para aplicarla en cuanto
 // sepamos si hay sesión iniciada (ver S._pendingTlId / S._pendingRoute en
 // render.js -> handleAuthSession).
+//
+// FIX (Ronda 17): antes esto SOLO guardaba la ruta para más tarde, así que
+// el primer render() (la última línea de este archivo, síncrono, antes de
+// saber si hay sesión) siempre pintaba Home — y en cuanto la sesión se
+// confirmaba (asíncrono, tarda un instante) se aplicaba la ruta real y se
+// volvía a renderizar. Eso es justo el "parpadeo" que se veía al recargar
+// en /usuarios (o /tierlists, /ajustes): Home un instante y luego la página
+// correcta. Ahora, para las páginas "simples" (que no necesitan datos
+// todavía sin cargar para pintarse: ver sus guards en TierlistsPage/
+// UsersPage/ProfilePage) aplicamos S.page de forma OPTIMISTA aquí mismo, de
+// entrada — así el primerísimo render ya sale bien. Si al final resulta que
+// no hay sesión iniciada, se deshace en el "else" de sbClient.auth.getSession()
+// más abajo. 'editor' y 'usuario/:id' necesitan datos (la tierlist en
+// concreto / el perfil del amigo) que todavía no existen en este punto, así
+// que esos siguen aplicándose solo cuando ya hay sesión y datos.
 (function capturarRutaInicial(){
   if(typeof getRouteFromPath!=='function') return;
   const {page,id} = getRouteFromPath();
   if(page==='editor' && id){ S._pendingTlId = id; }
   else if(page==='user-view' && id){ S._pendingRoute = {page,id}; }
-  else if(page==='tierlists' || page==='users' || page==='profile'){ S._pendingRoute = {page}; }
+  else if(page==='tierlists' || page==='users' || page==='profile'){
+    S._pendingRoute = {page};
+    S.page = page; // aplicación optimista (ver FIX arriba)
+  }
   // 'home' y 'viewer' no necesitan nada especial: S.page ya empieza en 'home'.
 })();
 
