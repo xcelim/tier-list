@@ -20,6 +20,13 @@ async function saveProfiles() {
 // (eso sí podría ser mucho), solo lo que de verdad puede verse en el modo
 // Visor. Es "best effort" en segundo plano: una imagen que falle no para
 // a las demás, y una imagen que ya esté en caché no se vuelve a pedir.
+// FIX (Ronda 27 — "he estado unos segundos y no me salían"): la primera
+// versión descargaba las imágenes UNA A UNA, en fila (esperando a que
+// terminase la anterior antes de pedir la siguiente) — con varias decenas
+// de personajes colocados y una conexión de móvil normal, eso puede tardar
+// bastantes segundos de sobra en total, aunque cada imagen individual sea
+// rápida. Ahora se piden en paralelo (varias a la vez, en tandas), varias
+// veces más rápido en total.
 async function precacheOwnTierImages(){
   if (!('caches' in window)) return;
   try{
@@ -36,14 +43,21 @@ async function precacheOwnTierImages(){
     });
     if(!urls.size) return;
     const cache = await caches.open('at-char-imgs-v1');
-    for(const url of urls){
-      try{
-        const already = await cache.match(url);
-        if(already) continue;
-        const resp = await fetch(url, { mode:'cors' });
-        if(resp && resp.ok) await cache.put(url, resp.clone());
-      }catch(e){ /* una imagen suelta sin red/CORS no debe parar las demás */ }
+    const list = Array.from(urls);
+    const CONCURRENCY = 8;
+    let next = 0;
+    async function worker(){
+      while(next < list.length){
+        const url = list[next++];
+        try{
+          const already = await cache.match(url);
+          if(already) continue;
+          const resp = await fetch(url, { mode:'cors' });
+          if(resp && resp.ok) await cache.put(url, resp.clone());
+        }catch(e){ /* una imagen suelta sin red/CORS no debe parar las demás */ }
+      }
     }
+    await Promise.all(Array.from({length: Math.min(CONCURRENCY, list.length)}, worker));
   }catch(e){ console.warn('[precacheOwnTierImages]', e); }
 }
 

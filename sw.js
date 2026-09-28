@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v28'; // v28: en modo sin conexion salia "?" en vez de S/A/B/... en cada tier (bug de nombre de campo, tiers usa "label" no "name") y no salia ninguna waifu (las imagenes solo se guardaban en cache la primera vez que se pedian con conexion) -- ahora el nombre del tier sale bien y, mientras haya conexion, se descargan por adelantado las imagenes de los personajes ya colocados en tus propias tierlists para que el modo Visor sin conexion pueda mostrarlas sin haberlas visto antes
+const CACHE_NAME = 'at-v29'; // v29: la descarga por adelantado de imagenes para el modo Visor sin conexion (Ronda 26/v28) las pedia una a una en fila -- con bastantes personajes colocados y una conexion de movil normal eso podia tardar de sobra mas de "unos segundos"; ahora se piden en paralelo (varias tandas a la vez), mucho mas rapido en total
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión

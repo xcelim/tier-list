@@ -1293,6 +1293,21 @@ bugs distintos, los dos con causa real:
   ahí aunque sea la primera vez que ves esa tierlist en modo observador ese
   día.
 
+## 🆕 Ronda 27 — la descarga por adelantado tardaba más de "unos segundos"
+
+Con varios personajes colocados y conexión de móvil normal, la descarga por
+adelantado de imágenes de la Ronda 26 podía tardar de sobra más que "unos
+segundos" en terminar, porque pedía las imágenes UNA A UNA, en fila,
+esperando a que cada una terminase antes de pedir la siguiente. Cambiado a
+pedirlas en paralelo (varias tandas de 8 a la vez), bastante más rápido en
+total sin saturar la conexión.
+
+También se confirma que los nombres personalizados de los tiers (cuando
+renombras "S"/"A"/etc. a lo que quieras con el botón ✏) ya salían bien
+arreglados desde la Ronda 26: se guardan en el mismo campo (`label`) que se
+arregló entonces, así que cualquier nombre que le hayas puesto a un tier
+sale tal cual en el modo Visor sin conexión.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,
