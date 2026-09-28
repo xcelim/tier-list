@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v29'; // v29: la descarga por adelantado de imagenes para el modo Visor sin conexion (Ronda 26/v28) las pedia una a una en fila -- con bastantes personajes colocados y una conexion de movil normal eso podia tardar de sobra mas de "unos segundos"; ahora se piden en paralelo (varias tandas a la vez), mucho mas rapido en total
+const CACHE_NAME = 'at-v30'; // v30: nuevo boton "Descargar" en el modo Visor de tus propias tierlists (normales o colaborativas en las que participas), solo con conexion -- fuerza a traer de verdad las imagenes de esa tierlist para verla sin conexion, y de paso limpia del almacen cualquier imagen que ya no use ninguna de tus tierlists (para no acumular basura sin limite); esa misma limpieza se aplica tambien tras la descarga automatica en segundo plano al abrir la app
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión

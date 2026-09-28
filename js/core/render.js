@@ -195,7 +195,14 @@ async function handleAuthSession(session) {
     // conexión, adelanta la descarga de sus imágenes para el modo Visor sin
     // conexión (ver precacheOwnTierImages en save.js) — en segundo plano,
     // no bloquea nada de lo que sigue.
-    fetchGlobalTemplates().then(() => { if (typeof precacheOwnTierImages === 'function') precacheOwnTierImages(); });
+    fetchGlobalTemplates().then(() => {
+      if (typeof precacheOwnTierImages !== 'function') return;
+      // FIX (Ronda 28): de paso, limpia del almacén de imágenes cualquiera
+      // que ya no use ninguna tierlist tuya (por ejemplo si quitaste un
+      // personaje de un tier desde otro dispositivo) — así no solo el
+      // botón "Descargar" manual evita que la caché crezca sin límite.
+      precacheOwnTierImages().then(() => { if (typeof gcCharImageCache === 'function') gcCharImageCache(); });
+    });
     // Si hay una ruta pendiente (URL con hash al cargar), abrir el editor correspondiente
     await fetchAllUsers(); // Vital para que salgan los amigos en el chat
     fetchChats(); // Cargar chats al iniciar sesión

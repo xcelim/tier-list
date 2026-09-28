@@ -1308,6 +1308,35 @@ arreglados desde la Ronda 26: se guardan en el mismo campo (`label`) que se
 arregló entonces, así que cualquier nombre que le hayas puesto a un tier
 sale tal cual en el modo Visor sin conexión.
 
+## 🆕 Ronda 28 — botón "Descargar" manual en el modo Visor
+
+Pedido explícito: poder forzar la descarga de una tierlist concreta para
+verla sin conexión, con control y aviso de cuándo termina, en vez de fiarse
+solo de la descarga automática en segundo plano (Ronda 26/27).
+
+- Nuevo botón "⬇ Descargar" en el modo Visor (observador), que solo
+  aparece cuando estás viendo una tierlist **tuya** — normal o
+  colaborativa, en cualquiera de las dos participes — y hay conexión de
+  verdad (sin red no hay nada que traer). Nunca aparece viendo la tierlist
+  de otra persona.
+- Al pulsarlo, descarga de verdad las imágenes de todos los personajes
+  colocados en esa tierlist (forzando a traerlas de la red aunque ya
+  estuvieran en caché, por si la imagen de algún personaje cambió), y avisa
+  con un mensaje cuando termina ("✓ [nombre] lista para verse sin
+  conexión (N imágenes)"). El botón se queda como "Descargando..." mientras
+  tanto.
+- El nombre, color y orden de cada tier, y la posición de cada personaje,
+  no hace falta "descargarlos" aparte — ya se guardan solos en el
+  dispositivo en cuanto guardas algo en el editor. Descargar solo se ocupa
+  de lo único que de verdad requiere red: las imágenes.
+- Como pidió el usuario ("no vamos a descargar siempre lo mismo, sustituye
+  la anterior"): al terminar, se limpia del almacén de imágenes cualquiera
+  que ya no use NINGUNA de tus tierlists ahora mismo (por ejemplo la de un
+  personaje que quitaste de un tier) — así la descarga no se va acumulando
+  sin límite. Esta misma limpieza se aplica también tras la descarga
+  automática en segundo plano al abrir la app, no solo al pulsar el botón.
+  Una imagen que SÍ siga usando otra de tus tierlists nunca se borra.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

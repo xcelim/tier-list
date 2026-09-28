@@ -27,38 +27,115 @@ async function saveProfiles() {
 // bastantes segundos de sobra en total, aunque cada imagen individual sea
 // rápida. Ahora se piden en paralelo (varias a la vez, en tandas), varias
 // veces más rápido en total.
+//
+// Recorre las tierlists indicadas (todas las propias, o solo una) y
+// devuelve el conjunto de URLs de imagen (solo las que de verdad son una
+// URL de red — un personaje "a mano" con la imagen ya guardada como
+// base64 no necesita descargarse) de los personajes YA COLOCADOS en algún
+// tier — nunca el catálogo/pool entero.
+function collectTierImageUrls(tls){
+  const urls = new Set();
+  (tls||[]).forEach(tl=>{
+    (tl.tiers||[]).forEach(t=>{
+      (t.chars||[]).forEach(cid=>{
+        const url = charImg(cid, tl);
+        if(url && url.startsWith('http')) urls.add(url);
+      });
+    });
+  });
+  return urls;
+}
+
+// Descarga (en paralelo, por tandas) la lista de URLs dada y la mete en la
+// caché de imágenes de personajes. "force=true" vuelve a pedir la imagen
+// aunque ya estuviera en caché (para el botón "Descargar" manual, que
+// quiere traer la versión más reciente de verdad); si no, se salta las que
+// ya están (para la precarga automática en segundo plano, más barata).
+// Devuelve cuántas se descargaron bien y cuántas fallaron.
+async function downloadImagesToCache(urls, force){
+  const cache = await caches.open('at-char-imgs-v1');
+  const list = Array.from(urls);
+  let ok = 0, fail = 0;
+  const CONCURRENCY = 8;
+  let next = 0;
+  async function worker(){
+    while(next < list.length){
+      const url = list[next++];
+      try{
+        if(!force){
+          const already = await cache.match(url);
+          if(already){ ok++; continue; }
+        }
+        const resp = await fetch(url, { mode:'cors', cache: force ? 'reload' : 'default' });
+        if(resp && resp.ok){ await cache.put(url, resp.clone()); ok++; }
+        else fail++;
+      }catch(e){ fail++; /* una imagen suelta sin red/CORS no debe parar las demás */ }
+    }
+  }
+  await Promise.all(Array.from({length: Math.min(CONCURRENCY, list.length)}, worker));
+  return { ok, fail, total: list.length };
+}
+
 async function precacheOwnTierImages(){
   if (!('caches' in window)) return;
   try{
     const p = activeProfile();
     if(!p) return;
-    const urls = new Set();
-    (p.tls||[]).forEach(tl=>{
-      (tl.tiers||[]).forEach(t=>{
-        (t.chars||[]).forEach(cid=>{
-          const url = charImg(cid, tl);
-          if(url && url.startsWith('http')) urls.add(url);
-        });
-      });
-    });
+    const urls = collectTierImageUrls(p.tls);
     if(!urls.size) return;
-    const cache = await caches.open('at-char-imgs-v1');
-    const list = Array.from(urls);
-    const CONCURRENCY = 8;
-    let next = 0;
-    async function worker(){
-      while(next < list.length){
-        const url = list[next++];
-        try{
-          const already = await cache.match(url);
-          if(already) continue;
-          const resp = await fetch(url, { mode:'cors' });
-          if(resp && resp.ok) await cache.put(url, resp.clone());
-        }catch(e){ /* una imagen suelta sin red/CORS no debe parar las demás */ }
-      }
-    }
-    await Promise.all(Array.from({length: Math.min(CONCURRENCY, list.length)}, worker));
+    await downloadImagesToCache(urls, false);
   }catch(e){ console.warn('[precacheOwnTierImages]', e); }
+}
+
+// FIX (Ronda 28 — botón "Descargar" manual en el modo Visor de tus propias
+// tierlists): la precarga automática de arriba ya intenta mantener las
+// imágenes al día sola, en segundo plano, sin que se note ni se controle.
+// Este botón le da control explícito al usuario: "quiero estar seguro de
+// que ESTA tierlist, tal y como se ve ahora mismo, está lista para verse
+// sin conexión", con aviso claro de cuándo termina (toasts). El nombre, el
+// color, el orden de los tiers y la posición de cada personaje YA se
+// guardan solos en el dispositivo en cuanto se guarda algo en el editor
+// (p.tls, ver saveEditorChanges) — no hace falta "descargarlos" aparte, ya
+// están. Lo único que de verdad hay que forzar a traer son las imágenes.
+// Al terminar, limpia además del almacén cualquier imagen que ya no use
+// NINGUNA de tus tierlists (ver gcCharImageCache) — así una descarga nueva
+// no se va acumulando sin límite sobre las anteriores, tal y como pidió el
+// usuario ("sustituimos la anterior descarga").
+async function downloadTierlistForOffline(tlid){
+  if (!('caches' in window)) { toast('Tu navegador no soporta guardar tierlists para verlas sin conexión', 'err'); return; }
+  const tl = getTLfromProfile(tlid);
+  if(!tl){ toast('No se encontró esa tierlist', 'err'); return; }
+  const urls = collectTierImageUrls([tl]);
+  if(!urls.size){ toast('Esta tierlist todavía no tiene personajes colocados', 'info'); return; }
+  toast(`Descargando ${urls.size} imagen${urls.size===1?'':'es'}...`, 'info');
+  try{
+    const { ok, fail, total } = await downloadImagesToCache(urls, true);
+    await gcCharImageCache();
+    if(fail){
+      toast(`Descargado (${ok}/${total}) — ${fail} imagen${fail===1?'':'es'} no se pudo${fail===1?'':'ieron'} traer`, 'info');
+    } else {
+      toast(`✓ "${tl.title}" lista para verse sin conexión (${ok} imagen${ok===1?'':'es'})`, 'ok');
+    }
+  }catch(e){
+    console.error(e);
+    toast('Error al descargar: '+e.message, 'err');
+  }
+}
+
+// Borra del almacén de imágenes cualquiera que ya no use NINGUNA de tus
+// tierlists (normales o colaborativas) ahora mismo — por ejemplo, la de un
+// personaje que quitaste de un tier o de una tierlist que borraste. Evita
+// que la caché de imágenes crezca sin límite con el paso del tiempo.
+async function gcCharImageCache(){
+  if (!('caches' in window)) return;
+  try{
+    const p = activeProfile();
+    if(!p) return;
+    const needed = collectTierImageUrls(p.tls);
+    const cache = await caches.open('at-char-imgs-v1');
+    const keys = await cache.keys();
+    await Promise.all(keys.map(req => needed.has(req.url) ? Promise.resolve() : cache.delete(req)));
+  }catch(e){ console.warn('[gcCharImageCache]', e); }
 }
 
 async function fetchGlobalTemplates() {

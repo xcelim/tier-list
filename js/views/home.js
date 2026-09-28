@@ -470,8 +470,31 @@ function Viewer() {
   // botón del ojo en una tarjeta, o desde el editor), aquí sale el botón
   // para volver a entrar en modo edición.
   if(S._viewerOwnTlId){
+    // FIX (Ronda 28 — botón "Descargar" manual): solo tiene sentido en TUS
+    // PROPIAS tierlists (normales o colaborativas en las que participas —
+    // eso es justo lo que significa S._viewerOwnTlId aquí, ver openOwnViewer/
+    // viewCurrentEditorAsViewer en nav.js) y con conexión de verdad (sin
+    // red no hay nada que descargar). El nombre/color/orden de cada tier y
+    // la posición de cada personaje ya se guardan solos en el dispositivo
+    // en cuanto guardas en el editor — lo único que hay que forzar a
+    // descargar de verdad son las imágenes (ver downloadTierlistForOffline
+    // en save.js), así que el botón se limita a eso y a avisar cuándo
+    // termina.
+    if(!S.offline){
+      tb.appendChild(h('button', {
+        class:'btn bsm', style:{marginLeft:'auto'},
+        onclick: async (e) => {
+          const btn = e.currentTarget;
+          const original = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = '<i class="ti ti-loader-2"></i> Descargando...';
+          try{ await downloadTierlistForOffline(S._viewerOwnTlId); }
+          finally{ btn.disabled = false; btn.innerHTML = original; }
+        }
+      }, h('i',{class:'ti ti-download'}), ' Descargar'));
+    }
     tb.appendChild(h('button', {
-      class:'btn bp bsm', style:{marginLeft:'auto'},
+      class:'btn bp bsm', style:{marginLeft: S.offline ? 'auto' : '8px'},
       onclick:()=>{ const id=S._viewerOwnTlId; S._viewerOwnTlId=null; openEditor(id); }
     }, h('i',{class:'ti ti-pencil'}), ' Editar'));
   } else {
