@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v36'; // v36: cada vez que se cerraba y reabria la app y se pulsaba Descargar, volvia a descargar TODAS las fotos (ej. 81 de nuevo) en vez de solo los cambios -- la causa era que al iniciar sesion se limpiaba en segundo plano el almacen de imagenes offline (gcCharImageCache) justo despues de traer plantillas/ranking desde Supabase, y si esa respuesta de red no llegaba completa a tiempo, esa limpieza borraba por error imagenes que si hacian falta, antes de que le diera tiempo a pulsar Descargar; ahora esa limpieza SOLO ocurre como parte de pulsar Descargar (accion pedida por el propio usuario), nunca sola al iniciar sesion
+const CACHE_NAME = 'at-v37'; // v37: en el modo sin conexion faltaban personajes enteros que si salian conectado (ej. anadidos por un colaborador) -- el catalogo de esos personajes (nombre/foto) solo se guardaba en MEMORIA al abrir el editor/visor estando online, nunca en el dispositivo, asi que se perdia al cerrar la app y esa tarjeta desaparecia del todo sin conexion aunque su posicion en el tier si estuviera bien sincronizada; ahora ese catalogo tambien se guarda en el dispositivo (rememberChars) y sobrevive a cerrar y reabrir la app
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión

@@ -3,7 +3,43 @@
 
 
 // Runtime editable copy of AC
-let AC = JSON.parse(JSON.stringify(AC_BASE));
+// FIX (Ronda 35 — "en modo sin conexión faltan personajes que sí salen
+// conectado"): AC solo se rellenaba en MEMORIA, leyendo la tabla
+// "characters" de Supabase cada vez que se abría el editor o el modo Visor
+// de una tierlist estando online (ver syncFromSupabase en save.js, y
+// openViewer/openOwnViewer en nav.js). Si un personaje lo añadió otro
+// colaborador (o tú mismo desde otro dispositivo), o si sencillamente no
+// habías vuelto a abrir esa tierlist en esta sesión antes de perder la
+// conexión, ese personaje nunca llegaba a estar en AC — y como AC vivía
+// solo en memoria (nunca se guardaba en el dispositivo), cerrar y reabrir
+// la app lo perdía incluso si en algún momento SÍ se había cargado. Sin él,
+// openOfflineViewer() (que no puede pedir nada por red) no encontraba ese
+// personaje (getChar devolvía null) y su tarjeta entera desaparecía del
+// modo Visor sin conexión, aunque su POSICIÓN sí estuviera bien
+// sincronizada (por eso el tier y el hueco eran correctos, pero faltaban
+// fotos concretas). Ahora, además de vivir en memoria, AC arranca
+// recuperando también lo último guardado en este dispositivo (ver
+// rememberChars() más abajo), así que cualquier personaje visto alguna vez
+// online en este dispositivo sigue disponible aunque se cierre la app.
+let AC = Object.assign(JSON.parse(JSON.stringify(AC_BASE)), DB.l('charcache', {}));
+
+// Recuerda en AC (memoria) Y en este dispositivo (localStorage) los
+// personajes que se acaban de traer de la tabla "characters" de Supabase —
+// usado desde save.js (syncFromSupabase) y nav.js (openViewer/
+// openOwnViewer) cada vez que se cargan los personajes de una tierlist.
+// Acepta tanto filas de Supabase ({id,name,anime,image_url}) como entradas
+// ya con forma de AC ({id,name,anime,file}).
+function rememberChars(list){
+  if(!list || !list.length) return;
+  const persisted = DB.l('charcache', {});
+  list.forEach(c=>{
+    if(!c || !c.id) return;
+    const entry = { id:c.id, name:c.name, anime:c.anime, file:c.image_url||c.file, isRemote:true };
+    AC[c.id] = entry;
+    persisted[c.id] = entry;
+  });
+  DB.s('charcache', persisted);
+}
 
 // ============ STATE ============
 let S={

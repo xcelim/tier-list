@@ -346,10 +346,11 @@ async function syncFromSupabase() {
     from += step;
   }
 
-  allChars.forEach(c => {
-    AC[c.id] = { id: c.id, name: c.name, anime: c.anime, file: c.image_url, isRemote: true };
-    sharedIds.add(c.id);
-  });
+  // FIX (Ronda 35): rememberChars() no solo rellena AC en memoria, también
+  // lo guarda en este dispositivo (ver state.js) para que estos personajes
+  // sigan disponibles en el modo Visor sin conexión aunque se cierre la app.
+  rememberChars(allChars);
+  allChars.forEach(c => sharedIds.add(c.id));
   // Catálogo base integrado globalmente
 
   // 3. Cargar el ranking de esta tierlist: puede ser el TUYO propio, o —

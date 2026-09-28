@@ -924,7 +924,13 @@ function MEditChar(){
   const row=h('div',{style:{display:'flex',gap:'8px',marginTop:'14px'}});
   row.appendChild(h('button',{class:'btn bg',style:{flex:'1'},onclick:()=>{S.modal=null;if(onDone)onDone();else render();}},'Cancelar'));
   row.appendChild(h('button',{class:'btn bp',style:{flex:'1'},onclick:()=>{
-    if(fromCat&&AC[charId]){AC[charId].name=newName.trim()||c.name;AC[charId].anime=newAnime.trim()||c.anime;}
+    if(fromCat&&AC[charId]){
+      AC[charId].name=newName.trim()||c.name;AC[charId].anime=newAnime.trim()||c.anime;
+      // FIX (Ronda 35): sin esto, el nombre/anime editados aquí solo vivían
+      // en memoria y se perdían al cerrar la app, aunque el resto del
+      // catálogo (ver rememberChars en state.js) ya sí se guarda.
+      if(typeof rememberChars==='function') rememberChars([AC[charId]]);
+    }
     else{const cur=getChar(charId,tl);if(cur){cur.name=newName.trim()||c.name;cur.anime=newAnime.trim()||c.anime;}}
     S.hasUnsaved=true;toast('Guardado \u2713');if(onDone)onDone();else{S.modal=null;render();}
   }},'Guardar'));

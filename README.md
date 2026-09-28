@@ -1475,6 +1475,34 @@ la app y la abro y le doy a descargar me descarga 81 fotos".
   imágenes ya descargadas sobreviven a cerrar y reabrir la app, y
   "Descargar" vuelve a comparar solo contra lo que de verdad falta.
 
+## 🆕 Ronda 35 — faltaban personajes enteros en el modo sin conexión (los añadidos por un colaborador, o desde otro dispositivo)
+
+Pedido explícito, con capturas comparando el modo Visor conectado vs. sin
+conexión: "mira las que salen en sin conexión y las que salen con conexión,
+faltan".
+
+- **Causa real**: el catálogo de "qué personaje es cada uno" (su nombre y
+  su foto) para cualquier personaje que NO viniera en la base de datos
+  incluida en la propia app (por ejemplo, cualquiera añadido después desde
+  AniList o por un colaborador) se guardaba SOLO EN MEMORIA, y solo se
+  traía de la nube al abrir el editor o el botón del ojo de esa tierlist
+  estando online — nunca se guardaba en el dispositivo. Si esa tierlist se
+  había editado desde OTRO dispositivo (o por un colaborador), o
+  simplemente no se había vuelto a abrir en la sesión actual antes de
+  perder la conexión, ese catálogo no estaba disponible, y como tampoco
+  sobrevivía a cerrar la app, se perdía siempre que se reabría. El modo sin
+  conexión no puede pedir nada por red, así que esos personajes no se
+  encontraban y su tarjeta entera desaparecía — aunque su POSICIÓN (en qué
+  tier estaba) sí seguía bien sincronizada, porque eso viaja por un camino
+  distinto (ver Rondas 30/31).
+- **Arreglado**: ahora, cada vez que la app trae de la nube los datos de un
+  personaje (al abrir un editor, un modo Visor, o sincronizar plantillas),
+  esa información se guarda también en este dispositivo (nueva función
+  `rememberChars`), no solo en memoria. Así, cualquier personaje que se
+  haya visto alguna vez conectado en este dispositivo sigue disponible sin
+  conexión, aunque se cierre y reabra la app o se haya añadido desde otro
+  sitio.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

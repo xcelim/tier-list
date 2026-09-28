@@ -326,9 +326,10 @@ async function openViewer(rankData) {
   S._viewerOwnTlId = null; // esto es el ranking de OTRA persona, no el tuyo
   // Cargamos los personajes necesarios para esa tierlist
   const { data: chars } = await sbClient.from('characters').select('*').eq('tierlist_id', rankData.tierlist_id);
-  if (chars) {
-    chars.forEach(c => AC[c.id] = { id: c.id, name: c.name, anime: c.anime, file: c.image_url });
-  }
+  // FIX (Ronda 35 — personajes que faltaban en el modo Visor sin conexión):
+  // rememberChars() (ver state.js) guarda esto también en el dispositivo,
+  // no solo en memoria, para que sobreviva a cerrar la app.
+  if (chars) rememberChars(chars);
   S.page = 'viewer';
   render();
 }
@@ -352,7 +353,10 @@ async function openOwnViewer(tl){
   }catch(e){ console.error(e); }
 
   const { data: chars } = await sbClient.from('characters').select('*').eq('tierlist_id', tl.id);
-  if (chars) chars.forEach(c => AC[c.id] = { id: c.id, name: c.name, anime: c.anime, file: c.image_url });
+  // FIX (Ronda 35 — personajes que faltaban en el modo Visor sin conexión):
+  // rememberChars() (ver state.js) guarda esto también en el dispositivo,
+  // no solo en memoria, para que sobreviva a cerrar la app.
+  if (chars) rememberChars(chars);
 
   const p = activeProfile();
   S.viewingUser = { id: uid, name: (p && p.name) || currentUserProfile?.name };
