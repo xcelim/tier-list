@@ -65,10 +65,27 @@ function Home(){
     // a la mitad por las esquinas en ángulo.
     const aura = h('div', { class: 'mb-aura' });
     const bg = h('div', { class: 'mb-bg' });
-    menu.appendChild(h('div', { class: `menu-box ${item.cls}`, onclick: () => { S.page = item.id; render(); } }, aura, bg, content));
+    // FIX (Ronda 25 — modo sin conexión): "Usuarios" y "Perfil" necesitan
+    // red de verdad (buscar/ver a otra gente, guardar cambios de perfil) —
+    // sin conexión, entrar ahí solo llevaría a una pantalla rota o a un
+    // guardado que fallara en silencio. "Tierlists" sigue disponible
+    // siempre: ahí es donde se puede ver "Mis Tierlists" ya guardadas, en
+    // modo Visor, sin conexión (ver TierlistsPage/openOfflineViewer).
+    const blocked = S.offline && item.id !== 'tierlists';
+    menu.appendChild(h('div', {
+      class: `menu-box ${item.cls}` + (blocked ? ' mb-disabled' : ''),
+      title: blocked ? 'No disponible sin conexión' : '',
+      onclick: () => {
+        if(blocked){ toast('No disponible sin conexión', 'info'); return; }
+        S.page = item.id; render();
+      }
+    }, aura, bg, content));
   });
 
   w.appendChild(menu);
+  if(S.offline){
+    w.appendChild(h('div', {class:'offline-banner'}, '📴 Sin conexión — puedes ver tus tierlists guardadas en modo solo lectura. Usuarios, Perfil y chat no están disponibles ahora mismo.'));
+  }
   w.appendChild(h('div', {class:'hh-footer'}, 'Hecho con pasión para verdaderos amantes del anime'));
   return w;
 }
@@ -190,8 +207,12 @@ const TL_PAGE_SIZE = 8;
 
 function TierlistsPage() {
   const w=h('div',{class:'tl-page'});
-  // Sincronización automática al entrar a la pantalla principal
-  if (!S._ref) { S._ref = true; fetchGlobalTemplates().finally(() => setTimeout(() => S._ref = false, 5000)); }
+  // Sincronización automática al entrar a la pantalla principal — FIX
+  // (Ronda 25): sin conexión esto solo sería una petición de red condenada
+  // a fallar (ver fetchGlobalTemplates), así que se salta directamente; la
+  // lista de abajo se sigue mostrando igual, con los datos ya guardados en
+  // este dispositivo de la última vez que sí hubo conexión.
+  if (!S._ref && !S.offline) { S._ref = true; fetchGlobalTemplates().finally(() => setTimeout(() => S._ref = false, 5000)); }
 
   const p = activeProfile();
   if(!p) return w;
@@ -242,7 +263,7 @@ function TierlistsPage() {
   else list.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
 
   if(list.length===0 && allTls.length>0){
-    g.appendChild(h('div',{class:'nc',onclick:()=>{S.modal='new-tl';S.md={};render();}},h('div',{class:'plus'},'+'),h('span',{style:{fontSize:'13px'}},'Nueva Tierlist')));
+    g.appendChild(h('div',{class:'nc'+(S.offline?' mb-disabled':''),onclick:()=>{ if(S.offline){ toast('No disponible sin conexión','info'); return; } S.modal='new-tl';S.md={};render();}},h('div',{class:'plus'},'+'),h('span',{style:{fontSize:'13px'}},'Nueva Tierlist')));
     g.appendChild(h('div', { class:'tl-empty-search' }, `Ninguna tierlist coincide con "${S._tlSearch}".`));
   } else {
     // Paginación: página 1 completa, página 2, etc. — sin scroll infinito.
@@ -254,10 +275,13 @@ function TierlistsPage() {
     const pageItems = list.slice(start, start + TL_PAGE_SIZE);
 
     if(S._tlPage === 0){
-      g.appendChild(h('div',{class:'nc',onclick:()=>{S.modal='new-tl';S.md={};render();}},h('div',{class:'plus'},'+'),h('span',{style:{fontSize:'13px'}},'Nueva Tierlist')));
+      g.appendChild(h('div',{class:'nc'+(S.offline?' mb-disabled':''),onclick:()=>{ if(S.offline){ toast('No disponible sin conexión','info'); return; } S.modal='new-tl';S.md={};render();}},h('div',{class:'plus'},'+'),h('span',{style:{fontSize:'13px'}},'Nueva Tierlist')));
     }
     pageItems.forEach(tl=>{
-      g.appendChild(buildTlWideCard(tl, { editable:true, profile:p, onclick:()=>{openEditor(tl.id);render();} }));
+      // FIX (Ronda 25 — modo sin conexión): sin red no se puede editar
+      // (guardar fallaría), pero sí se puede seguir VIENDO lo ya rankeado —
+      // se abre en modo Visor de solo lectura en vez del editor normal.
+      g.appendChild(buildTlWideCard(tl, { editable:true, profile:p, onclick:()=>{ if(S.offline){ openOfflineViewer(tl.id); } else { openEditor(tl.id); } render(); } }));
     });
     w.appendChild(g);
     const pager = buildPagination(list.length, TL_PAGE_SIZE, S._tlPage, (np)=>{ S._tlPage = np; render(); });
@@ -268,6 +292,12 @@ function TierlistsPage() {
 }
 
 function UsersPage() {
+  // FIX (Ronda 25 — modo sin conexión): red de seguridad además del bloqueo
+  // en el menú del Home (por si se llega aquí de otra forma, como el botón
+  // "atrás" del navegador o una URL directa a /usuarios). Sin esto,
+  // fetchAllUsers() de la línea de abajo intentaría una petición de red que
+  // sabemos que va a fallar, dejando la pantalla vacía sin explicación.
+  if (S.offline) { S.page = 'home'; if(typeof setRoute==='function') setRoute('home'); return Home(); }
   if (S.allUsers.length === 0) fetchAllUsers();
 
   const w = h('div', { class: 'users-page' });
@@ -460,10 +490,30 @@ function Viewer() {
 
     const ce = h('div', { class: 'tchars' });
     (tier.chars || []).forEach(cid => {
-      const c = getChar(cid, { folder: tlMeta.folder });
+      // FIX (Ronda 25 — personajes añadidos a mano no salían en el modo
+      // Visor sin conexión): antes solo se pasaba "{folder: tlMeta.folder}"
+      // a getChar()/charImg(), descartando el resto de tlMeta — incluido
+      // "customChars" (los personajes con imagen propia, añadidos a mano
+      // con "Añadir uno"/"Añadir varias", que SOLO existen dentro de esa
+      // tierlist en concreto, no en el catálogo AC ni se pueden pedir por
+      // red sin conexión). Pasando tlMeta entero, getChar() los encuentra
+      // igual que ya hace en el editor.
+      const c = getChar(cid, tlMeta);
       if(!c) return;
-      const el = h('div', { class: 'tc', style: { position: 'relative' } });
-      const imgSrc = charImg(cid, { folder: tlMeta.folder });
+      // FIX (Ronda 25 — "no deja scrollear si pulsas encima de un
+      // personaje" en modo Visor): esta tarjeta comparte la clase ".tc" con
+      // la del editor SOLO por estética (mismo tamaño/aspecto), pero aquí
+      // NUNCA se le añade un "pointerdown" que arrastre nada (el modo Visor
+      // es de solo lectura). El CSS de ".tc" fija "touch-action:none" para
+      // que el editor pueda replicar el scroll a mano mientras decide si
+      // hay pulsación larga (ver drag.js) — pero como aquí no hay NINGÚN
+      // JS escuchando ese gesto, "touch-action:none" solo servía para que
+      // el navegador bloquease su propio scroll nativo sin que nadie lo
+      // sustituyera, dejando la pantalla congelada al tocar una carta. La
+      // clase extra ".tc-view" (ver su CSS) devuelve el scroll nativo
+      // normal solo en este modo de solo lectura.
+      const el = h('div', { class: 'tc tc-view', style: { position: 'relative' } });
+      const imgSrc = charImg(cid, tlMeta);
       el.appendChild(h('img', { 
         src: imgSrc,
         onerror: (e) => e.target.src = 'https://api.dicebear.com/7.x/initials/svg?seed=' + encodeURIComponent(c.name)
@@ -479,12 +529,20 @@ function Viewer() {
   // Reacciones + Comentarios — SOLO en este modo (Visor), tal y como se pidió.
   // OJO: se usan por r.id (el ranking personal, único), NO por
   // r.tierlist_id (la plantilla compartida) — ver nota en reactions.js/comments.js.
-  const ownerId = r.user_id || (S.viewingUser && S.viewingUser.id);
-  if(typeof ReactionsBar==='function' && r.id){
-    w.appendChild(ReactionsBar(r.id, ownerId));
-  }
-  if(typeof CommentsSection==='function' && r.id){
-    w.appendChild(CommentsSection(r.id, ownerId));
+  // FIX (Ronda 25 — modo sin conexión): ambas cosas necesitan red de
+  // verdad; sin conexión, en vez de disparar peticiones condenadas a
+  // fallar (o quedarse "Cargando..." colgadas para siempre), se muestra un
+  // aviso claro y ya está.
+  if(S.offline){
+    w.appendChild(h('div', {class:'offline-banner'}, '📴 Reacciones y comentarios no disponibles sin conexión.'));
+  } else {
+    const ownerId = r.user_id || (S.viewingUser && S.viewingUser.id);
+    if(typeof ReactionsBar==='function' && r.id){
+      w.appendChild(ReactionsBar(r.id, ownerId));
+    }
+    if(typeof CommentsSection==='function' && r.id){
+      w.appendChild(CommentsSection(r.id, ownerId));
+    }
   }
 
   return w;
@@ -492,6 +550,12 @@ function Viewer() {
 
 function ProfilePage() {
   if (!userSession) return Home();
+  // FIX (Ronda 25 — modo sin conexión, pedido explícito): "Perfil" permite
+  // cambiar nombre/color/marco y guardar, todo lo cual necesita red de
+  // verdad — intentarlo sin conexión fallaría en silencio o a medias. Red
+  // de seguridad además del bloqueo en el menú del Home, por si se llega
+  // aquí de otra forma (botón "atrás", URL directa a /ajustes...).
+  if (S.offline) { S.page = 'home'; if(typeof setRoute==='function') setRoute('home'); return Home(); }
   if(typeof refreshAchievementData==='function' && !S._achRef){ S._achRef=true; refreshAchievementData().finally(()=>setTimeout(()=>S._achRef=false,4000)); }
   // Igual que en "Mis Tierlists": refresca las plantillas (y tu progreso en
   // cada una) al entrar al perfil, para que una tierlist colaborativa que

@@ -171,6 +171,11 @@ nav::-webkit-scrollbar{display:none}
 /* NOTIFICATIONS */
 .at-bell{position:relative;cursor:pointer;padding:4px;display:flex;align-items:center;margin-right:10px}
 .at-bell-badge{position:absolute;top:-2px;right:-2px;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px;min-width:16px;text-align:center;border:1.5px solid var(--bg)}
+
+/* MODO SIN CONEXIÓN (Ronda 25) */
+.offline-badge{font-size:11px;font-weight:600;color:var(--text2);background:var(--bg3);border:1px solid var(--border);padding:5px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.menu-box.mb-disabled{cursor:not-allowed;filter:grayscale(.65) brightness(.6)}
+.offline-banner{max-width:900px;margin:0 auto 18px;padding:10px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;font-size:12.5px;color:var(--text2);text-align:center}
 /* FIX (Ronda 15): la campana SÍ abría/cerraba bien (confirmado por consola:
    "[campana] abriendo/cerrando" alternaba perfecto en cada click), así que
    el bug no era de JS — era que este panel usaba position:absolute, que se
@@ -256,6 +261,12 @@ main{padding:14px;max-width:1320px;margin:0 auto}
   touch-action: none;}
 .tc{width:100px;height:160px}
 .pc{width:102px;height:162px;border-color:var(--border)}
+/* FIX (Ronda 25): ver el comentario junto a "class: 'tc tc-view'" en
+   js/views/home.js (Viewer) — estas tarjetas de solo lectura no tienen
+   ningún JS de arrastre escuchando el gesto táctil, así que necesitan el
+   scroll nativo normal del navegador en vez del "touch-action:none" que sí
+   necesita el editor (ver el FIX de arriba, justo encima). */
+.tc-view{touch-action:auto!important;cursor:default}
 /* FIX (Ronda 21): estos ":hover" son solo para ratón (escritorio) — en
    pantallas táctiles, tocar una carta puede dejar el estado ":hover"
    "pegado" (el navegador lo activa con el tap y no lo quita hasta tocar

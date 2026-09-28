@@ -38,9 +38,20 @@ function Nav(){
     class:'theme-toggle', title:'Cambiar tema claro/oscuro',
     onclick:(e)=>{ e.stopPropagation(); toggleTheme(); }
   }, currentTheme()==='dark' ? '☀️' : '🌙'));
-  if(userSession) {
-    const notifBtn = h('div', { 
-      class: 'at-bell', 
+  // FIX (Ronda 25 — modo sin conexión, pedido explícito: "evita fallos como
+  // acceder al perfil a cambiar cosas y tal si hacemos esto"): la campana,
+  // el chat y el avatar de perfil llevan todos a pantallas o acciones que
+  // necesitan red de verdad (notificaciones, mensajes, editar el perfil...)
+  // — mostrarlos sin conexión solo invita a tocarlos y encontrarse con un
+  // fallo silencioso. En vez de eso, mientras no haya conexión se ocultan
+  // los tres y se deja un aviso claro en su lugar; en cuanto vuelva la
+  // conexión (o se recargue la página con ella ya vuelta) reaparecen
+  // exactamente igual que siempre.
+  if(userSession && S.offline) {
+    nr.appendChild(h('div', { class:'offline-badge', title:'Sin conexión — solo puedes ver tus tierlists ya guardadas' }, '📴 Sin conexión'));
+  } else if(userSession) {
+    const notifBtn = h('div', {
+      class: 'at-bell',
       onclick: (e) => {
         e.stopPropagation();
         S.notifMenu = !S.notifMenu; S.profileMenu = null;
@@ -67,7 +78,7 @@ function Nav(){
         ? h('div', { class: 'at-bell-badge' }, (S.pendingRequests.length + unreadAppNotifCount()) + '') : null
     );
     nr.appendChild(notifBtn);
-    
+
     const chatBtn = h('button', { class: 'btn bg bsm', style:{padding:'8px', marginLeft:'4px', position:'relative'}, onclick: (e) => {
         e.stopPropagation();
         if(S.modal === 'chat') { closeChatModal(); }
@@ -78,15 +89,15 @@ function Nav(){
           render();
           fetchChats();
         }
-    } }, 
+    } },
       h('i', { class: 'ti ti-messages', style:{fontSize:'18px'} })
     );
     if (S.totalUnread > 0) chatBtn.appendChild(h('span', { class: 'chat-button-badge' }, S.totalUnread > 99 ? '+99' : S.totalUnread.toString()));
     nr.appendChild(chatBtn);
 
     const p = currentUserProfile || { name: '...', color: '#888' };
-    const btnContent = p.avatar_url 
-      ? h('img', { src: p.avatar_url, style: { width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' } }) 
+    const btnContent = p.avatar_url
+      ? h('img', { src: p.avatar_url, style: { width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' } })
       : p.name.charAt(0).toUpperCase();
     // FIX: antes, pulsar el avatar solo abría un menú desplegable (con
     // "Editar perfil" y "Cerrar sesión" dentro) en vez de llevarte

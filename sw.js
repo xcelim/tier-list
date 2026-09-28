@@ -6,7 +6,14 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v26'; // v26: avatar/perfil ya no se corta en el borde derecho del nav en moviles de ancho intermedio (nav ahora puede deslizarse en horizontal como red de seguridad + breakpoint ampliado de 360 a 480px); borde cromatico de los 3 paneles del home ya no se ve "raro" en movil (el circulo del degradado giratorio ahora es un cuadrado de verdad en vmax en vez de un porcentaje distinto por eje que salia elipse en paneles anchos y bajos); arrastrar personajes ya no va a tirones (imagen flotante movida con transform en vez de left/top, pointermove agrupado en un solo requestAnimationFrame por fotograma); scroll con inercia al soltar tras un deslizon (antes se frenaba en seco); la carta desaparece al instante al soltarla en vez de quedarse unos segundos congelada mientras se reconstruye la pantalla
+const CACHE_NAME = 'at-v27'; // v27: modo sin conexion -- "Mis Tierlists" se puede ver en modo Visor (solo lectura) sin internet usando los datos ya guardados en el dispositivo, Usuarios/Perfil/chat/notificaciones se ocultan mientras no haya conexion para evitar fallos (acceder a Perfil a cambiar algo, etc.), aviso "Sin conexion" en la barra de navegacion, y las imagenes de personajes ya vistas una vez se guardan para poder verlas de nuevo sin conexion; ademas: viewer en movil ya no bloquea el scroll al tocar una carta (el touch-action:none del editor se aplicaba tambien sin querer al modo Visor, que no tiene ningun JS de arrastre que lo compense)
+// FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
+// personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
+// número de versión que CACHE_NAME -- si lo llevara, subir una versión
+// nueva de la app borraría (en el "activate" de más abajo) todas las
+// imágenes ya guardadas para verlas sin conexión, sin ninguna necesidad.
+const IMG_CACHE_NAME = 'at-char-imgs-v1';
+const IMG_HOST = 'texqcwfxzoeghyrcqwob.supabase.co';
 const ASSETS = [
   './',
   './index.html',
@@ -58,7 +65,19 @@ const ASSETS = [
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS).then(() => {
+      // FIX (Ronda 25 — modo sin conexión): el SDK de Supabase se carga
+      // desde un CDN externo (otro origen), no incluido arriba en ASSETS a
+      // propósito: cache.addAll() es "todo o nada" — si UNA sola URL falla
+      // (por ejemplo, el CDN no responde justo en ese instante), ninguna de
+      // las demás se guarda, y se perdería el precacheo de toda la app por
+      // culpa de un recurso externo que ni siquiera es nuestro. Por eso
+      // esta se cachea aparte, "a mejor esfuerzo": si falla, no pasa nada
+      // grave (ver la nota en supabase-auth.js sobre por qué normalmente
+      // sigue disponible igual, vía la caché HTTP normal del navegador) —
+      // si funciona, queda garantizada sin conexión.
+      return cache.add('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2').catch(()=>{});
+    }))
   );
   self.skipWaiting();
 });
@@ -66,12 +85,43 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys => Promise.all(
-      keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+      // FIX (Ronda 25): IMG_CACHE_NAME es una caché aparte y NO cambia de
+      // nombre en cada versión (a propósito, para no perder las imágenes ya
+      // guardadas offline solo por subir una versión nueva de la app) — hay
+      // que respetarla aquí igual que a CACHE_NAME, si no, este propio
+      // "activate" la borraría nada más instalarse.
+      keys.filter(k => k !== CACHE_NAME && k !== IMG_CACHE_NAME).map(k => caches.delete(k))
     ))
   );
 });
 
+// FIX (Ronda 25 — modo sin conexión, "ver mis tierlists ya rankeadas sin
+// conexión"): las imágenes de los personajes NO viven en este proyecto —
+// se sirven desde el bucket de Supabase Storage (ver BUCKET_BASE en
+// supabase-auth.js), así que nunca estaban en el precacheo de ASSETS de
+// arriba. Sin esto, "ver una tierlist sin conexión" habría mostrado los
+// huecos/nombres pero ninguna imagen real la primera vez que se probara.
+// Estrategia "cache-first, revalida en segundo plano" (stale-while-
+// revalidate) solo para esas imágenes: la primera vez que se ve un
+// personaje (con conexión) se guarda aquí; las siguientes veces se sirve
+// al instante desde esta caché (haya o no conexión) y, si SÍ hay conexión,
+// de paso se actualiza por si acaso cambió. Así, cualquier tierlist que ya
+// se haya abierto una vez con conexión queda disponible sin conexión.
 self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
+  if (e.request.method === 'GET' && url.hostname === IMG_HOST && url.pathname.includes('/storage/v1/object/public/')) {
+    e.respondWith(
+      caches.open(IMG_CACHE_NAME).then(async cache => {
+        const cached = await cache.match(e.request);
+        const networkFetch = fetch(e.request).then(resp => {
+          if (resp && resp.ok) cache.put(e.request, resp.clone());
+          return resp;
+        }).catch(() => null);
+        return cached || (await networkFetch) || Response.error();
+      })
+    );
+    return;
+  }
   e.respondWith(
     // FIX (Ronda 12): index.html ahora pide los .js/.css con un "?v=" al
     // final (para forzar que el navegador y el hosting no sirvan una copia

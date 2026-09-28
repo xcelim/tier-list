@@ -1230,6 +1230,41 @@ todos con causa real encontrada y arreglada:
   velocidad del dedo justo antes de soltar y se sigue deslizando con un
   frenado suave, igual que el scroll normal del navegador.
 
+## 🆕 Ronda 25 — el Visor en móvil ya no bloquea el scroll + modo sin conexión
+
+- **En el Visor (ver una tierlist como observador) no se podía scrollear si
+  se pulsaba encima de un personaje, en móvil**: la clase CSS `.tc` (carta
+  de personaje) llevaba `touch-action:none` porque en el Editor esa misma
+  clase se usa para las cartas arrastrables, y el JS del drag necesita
+  desactivar el scroll táctil nativo para poder moverlas él mismo a mano.
+  El Visor reutiliza esa clase para sus cartas de solo lectura, pero no
+  tiene ningún JS de arrastre que compense — así que el scroll se quedaba
+  bloqueado sin motivo en cuanto el dedo tocaba una carta. Arreglado con
+  una clase nueva, `tc-view`, solo para las cartas del Visor, que fuerza
+  `touch-action:auto` — el scroll vuelve a funcionar tocando en cualquier
+  parte de la pantalla, incluidas las cartas.
+- **Modo sin conexión**: si no hay internet al abrir la página (o se pierde
+  la conexión durante la sesión), la app ya no se queda a medias intentando
+  hablar con el servidor. En su lugar:
+  - El nav muestra un aviso "📴 Sin conexión" en vez de la campana, el
+    chat y el avatar de perfil (todas esas cosas necesitan red de verdad).
+  - En el Home, solo el bloque "Tierlists" queda disponible; "Usuarios" y
+    "Perfil" se ven en gris y avisan de que no están disponibles sin
+    conexión si se pulsan (entrar ahí llevaría a una pantalla rota o a un
+    guardado que fallaría en silencio).
+  - Se pueden ver las tierlists propias que ya estaban guardadas en el
+    dispositivo, en modo Visor de solo lectura (reutilizando el mismo
+    Visor que ya existía para ver tierlists de otras personas), incluyendo
+    los personajes personalizados. Reacciones y comentarios se ocultan
+    (necesitan red).
+  - El Service Worker ahora también guarda en caché las imágenes de
+    personajes ya vistas una vez (en una caché aparte que sobrevive a
+    futuras actualizaciones de versión), para que sigan viéndose sin
+    conexión.
+  - En cuanto vuelve la conexión (o se recarga la página con conexión), la
+    app vuelve a funcionar con total normalidad — no hay que hacer nada
+    manualmente.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

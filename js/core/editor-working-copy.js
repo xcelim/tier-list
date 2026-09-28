@@ -22,6 +22,36 @@ function openEditor(tlid){
   syncFromSupabase();
 }
 
+// FIX (Ronda 25 — modo sin conexión): abre una tierlist PROPIA ya guardada
+// en este dispositivo en modo Visor (solo lectura), sin tocar la red para
+// nada — pensado para cuando no hay conexión y S.offline es true (ver
+// TierlistsPage). Reutiliza el mismo Viewer() que ya existe para ver la
+// tierlist de un amigo, así que aquí solo hace falta "traducir" la forma de
+// una tierlist propia (tl.tiers, con .name en cada fila) a la forma que
+// Viewer() espera de un ranking remoto (tiers_data, con .label en cada
+// fila) — ver Viewer() en este mismo archivo... digo, en home.js.
+function openOfflineViewer(tlid){
+  const tl=getTLfromProfile(tlid);
+  if(!tl)return;
+  const p=activeProfile();
+  S.viewingRank={
+    id:tl.id,
+    user_id:p?p.id:null,
+    // FIX (Ronda 25): "customChars" tiene que viajar aquí dentro de
+    // "tierlists" porque Viewer() se lo pasa tal cual a getChar()/charImg()
+    // como su "tl" (ver "const tlMeta = r.tierlists" en Viewer, en
+    // home.js) — sin esto, cualquier personaje añadido a mano (Añadir uno/
+    // Añadir varias, con su propia imagen) no se encontraría offline: no
+    // está en el catálogo AC ni se puede pedir por red, solo vive en esta
+    // tierlist en concreto.
+    tierlists:{ title:tl.title, folder:tl.folder, cover_url:tl.cover_url, customChars:tl.customChars||[] },
+    tiers_data:(tl.tiers||[]).map(t=>({ label:t.name, color:t.color, chars:t.chars||[] }))
+  };
+  S.viewingUser=p?{ name:p.name }:null;
+  S._viewerOwnTlId=null; // sin conexión no se puede editar — no se ofrece el botón "Editar"
+  S.page='viewer';
+}
+
 // Puertas de confirmación para el primer guardado: la elección entre
 // "normal" y "colaborativa" se queda fija a partir de la primera vez que
 // se guarda (a partir de ahí solo se muestra el botón del tipo elegido),

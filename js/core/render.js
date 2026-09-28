@@ -104,6 +104,37 @@ let isDeletingAccount = false;
 async function handleAuthSession(session) {
   if (isDeletingAccount) return;
   userSession = session;
+
+  // FIX (Ronda 25 — modo sin conexión): "session" aquí puede venir de
+  // sbClient.auth.getSession(), que en Supabase lee el token guardado en
+  // este propio dispositivo (localStorage) — funciona SIN red, así que
+  // este "if" se cumple igual estando offline. El problema es TODO lo que
+  // sigue después: pedir el perfil, plantillas, amigos, chats,
+  // notificaciones... son llamadas de red de verdad, que sin conexión
+  // fallarían (o tardarían en fallar) y, peor, podrían dejar a medias
+  // acciones como entrar a Perfil a cambiar algo. Si no hay conexión, en
+  // vez de intentar todo eso, usamos DIRECTAMENTE los datos que ya
+  // tuviéramos guardados en este dispositivo de la última vez que sí hubo
+  // conexión (S.profiles, cargado ya al arrancar — ver DB.l en state.js) y
+  // entramos solo con eso: basta para poder ver "Mis Tierlists" en modo
+  // Visor (solo lectura). El resto de la app (Usuarios, Perfil, chat...)
+  // se oculta/bloquea en nav.js/home.js mientras S.offline sea true. En
+  // cuanto vuelva la conexión y se recargue la página, este "if" ya no se
+  // cumple y todo sigue funcionando exactamente igual que siempre.
+  if (S.offline) {
+    const cached = (S.profiles || []).find(p => p.id === session.user.id);
+    if (cached) {
+      currentUserProfile = {
+        id: cached.id, name: cached.name, color: cached.color,
+        avatar_frame: cached.avatar_frame, avatar_url: cached.avatar_url,
+        is_admin: cached.is_admin
+      };
+      S.activeProfile = cached.id;
+    }
+    render();
+    return;
+  }
+
   // Solo saltamos el fetch si ya tenemos el perfil cargado Y hay sesión activa
   // Si currentUserProfile fue borrado o hay cuenta nueva, siempre re-fetching
   if (isFetchingProfile || (currentUserProfile && currentUserProfile.id === session.user.id && S.activeProfile)) {
