@@ -1333,6 +1333,22 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 .frame-name{font-size:11px;font-weight:700;color:var(--text)}
 .frame-req{font-size:9px;color:var(--text3)}
 
+/* FIX (Ronda 40 — sigue viéndose un trocito cuadrado y oscuro asomando por
+   la esquina superior izquierda del círculo, incluso después de separar el
+   marco (box-shadow) del recorte de la foto en dos capas — Rondas 38/39):
+   en algunos navegadores/WebViews de Android, "overflow:hidden" +
+   "border-radius:50%" sobre un elemento que tiene AL LADO un hermano con
+   box-shadow (el marco) no siempre fuerza una capa de recorte "de verdad" —
+   deja pasar una esquina de la imagen rectangular de dentro. Forzar aquí
+   una capa de composición propia (transform) en cada uno de los divs que
+   hacen ese recorte es el arreglo estándar para este fallo concreto de
+   renderizado; no cambia nada visualmente en los navegadores que ya iban
+   bien, solo hace el recorte más robusto en los que no. */
+.comment-avatar-clip,.profile-btn-clip,.chat-avatar-clip,.collab-pick-avatar-clip,.user-avatar-clip{
+  transform:translateZ(0);-webkit-transform:translateZ(0);
+  -webkit-mask-image:-webkit-radial-gradient(circle,#fff 100%,#fff 100%);
+}
+
 /* Estilos de marco reales — se aplican a .avatar-ring / .profile-btn /
    .frame-preview, pero también directamente sobre avatares "planos" (los
    de Usuarios, comentarios, chat...) para que el marco salga SIEMPRE que

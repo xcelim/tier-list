@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v41'; // v41: el arreglo del marco cortado (v40) solo cubria los comentarios -- el mismo problema (foto con border-radius+object-fit directamente debajo del marco, sin una capa de overflow:hidden dedicada) seguia en el avatar de la campana/perfil (arriba a la derecha), en la lista de chats, en el selector de amigos para compartir tierlist, y en las tarjetas de Usuarios/Amigos; arreglados los cuatro con el mismo patron de dos capas
+const CACHE_NAME = 'at-v42'; // v42: seguia viendose un trocito cuadrado oscuro asomando por una esquina del circulo del avatar incluso con el marco y el recorte de la foto ya separados en dos capas (v40/v41) -- es un fallo conocido de recorte (overflow:hidden+border-radius) en algunos navegadores/WebViews de Android cuando el elemento tiene un hermano con box-shadow al lado; forzada una capa de composicion propia (transform+mask) en esos divs de recorte para que sea robusto tambien ahi
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión

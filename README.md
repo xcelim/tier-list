@@ -1582,6 +1582,27 @@ perfecto, se corta".
   comentarios: una capa de fuera con el marco (sin recortar nada) y una de
   dentro que recorta la foto en círculo (sin marco).
 
+## 🆕 Ronda 40 — el círculo del avatar seguía con un trocito cuadrado asomando (fallo de recorte en Android)
+
+Feedback explícito, con captura ampliada mostrando un trocito oscuro y
+cuadrado justo detrás de la esquina superior izquierda del círculo: "donde
+ves tú ahí un aro perfecto, si por el lado izquierdo se ve cortado y por
+arriba también".
+
+- Las Rondas 38/39 separaron bien el marco (box-shadow) del recorte de la
+  foto en dos capas — probado en Chromium de escritorio, donde el círculo
+  ya salía perfecto. El fallo que persistía es más sutil y específico de
+  ciertos navegadores/WebViews de Android: cuando un div con
+  `overflow:hidden` + `border-radius:50%` tiene, justo al lado, un hermano
+  con `box-shadow` (el marco), ese navegador en concreto a veces NO crea una
+  capa de recorte "de verdad" para el primero, y deja pasar una esquina de
+  la foto rectangular de dentro.
+- **Arreglado**: se fuerza una capa de composición propia (con `transform`)
+  en cada uno de esos divs de recorte, más una máscara de respaldo — el
+  arreglo estándar para este fallo concreto de renderizado. No cambia nada
+  en los navegadores que ya iban bien (comprobado); hace el recorte robusto
+  también en los que fallaban.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,
