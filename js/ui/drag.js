@@ -5,7 +5,7 @@
 let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
 let scrollDir=0,scrollInt=null;
 let _md=false,_mdMoved=false,_mdX=0,_mdY=0,_mdImg='',_lastZoneKey='';
-let _pointerId=null, _lpT=null, _heldEl=null, _touchLastY=0;
+let _pointerId=null, _lpT=null, _heldEl=null, _touchLastY=0, _touchWaiting=false;
 // "Stepper" del hueco: si el ratón se mueve rápido y el índice de destino
 // salta más de una posición de golpe, en vez de mover 2+ cartas a la vez
 // en un solo fotograma (lo que se ve como si "se movieran juntas" sin
@@ -249,6 +249,7 @@ function _dragCleanup(){
  // que se limpie el drag, venga de donde venga (soltar, cancelar, etc.).
  if(_lpT){clearTimeout(_lpT);_lpT=null;}
  if(_heldEl){_heldEl.classList.remove('drag-armed');_heldEl=null;}
+ _touchWaiting=false;
 }
 
 // FIX (Ronda 21) — "se queda congelado en medio de la pantalla": en móvil,
@@ -272,7 +273,7 @@ document.addEventListener('pointercancel',e=>{
 
 document.addEventListener('pointermove',e=>{
  if (_pointerId !== null && e.pointerId !== _pointerId) { return; }
- if(_lpT && !_md){
+ if(_touchWaiting && !_md){
  // FIX (Ronda 22 — pedido explícito): ".tc,.pc" ahora llevan
  // "touch-action:none" (ver el porqué en el FIX grande de más abajo, en
  // el pointerdown), así que mientras se espera la pulsación larga el
@@ -283,19 +284,35 @@ document.addEventListener('pointermove',e=>{
  // decide si esto es pulsación larga o un gesto de scroll, replicamos el
  // scroll a mano con el desplazamiento vertical del dedo, así que deslizar
  // sin mantener pulsado sigue moviendo la página con total normalidad.
+ //
+ // FIX (Ronda 23 — "se frena si scrolleo encima de una waifu"): esto antes
+ // estaba condicionado a "_lpT && !_md", pero _lpT se pone a null en
+ // cuanto el dedo supera los 10px de movimiento (justo abajo) — y eso pasa
+ // casi en el primer pointermove de cualquier deslizamiento real. En el
+ // SIGUIENTE pointermove, la condición ya era falsa (_lpT es null) y _md
+ // seguía sin armarse, así que el código caía directo al "if(!_md)return;"
+ // de más abajo: nada de preventDefault, nada de scroll — el scroll se
+ // congelaba después de un solo "tick". La condición de si seguimos
+ // reenviando el scroll a mano ("estamos esperando, sin soltar el dedo, y
+ // sin haber armado el drag todavía": _touchWaiting && !_md) tiene que ser
+ // independiente de si el temporizador de pulsación larga sigue vivo o no
+ // — si no, cancelar ese temporizador (que solo decide si se arma el
+ // drag) apaga también el scroll manual, que es un bug aparte.
  if(e.cancelable) e.preventDefault();
  window.scrollBy(0, _touchLastY - e.clientY);
  _touchLastY = e.clientY;
- if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)>10){
+ if(_lpT && Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)>10){
  // El dedo se movió antes de que se cumpliera la pulsación larga: el
  // usuario quería hacer scroll normal de la página, no arrastrar. Se
  // cancela el temporizador de armado (el scroll de arriba ya se está
- // encargando de mover la página a mano).
+ // encargando de mover la página a mano) pero seguimos reenviando el
+ // scroll a mano en cada pointermove siguiente hasta que suelte el dedo
+ // (_touchWaiting sigue en true: no se toca aquí).
  clearTimeout(_lpT);
  _lpT=null;
  if(_heldEl){_heldEl.classList.remove('drag-armed');_heldEl=null;}
  }
- return; // seguimos esperando a que se cumpla el tiempo de pulsación larga
+ return; // seguimos esperando a que se cumpla el tiempo de pulsación larga (o a que suelte el dedo)
  }
  if(!_md)return;
  // FIX (Ronda 21): una vez el drag está "armado" (ratón: al instante;
@@ -356,6 +373,7 @@ document.addEventListener('pointermove',e=>{
 
 document.addEventListener('pointerup',e=>{
  if(_lpT){clearTimeout(_lpT); _lpT=null;}
+ _touchWaiting=false;
  if (_pointerId !== null && e.target.hasPointerCapture && e.target.hasPointerCapture(_pointerId)) {
  e.target.releasePointerCapture(_pointerId);
  }
@@ -408,13 +426,16 @@ function dgPointerDown(e,id,src,idx,imgSrc){
  // decide, o el drag ya armado), o no se mueve nada.
  if(e.pointerType==='mouse'){
  _md=true;_mdMoved=false;
+ _touchWaiting=false;
  return;
  }
  _md=false;_mdMoved=false;
+ _touchWaiting=true;
  if(_lpT) clearTimeout(_lpT);
  _lpT=setTimeout(()=>{
  _lpT=null;
  _md=true;
+ _touchWaiting=false;
  if(navigator.vibrate) navigator.vibrate(35);
  if(_heldEl) _heldEl.classList.add('drag-armed');
  }, 400);

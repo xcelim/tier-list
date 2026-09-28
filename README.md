@@ -1142,6 +1142,38 @@ en el repo remoto + tarball local), por si hacía falta restaurar.
   abajo de la pantalla (auto-scroll ya existente), nunca deslizando sin
   más con la carta agarrada.
 
+## 🆕 Ronda 23 — arreglo real del bloqueo de scroll al arrastrar en móvil
+
+- **BUG REAL encontrado**: el arreglo de Ronda 22 para poder scrollear
+  mientras se espera la pulsación larga (`touch-action:none` + replicar el
+  scroll a mano) tenía un fallo escondido: el código que reenvía el scroll
+  estaba condicionado a `if(_lpT && !_md)` — es decir, "solo mientras el
+  temporizador de pulsación larga siga vivo". El problema es que ESE MISMO
+  bloque de código cancela ese temporizador (`_lpT = null`) en cuanto el
+  dedo se mueve más de 10px desde donde empezó a tocar — algo que pasa casi
+  en el primer movimiento de cualquier deslizamiento real para hacer
+  scroll. En el SIGUIENTE `pointermove`, la condición `_lpT && !_md` ya era
+  falsa (porque `_lpT` acababa de quedar a `null`), así que el código caía
+  directo a `if(!_md)return;` sin hacer nada: ni `preventDefault()`, ni
+  scroll manual. Resultado: el scroll avanzaba un solo "tick" y luego se
+  congelaba en seco durante el resto del gesto (hasta soltar el dedo) — el
+  "no puedo scrollear porque se frena si scrolleo encima de una waifu"
+  reportado, confirmado con un test automatizado que mostraba el scroll
+  parándose después de 20px de los 100px de movimiento simulados.
+- **Arreglo**: ahora hay una variable nueva, `_touchWaiting`, que solo
+  significa "el dedo sigue tocando y todavía no se ha agarmado ninguna
+  carta" — completamente independiente de si el temporizador de pulsación
+  larga (`_lpT`) sigue vivo o ya se canceló. El reenvío manual del scroll
+  se hace mientras `_touchWaiting` sea verdad, así que cancelar el
+  temporizador de pulsación larga (que solo decide si se arma el drag) ya
+  no apaga también el scroll. Verificado con un test automatizado que
+  simula 5 movimientos de deslizamiento seguidos: antes solo el primero
+  movía la página (20px de 100px esperados), ahora los 5 la mueven
+  correctamente (100px de 100px).
+- Puede scrollearse desde cualquier punto de la pantalla en todo momento
+  salvo cuando ya se ha agarrado una carta de verdad (tras completarse la
+  pulsación larga), que es el comportamiento pedido.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,
