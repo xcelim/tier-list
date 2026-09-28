@@ -229,7 +229,15 @@ main{padding:14px;max-width:1320px;margin:0 auto}
 /* CHARS - SMOOTH DRAG ANIMATIONS */
 .tchars{flex:1;display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;gap:4px;padding:6px;min-height:172px;position:relative}
 .tc,.pc{border-radius:10px;overflow:visible;cursor:grab;position:relative;flex-shrink:0;border:2px solid transparent; background: var(--bg3);
-  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s; touch-action: auto;}
+  transition:transform .3s cubic-bezier(0.2, 0, 0.2, 1), border-color .15s, box-shadow .2s, opacity .2s;
+  /* FIX (Ronda 22): "touch-action" se fija UNA VEZ al empezar el toque y
+     no se puede cambiar a mitad de gesto (ver el comentario grande en
+     dgPointerDown, en drag.js). Con "auto" el navegador podía ponerse a
+     scrollear por su cuenta durante la espera de la pulsación larga y
+     luego ya no soltaba el gesto ni aunque se armara el drag después. Con
+     "none" el navegador nunca scrollea él solo aquí; drag.js se encarga a
+     mano de replicar el scroll mientras no haya nada agarrado todavía. */
+  touch-action: none;}
 .tc{width:100px;height:160px}
 .pc{width:102px;height:162px;border-color:var(--border)}
 /* FIX (Ronda 21): estos ":hover" son solo para ratón (escritorio) — en
@@ -598,6 +606,27 @@ body.bg-main::after{content:'';position:fixed;bottom:0;left:0;right:0;height:420
   .ntab { padding: 6px 8px; font-size: 11px; }
   .logo { font-size: 18px; letter-spacing: 1px; }
   .chat-modal { width: 95% !important; right: 2.5% !important; left: 2.5% !important; }
+}
+
+/* FIX (Ronda 22): en móviles muy estrechos (~320-360px, p.ej. iPhone SE)
+   el logo + "Mis Tierlists" + los 4 botones de la derecha (tema, campana,
+   chat, avatar) no cabían en una sola fila — el navegador no los encoge
+   (flex-shrink por defecto no reduce el contenido de un botón/icono por
+   debajo de su tamaño natural), así que el avatar y parte de los últimos
+   botones se salían por el borde derecho, invisibles/imposibles de tocar
+   del todo. Aquí se encoge todo un poco más (paddings, huecos, tamaños de
+   icono) SOLO por debajo de 360px, así entra todo en una fila sin recortar
+   nada ni tener que scrollear la barra de navegación. Por encima de 360px
+   (la inmensa mayoría de móviles) esto no se aplica y no cambia nada. */
+@media (max-width:360px){
+  nav{padding:0 8px;gap:6px}
+  .logo{font-size:14px!important;letter-spacing:.5px!important}
+  .ntab{padding:4px 7px;font-size:10px}
+  .nav-right{gap:4px}
+  .theme-toggle{width:28px;height:28px;font-size:13px;margin-right:2px}
+  .at-bell{margin-right:4px;padding:2px}
+  .at-bell span{font-size:15px!important}
+  .profile-btn{width:28px;height:28px;font-size:13px}
 }
 
 /* --- MODO LANDSCAPE (GIRADO) PARA MÓVIL --- */
@@ -1052,11 +1081,26 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
   -webkit-mask-image:radial-gradient(ellipse 60% 60% at 50% 30%, #000 40%, transparent 80%);
 }
 
-/* Franja diagonal roja de firma, detrás del título, estilo cartel de anime */
+/* Franja diagonal roja de firma, detrás del título, estilo cartel de anime.
+   FIX (Ronda 22): "top" y "height" estaban fijos en píxeles (64px/46px),
+   calculados a ojo para el tamaño de letra de escritorio (72px). El título
+   (.hh h1) usa font-size:min(9vw,60px) — en pantallas estrechas la letra
+   se hace bastante más pequeña, pero esta franja se quedaba exactamente
+   en el mismo sitio de siempre, así que en vez de cruzar solo el tramo
+   final de las letras (el efecto "sello/pancarta" buscado), tapaba la
+   mitad de golpe y se comía la sombra 3D del texto, dando la sensación de
+   "título cortado". Con calc()+min() la franja escala EXACTAMENTE igual
+   que la letra: en pantallas grandes (min(9vw,60px) = 60px, igual que
+   antes) da el mismo 64px/46px de siempre (cero cambio en escritorio);
+   en pantallas pequeñas se achica en la misma proporción, así que sigue
+   recortando siempre el mismo trozo relativo del título, nunca más. */
 .hh::after{
-  content:'';position:absolute;left:-10%;right:-10%;top:64px;height:46px;z-index:-1;
+  content:'';position:absolute;left:-10%;right:-10%;
+  top:calc(22px + min(9vw,60px) * .7);
+  height:calc(min(9vw,60px) * .767);
+  z-index:-1;
   background:var(--neon-magenta);transform:skewY(-2.2deg);
-  box-shadow:0 10px 0 rgba(0,0,0,.6);
+  box-shadow:0 calc(min(9vw,60px) * .167) 0 rgba(0,0,0,.6);
   opacity:.92;
 }
 :root[data-theme="light"] .hh::after{opacity:.85}
@@ -1159,7 +1203,15 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 /* En pantallas estrechas: franjas apiladas horizontalmente en vez de
    verticales lado a lado, para que siga siendo legible en el móvil */
 @media (max-width:760px){
-  .menu-grid{flex-direction:column;height:auto;min-height:0;max-height:none;margin:28px 0 0;gap:14px}
+  /* FIX (Ronda 22): la regla de escritorio ".menu-grid{margin:20px -20px 0
+     !important}" (más arriba, para las "3 franjas" a pantalla completa)
+     lleva "!important". Esta de aquí, pensada para anularla en móvil, se
+     había quedado SIN "!important" — así que, por especificidad igual,
+     el "!important" de la regla de escritorio ganaba igualmente en móvil
+     y el menú se quedaba 40px más ancho que la pantalla (20px de margen
+     negativo a cada lado), la causa real del scroll lateral en el home.
+     Con "!important" aquí también, gana la de móvil de verdad. */
+  .menu-grid{flex-direction:column;height:auto;min-height:0;max-height:none;margin:28px 0 0!important;gap:14px}
   .menu-box{flex:none!important;width:100%!important;height:150px!important;margin:0;
     clip-path:polygon(0 14%, 100% 0, 100% 86%, 0 100%)!important}
   /* FIX (Ronda 21): aquí había un ".menu-box:hover{flex:none!important;

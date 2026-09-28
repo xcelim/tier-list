@@ -1079,6 +1079,69 @@ en el repo remoto + tarball local), por si hacía falta restaurar.
   táctiles, ya que ahí no existe forma de "pasar el ratón por encima" para
   revelarlos.
 
+## 🆕 Ronda 22 — bug real de "Añadir varias" + últimos retoques móviles
+
+- **BUG REAL encontrado**: el helper `h()` (el que construye toda la
+  interfaz sin `innerHTML`) hacía siempre `el.setAttribute(k, v)` para
+  cualquier propiedad que no fuera `style`/`onX`/`class`/`html` — incluido
+  `checked` y `disabled`. El problema es que estos son atributos
+  booleanos de verdad: al HTML le da igual el texto que lleve el atributo,
+  solo mira si ESTÁ presente o no. Así que `checked:false` se traducía en
+  `setAttribute('checked','false')`, y esa cadena "false" no vacía nada:
+  el navegador ve el atributo presente igual y marca la casilla. Por eso,
+  en "Añadir varias", **todas las casillas salían marcadas desde el
+  principio pasara lo que pasara en el código**, "Seleccionar todas" se
+  veía ya activada, y la fila para aplicar nombre/anime a las
+  seleccionadas de golpe nunca llegaba a aparecer (se basa en contar
+  cuántas tienen `_selected=true` de verdad, que seguía en `false` por
+  debajo del checkbox mal pintado — de ahí que marcar o desmarcar pareciera
+  no hacer nada). Exactamente el mismo motivo dejaba **las flechas de
+  paginación de Tierlists deshabilitadas para siempre** en cuanto se
+  pintaban una vez con `disabled:false`. Arreglado en el propio helper:
+  ahora estas propiedades se fijan como propiedad real del elemento
+  (`el.checked = v`), no como atributo de texto.
+- Con eso arreglado, el flujo de "Añadir varias" ya funciona como se pedía:
+  las casillas empiezan sin marcar, y al marcar varias aparece una fila
+  para escribir un nombre y/o anime que se aplica a todas las
+  seleccionadas de golpe con un botón.
+- Al escribir el anime en "Añadir varias" ahora sale el mismo desplegable
+  con la portada del anime que ya había al añadir una waifu sola (antes
+  usaba un `<datalist>` nativo del navegador, que solo puede mostrar texto
+  plano, sin imagen, así que costaba más distinguir animes con títulos
+  parecidos). Ese desplegable cuelga de `<body>` (como el panel de
+  notificaciones) para no quedar recortado por el scroll de la lista de
+  filas, y se limpia solo al cerrar el modal para no dejar nada huérfano.
+- El título del home ya no se ve "cortado" por la franja roja en móvil: esa
+  franja tenía una posición fija en píxeles pensada para el tamaño de letra
+  de escritorio; en pantallas donde la letra se hace más pequeña
+  (`font-size:min(9vw,60px)`) se comía media palabra. Ahora escala con la
+  misma fórmula que la letra, así que recorta siempre el mismo trocito
+  relativo del título, en cualquier tamaño de pantalla (en escritorio no
+  cambia nada).
+- Arreglado el menú de inicio (Tierlists/Usuarios/Perfil) saliéndose ~40px
+  por cada lado de la pantalla en móvil: la versión de escritorio fija un
+  margen negativo con `!important`, y la regla pensada para anularlo en
+  móvil no llevaba también `!important`, así que perdía siempre pese a
+  venir después — el motivo real del "se ve fatal, corta por los lados".
+- Nav más compacto en pantallas muy estrechas (≤360px, tipo iPhone SE):
+  antes el logo + pestaña + los 4 iconos de la derecha no cabían en una
+  fila y el avatar se salía sin poder tocarlo.
+- Arreglado el drag de personajes que se quedaba "atascado" en cuanto
+  aparecía cualquier indicio de scroll: `.tc`/`.pc` tenían
+  `touch-action:auto`, pensado para poder scrollear con normalidad
+  mientras se espera la pulsación larga — pero `touch-action` se fija UNA
+  SOLA VEZ al tocar y no se puede cambiar a mitad de gesto. Si el dedo
+  temblaba lo más mínimo durante esos 400ms de espera, el navegador podía
+  arrancar un scroll nativo por su cuenta, y una vez arrancado ningún
+  `preventDefault()` posterior lo paraba ni se lo devolvía al drag — de ahí
+  "no puedo moverlas porque detecta que estoy scrolleando" y el personaje
+  quedándose congelado. Ahora `touch-action:none` desde el principio (el
+  navegador nunca scrollea él solo aquí) y, mientras se decide si es
+  pulsación larga o solo querían deslizar, el scroll se replica a mano; una
+  vez agarrada la carta, solo se scrollea llevándola al borde de arriba o
+  abajo de la pantalla (auto-scroll ya existente), nunca deslizando sin
+  más con la carta agarrada.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

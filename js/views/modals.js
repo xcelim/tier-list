@@ -689,6 +689,16 @@ function buildBulkAddUI(tl){
   const items=S.md.bulkItems;
   const wrap=h('div',{});
 
+  // FIX (Ronda 22): esta función se vuelve a ejecutar entera en CADA
+  // render() mientras el modal está abierto (arquitectura de "destruir y
+  // reconstruir todo" de la app). Los desplegables de anime con portada de
+  // cada fila cuelgan de <body> a propósito (ver más abajo, para no
+  // quedar recortados por el scroll de la lista) — así que, sin este
+  // limpiado, cada tecla pulsada en CUALQUIER campo dejaría un desplegable
+  // huérfano más flotando en <body> para siempre. Se quitan todos los de
+  // la vuelta anterior antes de crear los nuevos.
+  document.querySelectorAll('[data-bulk-ac]').forEach(el=>el.remove());
+
   wrap.appendChild(h('p',{style:{fontSize:'11px',color:'var(--text3)',margin:'0 0 10px'}},
     'Elige todas las imágenes de golpe. Se cargará una lista abajo para ponerle nombre y anime a cada una antes de guardarlas todas.'));
 
@@ -765,23 +775,77 @@ function buildBulkAddUI(tl){
       nameInp.oninput=(e)=>{ item.name=e.target.value; };
       fields.appendChild(nameInp);
 
-      const animeInp=h('input',{type:'text',placeholder:'Anime',value:item.anime,list:'bulk-dl-'+item._id,onmousedown:e=>e.stopPropagation()});
-      const dl=h('datalist',{id:'bulk-dl-'+item._id});
+      // FIX (Ronda 22 — pedido explícito): antes esto usaba un <datalist>
+      // nativo del navegador, que solo puede mostrar texto plano — así que
+      // aquí no se veía la portada del anime como sí pasa al añadir una
+      // waifu sola (con el desplegable "ac-list"/"ac-item" de más arriba en
+      // este mismo archivo, que sí pinta la carátula). Se reutiliza el mismo
+      // desplegable con imagen para cada fila de "Añadir varias", así se
+      // distingue el anime correcto igual de bien en los dos sitios.
+      // Ojo: ".bulk-add-list" (la lista de filas) tiene "overflow-y:auto"
+      // porque puede haber muchas filas — si el desplegable fuera un hijo
+      // normal de la fila (position:absolute normal, como en el añadir uno
+      // a uno), ese overflow lo recortaría en cuanto la fila no estuviera
+      // pegada arriba del todo. Por eso aquí, igual que con el panel de
+      // notificaciones (ver nav.js), el desplegable se cuelga directamente
+      // de <body> con position:fixed y se coloca "a mano" justo debajo del
+      // campo, para que se vea completo sin que ninguna lista con scroll
+      // por encima se lo coma.
+      const animeWrap=h('div',{class:'ac-wrap'});
+      const animeInp=h('input',{type:'text',placeholder:'Anime',value:item.anime,onmousedown:e=>e.stopPropagation()});
+      const animeList=h('div',{class:'ac-list','data-bulk-ac':'1',style:{display:'none',position:'fixed',zIndex:'2000'}});
+      document.body.appendChild(animeList);
+      let animeFocus=-1,animeResults=[];
+      function positionAnimeList(){
+        const r=animeInp.getBoundingClientRect();
+        animeList.style.left=r.left+'px';
+        animeList.style.top=(r.bottom+2)+'px';
+        animeList.style.width=r.width+'px';
+      }
+      function closeAnimeList(){ animeList.style.display='none'; }
+      function renderAnimeAC(){
+        animeList.innerHTML='';animeFocus=-1;
+        if(!animeResults.length){closeAnimeList();return;}
+        animeResults.forEach((a,i)=>{
+          const disp=a.english&&a.english!==a.title?a.title+' / '+a.english:a.title;
+          const it=h('div',{class:'ac-item',onclick:()=>{animeInp.value=a.title;item.anime=a.title;closeAnimeList();}});
+          if(a.cover){it.appendChild(h('img',{src:a.cover,alt:''}));}
+          const info=h('div',{class:'ac-item-info'});
+          info.appendChild(h('div',{class:'ac-item-title'},disp));
+          if(a.year)info.appendChild(h('div',{class:'ac-item-sub'},a.year+''));
+          it.appendChild(info);it.dataset.idx=i;animeList.appendChild(it);
+        });
+        positionAnimeList();
+        animeList.style.display='block';
+      }
       animeInp.oninput=(e)=>{
         item.anime=e.target.value;
         clearTimeout(item._searchT);
         const q=e.target.value;
-        if(q.trim().length<2) return;
+        if(q.trim().length<2){closeAnimeList();return;}
         item._searchT=setTimeout(async ()=>{
           try{
             const resolved=resolveAlias(q);
-            const results=await searchAniList(resolved||q);
-            dl.innerHTML='';
-            (results||[]).slice(0,8).forEach(r=>{ dl.appendChild(h('option',{value:r.title})); });
+            const query=resolved!==q?resolved:q;
+            const results=await searchAniList(query);
+            let extra=[];
+            if(resolved!==q){extra=await searchAniList(q);}
+            animeResults=[...results,...extra.filter(r=>!results.find(x=>x.id===r.id))].slice(0,8);
+            renderAnimeAC();
           }catch(e){}
         },350);
       };
-      fields.appendChild(animeInp); fields.appendChild(dl);
+      animeInp.onkeydown=(e)=>{
+        const its=animeList.querySelectorAll('.ac-item');
+        if(e.key==='ArrowDown'){animeFocus=Math.min(animeFocus+1,its.length-1);its.forEach((it,i)=>it.classList.toggle('focused',i===animeFocus));e.preventDefault();}
+        else if(e.key==='ArrowUp'){animeFocus=Math.max(animeFocus-1,0);its.forEach((it,i)=>it.classList.toggle('focused',i===animeFocus));e.preventDefault();}
+        else if(e.key==='Enter'&&animeFocus>=0){const a=animeResults[animeFocus];if(a){animeInp.value=a.title;item.anime=a.title;closeAnimeList();}}
+        else if(e.key==='Escape')closeAnimeList();
+      };
+      document.addEventListener('mousedown',e=>{if(!animeWrap.contains(e.target)&&!animeList.contains(e.target))closeAnimeList();});
+      document.addEventListener('scroll',()=>{ if(animeList.style.display==='block')positionAnimeList(); },true);
+      animeWrap.appendChild(animeInp);
+      fields.appendChild(animeWrap);
       row.appendChild(fields);
 
       row.appendChild(h('button',{class:'btn bd bsm',title:'Quitar de la lista',onclick:()=>{ items.splice(idx,1); render(); }},'✕'));
@@ -791,7 +855,14 @@ function buildBulkAddUI(tl){
   }
 
   const actionsRow=h('div',{style:{display:'flex',gap:'8px',marginTop:'14px'}});
-  actionsRow.appendChild(h('button',{class:'btn bg',style:{flex:'1'},onclick:()=>{ S.md.bulkItems=[]; S.modal=null; render(); }},'Cancelar'));
+  // FIX (Ronda 22): al cerrar el modal (cancelar o guardar) hay que quitar
+  // a mano los desplegables de anime colgados de <body> (ver más arriba) —
+  // como buildBulkAddUI no se vuelve a ejecutar una vez S.modal=null, el
+  // limpiado automático de la próxima vuelta nunca llegaría a pasar.
+  actionsRow.appendChild(h('button',{class:'btn bg',style:{flex:'1'},onclick:()=>{
+    document.querySelectorAll('[data-bulk-ac]').forEach(el=>el.remove());
+    S.md.bulkItems=[]; S.modal=null; render();
+  }},'Cancelar'));
   const saveBtn=h('button',{class:'btn bp',style:{flex:'1'}}, items.length ? `Guardar las ${items.length}` : 'Guardar');
   saveBtn.onclick = async () => {
     if(!items.length){toast('Añade al menos una imagen','err');return;}
@@ -803,6 +874,7 @@ function buildBulkAddUI(tl){
       const ok = await saveOneCustomChar(tl, { name:item.name, anime:item.anime, imgData:item.imgData, fileName:item.fileName });
       if(ok) done++;
     }
+    document.querySelectorAll('[data-bulk-ac]').forEach(el=>el.remove());
     S.md.bulkItems=[];
     S.hasUnsaved=true; S.modal=null; render();
     toast(`✓ ${done} personajes añadidos`, 'ok');

@@ -27,6 +27,18 @@ function render(){
     try{__focusSelStart=__active.selectionStart;__focusSelEnd=__active.selectionEnd;}catch(e){}
   }
 
+  // FIX (Ronda 22): los desplegables de anime con portada de "Añadir
+  // varias" (ver buildBulkAddUI en modals.js) cuelgan de <body>, fuera del
+  // árbol de #app, para no quedar recortados por el scroll de la lista de
+  // filas. Como #app se destruye y reconstruye en cada render() pero
+  // <body> no, hay que quitarlos a mano en cuanto ya NO estemos en ese
+  // modal concreto (se cerró con Cancelar/Guardar, con el fondo oscuro, o
+  // se volvió a "Una a una") — si no, se quedarían huérfanos para siempre
+  // flotando sobre la página.
+  if(!(S.modal==='addchar' && S.md && S.md.bulkMode)){
+    document.querySelectorAll('[data-bulk-ac]').forEach(el=>el.remove());
+  }
+
   app.innerHTML='';
 
   // Forzar el fondo siempre en todas las pantallas

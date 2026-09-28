@@ -5,7 +5,7 @@
 let DG=null,DS=null,DGidx=-1,dragFloatEl=null;
 let scrollDir=0,scrollInt=null;
 let _md=false,_mdMoved=false,_mdX=0,_mdY=0,_mdImg='',_lastZoneKey='';
-let _pointerId=null, _lpT=null, _heldEl=null;
+let _pointerId=null, _lpT=null, _heldEl=null, _touchLastY=0;
 // "Stepper" del hueco: si el ratón se mueve rápido y el índice de destino
 // salta más de una posición de golpe, en vez de mover 2+ cartas a la vez
 // en un solo fotograma (lo que se ve como si "se movieran juntas" sin
@@ -273,12 +273,24 @@ document.addEventListener('pointercancel',e=>{
 document.addEventListener('pointermove',e=>{
  if (_pointerId !== null && e.pointerId !== _pointerId) { return; }
  if(_lpT && !_md){
+ // FIX (Ronda 22 — pedido explícito): ".tc,.pc" ahora llevan
+ // "touch-action:none" (ver el porqué en el FIX grande de más abajo, en
+ // el pointerdown), así que mientras se espera la pulsación larga el
+ // navegador YA NO puede hacer scroll nativo por su cuenta aquí — si nos
+ // quedábamos de brazos cruzados como antes, deslizar el dedo sin
+ // esperar los 400ms no scrolleaba NADA (el bug que se estaba reportando:
+ // "no puedo moverlas porque detecta que estoy scrolleando"). Mientras se
+ // decide si esto es pulsación larga o un gesto de scroll, replicamos el
+ // scroll a mano con el desplazamiento vertical del dedo, así que deslizar
+ // sin mantener pulsado sigue moviendo la página con total normalidad.
+ if(e.cancelable) e.preventDefault();
+ window.scrollBy(0, _touchLastY - e.clientY);
+ _touchLastY = e.clientY;
  if(Math.sqrt((e.clientX-_mdX)**2+(e.clientY-_mdY)**2)>10){
  // El dedo se movió antes de que se cumpliera la pulsación larga: el
  // usuario quería hacer scroll normal de la página, no arrastrar. Se
- // cancela el temporizador y NO se llama a preventDefault en ningún
- // momento de este gesto, así que el navegador puede hacer scroll con
- // total normalidad (ver también el "return" de aquí abajo).
+ // cancela el temporizador de armado (el scroll de arriba ya se está
+ // encargando de mover la página a mano).
  clearTimeout(_lpT);
  _lpT=null;
  if(_heldEl){_heldEl.classList.remove('drag-armed');_heldEl=null;}
@@ -358,6 +370,7 @@ function dgPointerDown(e,id,src,idx,imgSrc){
  if(e.button!==0)return;
  DG=id;DS=src;DGidx=idx;
  _mdX=e.clientX;_mdY=e.clientY;
+ _touchLastY=e.clientY;
  _mdImg=imgSrc||'';
  _pointerId = e.pointerId; // <-- GUARDAR EL ID DEL PUNTERO CORRECTAMENTE
  _heldEl = e.currentTarget || e.target;
@@ -372,6 +385,27 @@ function dgPointerDown(e,id,src,idx,imgSrc){
  // querías hacer scroll y no se arma nada (ver el guard correspondiente en
  // el listener de pointermove, más arriba). El ratón/lápiz no cambia: sigue
  // armándose al instante, exactamente como siempre.
+ //
+ // FIX (Ronda 22 — pedido explícito): ".tc,.pc" tenían "touch-action:auto"
+ // en el CSS, pensado para que el navegador pudiera scrollear con
+ // normalidad mientras se esperaba la pulsación larga. El problema es que
+ // "touch-action" se decide UNA SOLA VEZ, en el instante justo de este
+ // pointerdown/touchstart — no se puede cambiar a mitad de gesto para que
+ // el navegador "ceda" el control una vez armado el drag. Con
+ // "touch-action:auto" bastaba con que el dedo temblara un pelín durante
+ // esos 400ms de espera para que el navegador YA hubiera empezado un
+ // scroll nativo por su cuenta — y una vez ha empezado, ningún
+ // preventDefault() posterior (ni siquiera armando el drag después) puede
+ // pararlo ni devolverle el control a nuestro código: de ahí el bug real
+ // de "no puedo arrastrar porque detecta que estoy scrolleando" y el
+ // personaje quedándose flotando sin soltarse. La solución de verdad es
+ // fijar "touch-action:none" en el CSS desde el principio (el navegador
+ // nunca intenta scrollear él solo al tocar una carta) y, mientras
+ // esperamos a ver si es pulsación larga o solo querían deslizar,
+ // replicar el scroll A MANO nosotros mismos (ver el pointermove de más
+ // arriba) — así el control nunca se le escapa a nadie a mitad de gesto:
+ // o lo llevamos nosotros de principio a fin (scroll manual mientras se
+ // decide, o el drag ya armado), o no se mueve nada.
  if(e.pointerType==='mouse'){
  _md=true;_mdMoved=false;
  return;
