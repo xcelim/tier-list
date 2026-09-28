@@ -1076,12 +1076,23 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
    object-fit directamente encima; en varios navegadores (sobre todo
    Safari/WebKit) esa combinación no recorta bien la imagen a un círculo
    perfecto y se ve "a medias", con las esquinas cuadradas asomando por
-   detrás del borde redondeado — más notorio aún con el aro de color de los
-   marcos (frame-oro/plata/etc, que usan box-shadow). La solución robusta es
-   envolver la imagen en un contenedor con overflow:hidden que SÍ recorta
-   siempre, y dejar que sea ese contenedor el que lleve el border-radius y
-   el marco; la imagen de dentro solo rellena el 100% del contenedor. */
-.comment-avatar-wrap{width:34px;height:34px;min-width:34px;border-radius:50%;flex-shrink:0;overflow:hidden;border:1px solid var(--border2);display:block}
+   detrás del borde redondeado. La solución robusta es envolver la imagen en
+   un contenedor con overflow:hidden que SÍ recorta siempre.
+   FIX (Ronda 38 — pedido explícito, con captura: "el XC es un círculo
+   perfecto, en cambio el mío con marco de plata está como cortado"): el
+   arreglo de arriba (overflow:hidden) se había puesto en el MISMO elemento
+   que el marco (frame-plata/oro/etc, que se dibuja con box-shadow) — y
+   overflow:hidden recorta también el box-shadow DE ESE MISMO elemento, no
+   solo el contenido, así que el aro de color del marco salía cortado por
+   los lados en vez de rodear el círculo entero. Solución: separar las dos
+   cosas en dos capas, igual que ya se hacía en el círculo grande de Perfil
+   (.avatar-ring, sin overflow, con el marco) + .avatar-inner (con
+   overflow:hidden, sin marco) — aquí .comment-avatar-wrap lleva el marco y
+   YA NO recorta nada; el recorte real de la imagen pasa a
+   .comment-avatar-clip, un div interior que no tiene marco, así el
+   box-shadow del marco nunca se ve afectado por el recorte de la foto. */
+.comment-avatar-wrap{width:34px;height:34px;min-width:34px;border-radius:50%;flex-shrink:0;display:block}
+.comment-avatar-clip{width:100%;height:100%;border-radius:50%;overflow:hidden;border:1px solid var(--border2)}
 .comment-avatar-wrap img{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
 .comment-avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--border2)}
 .comment-body{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:8px 12px}

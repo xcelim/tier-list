@@ -1541,6 +1541,27 @@ vuelven a salir".
 
 ### ⚠️ Vuelve a ejecutar `supabase-schema.sql` (solo hace falta la parte nueva, pero ejecutarlo entero no rompe nada)
 
+## 🆕 Ronda 38 — el marco de plata (y el resto) salía cortado en los comentarios
+
+Pedido explícito, con captura comparando un avatar sin marco (círculo
+perfecto) contra el propio con marco de plata (cortado): "fíjate el XC es
+un círculo perfecto, en cambio el mío de mi perfil de plata está como
+cortado".
+
+- **Causa real**: el div que envuelve el avatar en cada comentario tenía a
+  la vez dos cosas en el MISMO elemento: `overflow:hidden` (para recortar
+  la foto en un círculo perfecto, incluso en Safari) y el marco equipado
+  (`frame-plata`/`frame-oro`/etc., que se dibuja con `box-shadow`). El
+  problema es que `overflow:hidden` recorta TODO lo que se sale de ese
+  elemento, incluido su propio `box-shadow` — así que el aro de color del
+  marco, que debe sobresalir un poco alrededor del círculo, se recortaba
+  por los lados en vez de rodearlo entero.
+- **Arreglado**: separado en dos capas, igual que ya se hacía en el círculo
+  grande de Perfil (`.avatar-ring` + `.avatar-inner`): el marco ahora va en
+  el div de fuera (que ya no recorta nada), y el recorte de la foto a
+  círculo pasa a un nuevo div de dentro (que no lleva marco). Así ninguno
+  de los dos estropea al otro.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

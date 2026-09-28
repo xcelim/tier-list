@@ -80,16 +80,19 @@ function CommentsSection(rankingId, ownerUserId) {
       // FIX (Ronda 18, pedido explícito): en la Ronda 14 se había quitado
       // aquí el marco equipado por completo, porque se veía como un borde
       // cuadrado/anguloso — pero eso pasaba porque entonces la foto todavía
-      // no se recortaba en un círculo de verdad. Ahora que
-      // .comment-avatar-wrap ya recorta correctamente (overflow:hidden +
-      // border-radius:50%, ver su CSS), el marco (box-shadow) se puede
-      // volver a aplicar sin ese problema — se pone en el DIV contenedor
-      // (comment-avatar-wrap), no en la <img>, igual que en el resto de la
-      // app (avatar-ring, profile-btn...).
+      // no se recortaba en un círculo de verdad.
+      // FIX (Ronda 38 — "el marco de plata se ve cortado"): el marco
+      // (box-shadow) va en comment-avatar-wrap (sin overflow, para que el
+      // aro de color no se recorte a sí mismo — ver CSS); el recorte real
+      // de la foto a círculo vive ahora en un div interior aparte
+      // (comment-avatar-clip, con overflow:hidden), así las dos cosas no se
+      // pisan entre sí.
       item.appendChild(h('div', { class: 'comment-avatar-wrap' + (typeof frameClassFor==='function' ? ' '+frameClassFor(c.author) : '') },
-        h('img', {
-          src: c.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.author?.name || '?')}`
-        })
+        h('div', { class: 'comment-avatar-clip' },
+          h('img', {
+            src: c.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.author?.name || '?')}`
+          })
+        )
       ));
       const body = h('div', { class: 'comment-body' });
       body.appendChild(h('div', { class: 'comment-head' },

@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v39'; // v39: el boton "Borrar leidas" ahora sale arriba de la lista (antes habia que bajar hasta el final) y, sobre todo, el borrado de notificaciones ya funciona de verdad en la nube -- faltaba la politica de RLS de DELETE en la tabla notifications, asi que antes se borraban solo en pantalla y volvian a aparecer al reabrir el panel o la app (requiere volver a ejecutar supabase-schema.sql)
+const CACHE_NAME = 'at-v40'; // v40: el marco de plata (y el resto de marcos) salia cortado/recortado en el avatar de los comentarios -- el mismo div tenia a la vez overflow:hidden (para recortar la foto en circulo) y el marco (box-shadow), y overflow:hidden recorta tambien el box-shadow de su propio elemento; separado en dos capas (una con el marco sin recortar nada, otra que recorta la foto sin marco), igual que ya se hacia en el circulo grande de Perfil
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión
