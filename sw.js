@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v34'; // v34: el contador de "Descargando... x/y" mostraba el total de personajes de TODA la tierlist (ej. 236) aunque por dentro ya se saltara las que no habian cambiado -- parecia que se descargaba todo de nuevo aunque no fuera asi; ahora se calcula antes cuantas hacen falta de verdad y el contador (y el propio boton) solo muestran esas
+const CACHE_NAME = 'at-v35'; // v35: el boton del ojo DENTRO del editor mostraba la copia de trabajo (con cambios sin guardar) en modo Visor -- mover una carta sin guardar y pulsar el ojo mostraba esa posicion como si estuviera guardada, y hacia falta refrescar (perdiendo el cambio) para que se corrigiera; ahora ese boton muestra siempre lo REALMENTE guardado, igual que el ojo de la tarjeta en Mis Tierlists, evitando tambien descargas de mas al pulsar Descargar justo despues
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión

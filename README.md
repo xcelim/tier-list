@@ -1420,6 +1420,30 @@ contador — y el propio botón — solo cuentan esas. Si no hace falta traer
 ninguna, avisa directamente de que "ya estaba al día" sin mostrar ningún
 progreso.
 
+## 🆕 Ronda 33 — "modo visor" mostraba cambios sin guardar (y por eso "Descargar" pedía de más)
+
+Pedido explícito: "cuando muevo una foto y le doy a modo visor se queda la
+foto en esa posición aunque no haya guardado, mal ahí, si refresco se
+corrige pero eso está mal".
+
+- **Causa real**: el botón del ojo DENTRO del editor pasaba directamente la
+  copia de TRABAJO (`S.workingTL`, con cualquier cambio todavía sin
+  guardar) al modo Visor — así que mover una carta y pulsar el ojo mostraba
+  esa posición como si estuviera guardada de verdad, aunque no lo estuviera.
+  Solo un refresco de página (que de paso DESCARTA el cambio sin guardar)
+  volvía a dejarlo consistente con lo realmente guardado — de ahí que
+  "se corrigiera" al refrescar, pero perdiendo el cambio en el proceso.
+- **Arreglado**: ese botón ahora muestra siempre lo REALMENTE guardado (en
+  este dispositivo, o en la nube si hay algo más reciente), exactamente
+  igual que el botón del ojo de la tarjeta en "Mis Tierlists" — sin
+  necesidad de refrescar nada para que sea consistente.
+- **De paso, arregla también** el reporte de "descargando 81" (el total
+  entero) al haber cambiado solo una posición: al mostrar siempre el estado
+  guardado, "Descargar" compara contra lo que de verdad ya tienes cacheado
+  y detecta correctamente que no hace falta traer nada nuevo cuando solo se
+  reordenó una carta entre tiers ya existentes, sin añadir ni quitar
+  ningún personaje.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

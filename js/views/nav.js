@@ -356,27 +356,30 @@ async function openOwnViewer(tl){
 
   const p = activeProfile();
   S.viewingUser = { id: uid, name: (p && p.name) || currentUserProfile?.name };
-  S.viewingRank = { id: rankingId, user_id: uid, tiers_data: tiersData, tierlists: { title: tl.title, folder: tl.folder, cover_url: tl.cover_url } };
+  // FIX (Ronda 33): se añade "customChars" aquí (antes faltaba) para que un
+  // personaje añadido a mano (con su propia imagen) se encuentre igual que
+  // ya hace el modo Visor sin conexión — ver Viewer()/getChar() en home.js.
+  S.viewingRank = { id: rankingId, user_id: uid, tiers_data: tiersData, tierlists: { title: tl.title, folder: tl.folder, cover_url: tl.cover_url, customChars: tl.customChars||[] } };
   S._viewerOwnTlId = tl.id;
   S.page = 'viewer';
   setRoute && setRoute('viewer', tl.id);
   render();
 }
 
-// Igual, pero desde DENTRO del editor: usa los datos que hay en memoria
-// (S.workingTL) en vez de volver a pedirlos a Supabase, así el modo
-// observador refleja también los cambios que aún no has guardado.
+// FIX (Ronda 33 — pedido explícito: "cuando muevo una foto y le doy a modo
+// visor se queda la foto en esa posición aunque no haya guardado, mal ahí,
+// si refresco se corrige pero eso está mal"): esta función, desde el botón
+// del ojo DENTRO del editor, pasaba directamente S.workingTL — la copia de
+// TRABAJO, con cualquier cambio sin guardar todavía. Eso hacía que mover una
+// carta y pulsar el ojo mostrara esa posición aunque no se hubiera guardado
+// de verdad, y solo un refresco (que de paso DESCARTA el cambio sin
+// guardar) lo "corregía". El modo Visor debe reflejar lo GUARDADO, no un
+// borrador — igual que el botón del ojo de la tarjeta en "Mis Tierlists" —
+// así que ahora reutiliza openOwnViewer(), que trae el ranking realmente
+// guardado (de este dispositivo, o de la nube si hay otro más reciente).
 function viewCurrentEditorAsViewer(){
   if(!S.workingTL || !S.cid) return;
-  const uid = userSession?.user?.id;
-  S.viewingUser = { id: uid, name: currentUserProfile?.name };
-  S.viewingRank = {
-    id: S.workingRankingId || null, user_id: uid,
-    tiers_data: S.workingTL.tiers,
-    tierlists: { title: S.workingTL.title, folder: S.workingTL.folder, cover_url: S.workingTL.cover_url }
-  };
-  S._viewerOwnTlId = S.cid;
-  S.page = 'viewer';
-  render();
+  const savedTl = getTLfromProfile(S.cid) || S.workingTL;
+  openOwnViewer(savedTl);
 }
 
