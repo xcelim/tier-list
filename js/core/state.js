@@ -65,7 +65,20 @@ if(!S.activeProfile) S.activeProfile=null;
 // para que no se queden pegados si la conexión cambia mientras se usa.
 if(typeof window!=='undefined'){
   window.addEventListener('online', ()=>{ S.offline=false; if(typeof render==='function') render(); });
-  window.addEventListener('offline', ()=>{ S.offline=true; if(typeof render==='function') render(); });
+  // FIX (Ronda 30 — pedido explícito: "que cuando entras en modo sin
+  // conexión automáticamente entra en modo visor si estabas editando, para
+  // evitar problemas"): seguir en el editor sin conexión es peligroso —
+  // cualquier guardado se quedaría solo en local, sin sincronizar con la
+  // nube ni con el resto de tus dispositivos, y podría generar conflictos
+  // al recuperar la conexión más tarde. Si la conexión se corta mientras
+  // estás editando, se guarda automáticamente lo que tuvieras (nunca se
+  // pierde) y se pasa solo al modo Visor de solo lectura de esa misma
+  // tierlist, tal cual se había quedado.
+  window.addEventListener('offline', ()=>{
+    S.offline=true;
+    if(S.page==='editor' && typeof switchToOfflineViewerFromEditor==='function') switchToOfflineViewerFromEditor();
+    if(typeof render==='function') render();
+  });
 }
 
 function uid(){return Math.random().toString(36).slice(2)+Date.now().toString(36)}

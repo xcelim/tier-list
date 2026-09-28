@@ -58,6 +58,34 @@ function openOfflineViewer(tlid){
   S.page='viewer';
 }
 
+// FIX (Ronda 30 — pedido explícito: pasar solo al modo Visor si se pierde
+// la conexión mientras se está editando, "para evitar problemas"): seguir
+// editando sin conexión es peligroso — cualquier guardado se quedaría solo
+// en este dispositivo (la parte de sincronizar con la nube fallaría), con
+// riesgo de conflicto al recuperar la conexión en otro dispositivo. Esto lo
+// llama el listener del evento "offline" (ver state.js) en el momento en
+// que el navegador detecta que se ha perdido la conexión y S.page es
+// 'editor': guarda YA en este dispositivo lo que hubiera en el editor
+// (nunca se pierde el trabajo, aunque la sincronización con la nube no se
+// intente porque ya sabemos que no hay red) y pasa a openOfflineViewer()
+// con esa misma tierlist, tal cual se había quedado en pantalla.
+function switchToOfflineViewerFromEditor(){
+  if(!S.workingTL || !S.cid) return;
+  const tlid = S.cid;
+  const p = activeProfile();
+  if(p){
+    const idx = p.tls.findIndex(t=>t.id===tlid);
+    S.workingTL.updatedAt = Date.now();
+    if(idx>=0) p.tls[idx] = JSON.parse(JSON.stringify(S.workingTL));
+    else p.tls.push(JSON.parse(JSON.stringify(S.workingTL))); // tierlist nueva, aún sin guardar nunca
+    saveProfiles();
+  }
+  unsubscribeCollab();
+  S.workingTL=null; S.hasUnsaved=false; S.cid=null;
+  S.workingRankingId=null; S.workingIsForeignCollab=false; S.workingIsCollaborative=false;
+  openOfflineViewer(tlid);
+}
+
 // Puertas de confirmación para el primer guardado: la elección entre
 // "normal" y "colaborativa" se queda fija a partir de la primera vez que
 // se guarda (a partir de ahí solo se muestra el botón del tipo elegido),

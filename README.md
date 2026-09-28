@@ -1357,6 +1357,35 @@ Quitada esa descarga automática por completo. Ahora:
   nuevo, solo borra lo que ya no hace falta, así que no contradice el
   "solo lo que me interesa".
 
+## 🆕 Ronda 30 — "Descargar" decía que no había personajes (sí los había) + pasar solo al Visor si se corta la conexión editando
+
+- **Bug real de fondo, encontrado al investigar por qué "Descargar" decía
+  "esta tierlist todavía no tiene personajes colocados"**: cada vez que se
+  abría la app (o se refrescaban las plantillas), `fetchGlobalTemplates`
+  sobreescribía la copia local de CUALQUIER tierlist con la estructura
+  compartida de la nube (`tiers_config`, que solo trae el nombre/color de
+  cada tier) — pero esa estructura NUNCA incluye qué personajes hay
+  colocados en cada uno, eso vive aparte, en tu ranking personal. El
+  resultado: la copia guardada en el dispositivo se quedaba con los tiers
+  vacíos casi todo el rato, hasta la próxima vez que se guardara desde el
+  editor. Como "Descargar" (y el modo Visor sin conexión) leen de esa copia
+  local, por eso parecía que la tierlist no tenía nada. Arreglado
+  combinando bien las dos fuentes: si ya hay un ranking tuyo guardado en la
+  nube, se usa esa estructura completa (viaja entre tus dispositivos); si
+  no, se actualiza el nombre/color de cada tier pero SIN borrar los
+  personajes que ya tuvieras guardados localmente. De paso, "Descargar"
+  ahora también usa directamente lo que se ve en pantalla en ese momento en
+  el modo Visor, por si acaso, en vez de depender solo de la copia local.
+- **Si se corta la conexión mientras estás en el editor, ahora pasa solo al
+  modo Visor** de esa misma tierlist (pedido explícito, "para evitar
+  problemas"): seguir editando sin red es arriesgado, porque el guardado
+  con la nube fallaría y podría generar conflictos al recuperar la conexión
+  en otro dispositivo más tarde. En el momento en que el navegador detecta
+  que se ha quedado sin conexión, se guarda automáticamente lo que
+  tuvieras en el editor (nunca se pierde, se queda en este dispositivo) y
+  se pasa al modo Visor de solo lectura, tal cual se había quedado en
+  pantalla.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

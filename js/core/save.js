@@ -80,11 +80,26 @@ async function downloadImagesToCache(urls, force){
 // NINGUNA de tus tierlists (ver gcCharImageCache) — así una descarga nueva
 // no se va acumulando sin límite sobre las anteriores, tal y como pidió el
 // usuario ("sustituimos la anterior descarga").
+// FIX (Ronda 30 — "esta tierlist todavía no tiene personajes colocados"
+// pulsando Descargar con personajes de sobra colocados): además del bug de
+// fondo en fetchGlobalTemplates (arreglado arriba), esta función leía SOLO
+// de la copia local (p.tls) — que puede ir un paso por detrás de lo que
+// ves en pantalla ahí mismo, en el propio modo Visor, si esa tierlist se
+// abrió con datos recién traídos de Supabase (openOwnViewer, desde el
+// botón del ojo en la tarjeta). Ahora, si el modo Visor te está mostrando
+// una tierlist tuya (viewingRank), se descarga justo lo que ESO muestra —
+// que es siempre lo más reciente — en vez de volver a leer de p.tls.
 async function downloadTierlistForOffline(tlid){
   if (!('caches' in window)) { toast('Tu navegador no soporta guardar tierlists para verlas sin conexión', 'err'); return; }
-  const tl = getTLfromProfile(tlid);
-  if(!tl){ toast('No se encontró esa tierlist', 'err'); return; }
-  const urls = collectTierImageUrls([tl]);
+  const localTl = getTLfromProfile(tlid);
+  const shownIsThisTl = S.viewingRank && S._viewerOwnTlId === tlid;
+  const title = (shownIsThisTl && S.viewingRank.tierlists && S.viewingRank.tierlists.title) || (localTl && localTl.title) || 'Esta tierlist';
+  const tiersSource = shownIsThisTl ? (S.viewingRank.tiers_data || []) : (localTl ? (localTl.tiers || []) : null);
+  if(tiersSource === null){ toast('No se encontró esa tierlist', 'err'); return; }
+  const folder = (shownIsThisTl && S.viewingRank.tierlists && S.viewingRank.tierlists.folder) || (localTl && localTl.folder);
+  const customChars = (shownIsThisTl && S.viewingRank.tierlists && S.viewingRank.tierlists.customChars) || (localTl && localTl.customChars) || [];
+  const tlForUrls = { folder, customChars, tiers: tiersSource };
+  const urls = collectTierImageUrls([tlForUrls]);
   if(!urls.size){ toast('Esta tierlist todavía no tiene personajes colocados', 'info'); return; }
   toast(`Descargando ${urls.size} imagen${urls.size===1?'':'es'}...`, 'info');
   try{
@@ -93,7 +108,7 @@ async function downloadTierlistForOffline(tlid){
     if(fail){
       toast(`Descargado (${ok}/${total}) — ${fail} imagen${fail===1?'':'es'} no se pudo${fail===1?'':'ieron'} traer`, 'info');
     } else {
-      toast(`✓ "${tl.title}" lista para verse sin conexión (${ok} imagen${ok===1?'':'es'})`, 'ok');
+      toast(`✓ "${title}" lista para verse sin conexión (${ok} imagen${ok===1?'':'es'})`, 'ok');
     }
   }catch(e){
     console.error(e);
@@ -158,18 +173,47 @@ async function fetchGlobalTemplates() {
     } catch (e) { console.warn('[fetchGlobalTemplates] user_rankings:', e); }
   }
 
+  // FIX (Ronda 30 — "esta tierlist todavía no tiene personajes colocados"
+  // al pulsar Descargar, con personajes de sobra colocados): a pesar de lo
+  // que decía el comentario de arriba ("nunca tocamos tl.tiers... así que
+  // no hay riesgo de pisar cambios sin guardar"), las dos líneas de abajo
+  // SÍ lo hacían: "tiers_config" es solo la ESTRUCTURA compartida de la
+  // tierlist (id/nombre/color de cada tier, ver saveEditorChanges) — NUNCA
+  // incluye qué personajes tiene colocados cada uno, eso vive aparte en
+  // "user_rankings.tiers_data". Como fetchGlobalTemplates se llama en CADA
+  // inicio de sesión, esto borraba de golpe los personajes ya colocados de
+  // la copia local (p.tls) de cualquier tierlist, dejándolos vacíos hasta
+  // la próxima vez que se guardase desde el editor — y de ahí que
+  // "Descargar" (que lee de p.tls) no encontrara ningún personaje. Ahora se
+  // combina bien: si ya hay tu ranking guardado en Supabase (myRank, más de
+  // fiar porque viaja entre tus dispositivos), se usa esa estructura
+  // completa tal cual; si no, se actualiza el nombre/color de cada tier
+  // desde la plantilla remota pero CONSERVANDO los personajes que ya
+  // tuvieras en la copia local, en vez de borrarlos.
+  function tiersWithChars(t, myRank, existingLocalTiers){
+    if (myRank && myRank.tiers_data && myRank.tiers_data.length && myRank.tiers_data[0].label) {
+      return myRank.tiers_data;
+    }
+    const localByIdx = new Map((existingLocalTiers||[]).map(x=>[x.id, x]));
+    return (t.tiers_config||[]).map(rc => {
+      const existing = localByIdx.get(rc.id);
+      return { id: rc.id, label: rc.label, color: rc.color, chars: existing ? (existing.chars||[]) : [] };
+    });
+  }
+
   allTemplates.forEach(t => {
     // Si dupTL está en curso para este ID, no tocar — lo añadirá él mismo al terminar
     if (S._dupInProgress === t.id) return;
 
     const localIdx = p.tls.findIndex(local => local.id === t.id);
+    const myRank = myRankByTlId.get(t.id);
+    const mergedTiers = tiersWithChars(t, myRank, localIdx !== -1 ? p.tls[localIdx].tiers : null);
     const tlData = {
       ...t,
-      tiers: t.tiers_config,
+      tiers: mergedTiers,
       isRemoteTemplate: true,
       updatedAt: new Date(t.updated_at || t.created_at).getTime()
     };
-    const myRank = myRankByTlId.get(t.id);
     if (myRank) {
       tlData._rankingId = myRank.id;
       tlData._isCollaborative = !!myRank.is_collaborative;
@@ -181,7 +225,7 @@ async function fetchGlobalTemplates() {
     } else {
       // Sincronizar metadatos desde la nube (no sobreescribir pool/customChars locales)
       p.tls[localIdx].title     = t.title;
-      p.tls[localIdx].tiers     = t.tiers_config;
+      p.tls[localIdx].tiers     = mergedTiers;
       p.tls[localIdx].folder    = t.folder;
       p.tls[localIdx].cover_url = t.cover_url;
       p.tls[localIdx].updatedAt = tlData.updatedAt;
