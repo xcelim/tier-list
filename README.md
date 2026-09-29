@@ -1680,6 +1680,21 @@ cambios" (visto en una tierlist colaborativa).
   borra. Comprobado que sigue funcionando igual que siempre en una tierlist
   normal sin pestañas.
 
+## 🆕 Ronda 41d — el SQL daba error al volver a pegarlo ("relation already exists")
+
+Error explícito al re-ejecutar `supabase-schema.sql`: `ERROR: 42P07:
+relation "idx_reactions_ranking" already exists`.
+
+- **Causa**: ese índice se creaba sin `if not exists` (a diferencia de
+  todos los demás del archivo). No daba problema mientras la tabla
+  `tierlist_reactions` se borraba y recreaba entera cada vez (como pasaba
+  antes de la Ronda 41b), pero desde que esa ronda dejó de borrarla —
+  justamente para no perder tus comentarios/reacciones— volver a pegar el
+  archivo se quedaba a medias justo en esa línea, aunque todo lo de más
+  arriba (las columnas `tab_id` nuevas, etc.) sí llegara a aplicarse bien.
+- **Arreglado**: el índice ahora lleva `if not exists`, como el resto.
+  Puedes volver a pegar `supabase-schema.sql` entero sin miedo.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

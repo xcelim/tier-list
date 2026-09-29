@@ -328,7 +328,14 @@ drop policy if exists "borras tu propia reacción" on tierlist_reactions;
 create policy "borras tu propia reacción" on tierlist_reactions for delete
   using (auth.uid() = user_id);
 
-create index idx_reactions_ranking on tierlist_reactions(ranking_id);
+-- FIX (Ronda 41d — "ERROR: 42P07: relation already exists" al volver a
+-- ejecutar este archivo): a esta le faltaba el "if not exists" que sí
+-- llevan las demás — no daba problema mientras la tabla se borraba y
+-- recreaba entera en cada ronda (Rondas 36/37), pero desde que dejó de
+-- borrarse (Ronda 41b, para no perder comentarios/reacciones ya
+-- existentes) hacía que volver a pegar este archivo en el SQL Editor
+-- fallara aquí, aunque todo lo de más arriba sí se hubiera aplicado bien.
+create index if not exists idx_reactions_ranking_tab on tierlist_reactions(ranking_id, tab_id);
 
 
 -- ============================================================================
