@@ -1603,6 +1603,42 @@ arriba también".
   en los navegadores que ya iban bien (comprobado); hace el recorte robusto
   también en los que fallaban.
 
+## 🆕 Ronda 41 — pestañas: varios rankings dentro de la misma tierlist
+
+Pedido explícito: "estaria bien que dentro de un tier puedas añadir
+categorias en forma de pestañas... tengo la tierlist animes de temporada,
+pero quiero rankear los animes, sus op y sus ed con la misma tierlist,
+entonces le doy al + y me sale un cuadro preguntando nombre de la
+pestaña... esto aplica para las colaborativas, si se crea una pestaña se
+crea para el otro, las colab lo comparten todo".
+
+- **Nuevo botón "+ Pestaña"** en el header del editor de cualquier
+  tierlist: pide un nombre (aceptar/cancelar, igual que al renombrar un
+  tier) y crea una pestaña nueva — un ranking completo aparte, con las
+  mismas filas (S/A/B/...) pero sin ningún personaje colocado todavía —
+  dentro de la MISMA tierlist. Así, por ejemplo, "Animes de temporada"
+  puede tener una pestaña para los animes, otra para sus openings y otra
+  para sus endings, las tres usando el mismo catálogo de personajes/waifus.
+- Todas las pestañas comparten el catálogo: un personaje que esté en el
+  pool (sin colocar) en una pestaña sigue disponible en las demás; lo único
+  que cambia de una pestaña a otra es en qué tier tienes colocado cada uno
+  (o si no lo has colocado en esa pestaña en concreto).
+- Para cambiar de pestaña o borrar una (si hay más de una), sale una fila
+  de pestañas justo debajo del título de la tierlist, tanto en el editor
+  como en el modo Visor (👁) — en el Visor solo para mirar, sin poder
+  crear/borrar.
+- **Colaborativas**: al guardar, las pestañas se suben junto con el resto
+  de la tierlist, así que cualquier colaborador que la abra ve exactamente
+  las mismas pestañas que tú, con sus mismos nombres y contenido.
+- **Modo sin conexión**: si descargas una tierlist con varias pestañas para
+  verla sin conexión, se descargan las imágenes de los personajes de TODAS
+  las pestañas, no solo de la que tuvieras abierta al pulsar "Descargar".
+- ⚠️ **Tienes que volver a ejecutar `supabase-schema.sql`** en tu proyecto
+  de Supabase (SQL Editor → pega el archivo entero → Run): añade dos
+  columnas nuevas (`tabs`, `active_tab_id`) a la tabla `user_rankings`. Sin
+  esto, las pestañas seguirán funcionando en tu propio dispositivo pero no
+  se guardarán en la nube ni se compartirán con tus colaboradores.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

@@ -1592,3 +1592,29 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 .hh{overflow:visible}
 .hh .hh-spark{position:absolute;bottom:0;width:3px;height:3px;border-radius:50%;background:var(--neon-gold);box-shadow:0 0 8px var(--neon-gold);animation:spark-rise 4s ease-in infinite;opacity:0;pointer-events:none}
 @keyframes spark-rise{0%{opacity:0;transform:translateY(0)}15%{opacity:.9}100%{opacity:0;transform:translateY(-160px)}}
+
+/* FIX (Ronda 41 — pestañas dentro de una misma tierlist, pedido explícito:
+   "un boton en el header mismo qu sea un +, te crea otra pestaña con la
+   tierlist vacia y le das un nombre"): barra de pestañas que sale tanto en
+   el editor (js/views/editor.js) como en el modo Visor (js/views/home.js,
+   Viewer()) cuando una tierlist tiene más de un ranking guardado dentro. */
+.tab-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tab-pill{
+  display:flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:20px;
+  background:var(--bg3,#1c1c26);border:1px solid var(--border,#33333f);
+  color:var(--text3);font-size:13px;font-weight:600;
+  cursor:pointer;transition:.15s;user-select:none;white-space:nowrap;
+}
+.tab-pill:hover{border-color:var(--accent2);color:var(--text)}
+.tab-pill.active{
+  background:var(--accentbg);border-color:var(--accent);color:var(--accent2);
+  box-shadow:0 0 0 1px var(--accent) inset;
+}
+.tab-pill-close{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:16px;height:16px;border-radius:50%;
+  font-size:10px;line-height:1;color:inherit;opacity:.55;
+  transition:.15s;
+}
+.tab-pill-close:hover{opacity:1;background:var(--red,#e5484d);color:#fff}

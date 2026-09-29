@@ -4,6 +4,10 @@
 function Editor(){
   const tl=S.workingTL;
   if(!tl)return h('div',{style:{padding:'40px',color:'var(--text3)'}},'Error: sin tierlist activa');
+  // FIX (Ronda 41 — pestañas): por si S.workingTL viniera de antes de esta
+  // ronda (o de un guardado colaborativo sin pestañas todavía), nos
+  // aseguramos aquí también de que exista al menos "Principal".
+  if(typeof ensureTabsInit==='function') ensureTabsInit(tl);
   const w=h('div',{});
   // \u00BFYa se ha guardado esta tierlist alguna vez? (S.workingRankingId solo
   // existe si ya hay una fila en Supabase para ella). La PRIMERA vez que
@@ -52,10 +56,35 @@ function Editor(){
   if(S.workingIsCollaborative) badges.appendChild(h('span',{class:'saved-badge',style:{background:'var(--neon-cyan,#3ec6ff)'}},'\u{1F465} Colaborativa'));
   ea.appendChild(h('button',{class:'btn bg',title:'Ver esta tierlist en modo observador',onclick:viewCurrentEditorAsViewer},h('i',{class:'ti ti-eye'})));
   ea.appendChild(h('button',{class:'btn bd',onclick:resetRank},'Reset Rank'));
+  // FIX (Ronda 41 \u2014 pedido expl\u00edcito: "un boton en el header mismo qu sea
+  // un +, te crea otra pesta\u00f1a con la tierlist vacia y le das un nombre"):
+  // esta pesta\u00f1a nueva es un ranking aparte (sus propios tiers, vac\u00edos)
+  // dentro de la MISMA tierlist -- ideal para, por ejemplo, tener "Animes
+  // de temporada", sus OPs y sus EDs con el mismo cat\u00e1logo de personajes.
+  ea.appendChild(h('button',{class:'btn bg',title:'A\u00f1adir una pesta\u00f1a nueva (otro ranking dentro de esta misma tierlist)',onclick:addTab},'+ Pesta\xf1a'));
   ea.appendChild(h('button',{class:'btn bg',onclick:()=>{S.modal='addchar';S.md={};render();}},'+ Waifu'));
   ea.appendChild(h('button',{class:'btn bg',onclick:()=>{S.modal='pick';S.md={};render();}},'+ Cat\xe1logo'));
   ea.appendChild(h('button',{class:'btn bg',onclick:expPNG},'\u2193 PNG'));
   tb.appendChild(ea);w.appendChild(tb);
+  // FIX (Ronda 41 \u2014 pesta\u00f1as): barra de pesta\u00f1as, solo si hay m\u00e1s de una
+  // (si solo existe "Principal" no hace falta ocupar sitio en pantalla).
+  if(tl.tabs && tl.tabs.length>1){
+    const tabBar=h('div',{class:'tab-bar',style:{margin:'0 0 14px'}});
+    tl.tabs.forEach(t=>{
+      const pill=h('div',{
+        class:'tab-pill'+(t.id===tl.activeTabId?' active':''),
+        title:t.name,
+        onclick:()=>{ if(t.id!==tl.activeTabId) switchTab(t.id); }
+      }, t.name);
+      pill.appendChild(h('span',{
+        class:'tab-pill-close',
+        title:'Borrar esta pesta\xf1a',
+        onclick:(e)=>{ e.stopPropagation(); deleteTab(t.id); }
+      },'\u2715'));
+      tabBar.appendChild(pill);
+    });
+    w.appendChild(tabBar);
+  }
   // Tiers
   const tw=h('div',{class:'twrap'});
   (tl.tiers||[]).forEach((tier,ti)=>{

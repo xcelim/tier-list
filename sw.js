@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v42'; // v42: seguia viendose un trocito cuadrado oscuro asomando por una esquina del circulo del avatar incluso con el marco y el recorte de la foto ya separados en dos capas (v40/v41) -- es un fallo conocido de recorte (overflow:hidden+border-radius) en algunos navegadores/WebViews de Android cuando el elemento tiene un hermano con box-shadow al lado; forzada una capa de composicion propia (transform+mask) en esos divs de recorte para que sea robusto tambien ahi
+const CACHE_NAME = 'at-v43'; // v43: pestañas dentro de una misma tierlist -- ahora se pueden tener varios rankings independientes (p.ej. "Animes de temporada" + sus OPs + sus EDs) dentro de la misma tierlist, todos compartiendo el mismo catálogo de personajes, con un botón "+" en el editor para crear cada pestaña y ponerle nombre; se comparten entre colaboradores igual que el resto de la tierlist
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión

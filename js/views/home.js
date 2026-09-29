@@ -520,9 +520,29 @@ function Viewer() {
       `⬇ Descargando imágenes... (${dp.done}/${dp.total})`));
   }
 
+  // FIX (Ronda 41 — pedido explícito: pestañas para varios rankings dentro
+  // de la misma tierlist, ej. "Animes de temporada" + sus OPs + sus EDs):
+  // si esta tierlist tiene más de una pestaña, aquí se elige cuál se está
+  // viendo (r.activeTabId, transitorio — solo cambia lo que se MUESTRA en
+  // el modo Visor, de solo lectura). r.tabs siempre trae al menos una
+  // entrada (openViewer/openOwnViewer/openOfflineViewer la rellenan con la
+  // única pestaña "Principal" si esta tierlist todavía no usa pestañas).
+  const tabs = r.tabs || [];
+  if(tabs.length > 1){
+    const tabBar = h('div', { class: 'tab-bar', style:{marginBottom:'14px'} });
+    tabs.forEach(t=>{
+      tabBar.appendChild(h('div', {
+        class: 'tab-pill' + (t.id===r.activeTabId ? ' active' : ''),
+        onclick: ()=>{ if(t.id!==r.activeTabId){ r.activeTabId=t.id; render(); } }
+      }, t.name));
+    });
+    w.appendChild(tabBar);
+  }
+  const activeTab = tabs.find(t=>t.id===r.activeTabId);
+
   const tw = h('div', { class: 'twrap' });
-  const tiers = r.tiers_data || [];
-  
+  const tiers = (activeTab ? activeTab.tiers : r.tiers_data) || [];
+
   tiers.forEach(tier => {
     const row = h('div', { class: 'trow' });
     const lbl = h('div', { class: 'tlbl', style: { background: tier.color || '#888' } });

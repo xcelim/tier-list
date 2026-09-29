@@ -9,6 +9,16 @@ function openEditor(tlid){
   S._viewerOwnTlId=null;
   S.cid=tlid;
   S.workingTL=JSON.parse(JSON.stringify(tl)); // deep copy
+  // FIX (Ronda 41 — pedido explícito: pestañas para varios rankings dentro
+  // de la misma tierlist, ej. "Animes de temporada" + sus OPs + sus EDs):
+  // nos aseguramos de que exista al menos la pestaña "Principal" y dejamos
+  // S.workingTL.tiers apuntando al ranking de la pestaña que estuviera
+  // activa la última vez (no siempre la primera).
+  ensureTabsInit(S.workingTL);
+  {
+    const _at = S.workingTL.tabs.find(t=>t.id===S.workingTL.activeTabId) || S.workingTL.tabs[0];
+    S.workingTL.tiers = _at.tiers || (_at.tiers=[]);
+  }
   S.hasUnsaved=false;
   // FIX (parpadeo del botón de guardar): en vez de arrancar siempre en null/false
   // y esperar a que syncFromSupabase() responda (lo que hacía que el botón
@@ -40,6 +50,13 @@ function openOfflineViewer(tlid){
   const tl=getTLfromProfile(tlid);
   if(!tl)return;
   const p=activeProfile();
+  // FIX (Ronda 41 — pestañas): igual que openViewer/openOwnViewer (ver
+  // nav.js), si esta tierlist guarda varias pestañas se ofrecen todas aquí
+  // también (el modo Visor sin conexión reutiliza el mismo Viewer()).
+  const tabs = (tl.tabs && tl.tabs.length)
+    ? tl.tabs.map(t=>({ id:t.id, name:t.name, tiers:(t.tiers||[]).map(x=>({ label:x.label, color:x.color, chars:x.chars||[] })) }))
+    : [{ id:'default', name: tl.title || 'Principal', tiers:(tl.tiers||[]).map(t=>({ label:t.label, color:t.color, chars:t.chars||[] })) }];
+  const activeTabId = (tl.activeTabId && tabs.some(t=>t.id===tl.activeTabId)) ? tl.activeTabId : tabs[0].id;
   S.viewingRank={
     id:tl.id,
     user_id:p?p.id:null,
@@ -51,11 +68,118 @@ function openOfflineViewer(tlid){
     // está en el catálogo AC ni se puede pedir por red, solo vive en esta
     // tierlist en concreto.
     tierlists:{ title:tl.title, folder:tl.folder, cover_url:tl.cover_url, customChars:tl.customChars||[] },
-    tiers_data:(tl.tiers||[]).map(t=>({ label:t.label, color:t.color, chars:t.chars||[] }))
+    tiers_data:(tl.tiers||[]).map(t=>({ label:t.label, color:t.color, chars:t.chars||[] })),
+    tabs, activeTabId
   };
   S.viewingUser=p?{ name:p.name }:null;
   S._viewerOwnTlId=null; // sin conexión no se puede editar — no se ofrece el botón "Editar"
   S.page='viewer';
+}
+
+// ============ PESTAÑAS (tabs) dentro de una misma tierlist ============
+// FIX (Ronda 41 — pedido explícito: "estaria bien que dentro de un tier
+// puedas añadir categorias en forma de pestañas... tengo la tierlist
+// animes de temporada, pero quiero rankear los animes, sus op y sus ed con
+// la misma tierlist"): cada pestaña es un ranking completo (sus propios
+// tiers, cada uno con sus propios personajes colocados) pero TODAS
+// comparten el mismo catálogo de personajes de la tierlist (el pool).
+//
+// En vez de mantener S.workingTL.tiers/pool "enlazados en vivo" con la
+// pestaña activa -- lo que obligaría a revisar TODOS los sitios del editor
+// que hacen "tl.tiers = algo nuevo" (crear/borrar tier, deshacer, etc.) para
+// no romper el enlace -- se usa un enfoque más simple: S.workingTL.tiers/
+// pool siguen siendo, como siempre, el ranking "en pantalla" que edita todo
+// el código ya existente sin enterarse de que hay pestañas, y solo en los
+// momentos de TRANSICIÓN (cambiar de pestaña, crear una, borrarla, guardar
+// o cargar de Supabase) se vuelca ese estado dentro/desde
+// S.workingTL.tabs[].tiers -- ver commitActiveTab()/recomputePoolFor() aquí
+// abajo, y los puntos donde se llaman en save.js.
+
+// Si tl.tabs no existe todavía (tierlist creada antes de esta ronda, o
+// nueva), se crea la pestaña "Principal" a partir de lo que ya hubiera.
+function ensureTabsInit(tl){
+  if(!tl) return;
+  if(tl.tabs && tl.tabs.length){
+    if(!tl.activeTabId || !tl.tabs.some(t=>t.id===tl.activeTabId)) tl.activeTabId = tl.tabs[0].id;
+    return;
+  }
+  tl.tabs = [{ id:'default', name: tl.title || 'Principal', tiers: tl.tiers || [] }];
+  tl.activeTabId = 'default';
+}
+
+// Guarda el ranking que se ve ahora mismo (tl.tiers) dentro de su pestaña,
+// para que quede reflejado antes de cambiar de pestaña, guardar, etc.
+function commitActiveTab(tl){
+  if(!tl || !tl.tabs) return;
+  const t = tl.tabs.find(x=>x.id===tl.activeTabId);
+  if(t) t.tiers = tl.tiers;
+}
+
+// Recalcula tl.pool (los personajes conocidos que no estén puestos en
+// ningún tier de la pestaña que se acaba de dejar activa) a partir de TODO
+// lo que ya se conocía (knownIds = pool de antes + lo colocado en la
+// pestaña anterior) -- así ningún personaje desaparece al cambiar de
+// pestaña, aunque esa pestaña nueva/otra todavía no lo tenga colocado.
+function recomputePoolFor(tl, knownIds){
+  const placed = new Set();
+  (tl.tiers||[]).forEach(t=>(t.chars||[]).forEach(id=>placed.add(id)));
+  tl.pool = Array.from(knownIds).filter(id=>!placed.has(id));
+}
+
+function switchTab(tabId){
+  if(!S.workingTL || !S.workingTL.tabs) return;
+  const target = S.workingTL.tabs.find(t=>t.id===tabId);
+  if(!target || tabId===S.workingTL.activeTabId) return;
+  const knownIds = new Set(S.workingTL.pool||[]);
+  (S.workingTL.tiers||[]).forEach(t=>(t.chars||[]).forEach(id=>knownIds.add(id)));
+  commitActiveTab(S.workingTL);
+  S.workingTL.activeTabId = tabId;
+  S.workingTL.tiers = target.tiers || (target.tiers=[]);
+  recomputePoolFor(S.workingTL, knownIds);
+  render();
+}
+
+// El "+" del header del editor: pide un nombre (aceptar/cancelar, igual que
+// al renombrar un tier) y crea una pestaña nueva con el mismo esquema de
+// tiers (mismas filas S/A/B/... con sus colores) pero sin ningún personaje
+// colocado todavía -- "la tierlist vacía", tal cual se pidió.
+function addTab(){
+  if(!S.workingTL) return;
+  const name = prompt('Nombre de la nueva pestaña (máx 25 caracteres):','');
+  if(name===null) return; // Cancelar
+  const clean = (name.trim() || 'Nueva pestaña').slice(0,25);
+  ensureTabsInit(S.workingTL);
+  const knownIds = new Set(S.workingTL.pool||[]);
+  (S.workingTL.tiers||[]).forEach(t=>(t.chars||[]).forEach(id=>knownIds.add(id)));
+  commitActiveTab(S.workingTL);
+  const emptyTiers = (S.workingTL.tiers||[]).map(t=>({ id:t.id, label:t.label, color:t.color, chars:[] }));
+  const newTab = { id:'tab_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name: clean, tiers: emptyTiers };
+  S.workingTL.tabs.push(newTab);
+  S.workingTL.activeTabId = newTab.id;
+  S.workingTL.tiers = newTab.tiers;
+  recomputePoolFor(S.workingTL, knownIds);
+  markUnsaved();
+  render();
+}
+
+function deleteTab(tabId){
+  if(!S.workingTL || !S.workingTL.tabs || S.workingTL.tabs.length<=1){ toast('No puedes borrar la única pestaña','err'); return; }
+  const t = S.workingTL.tabs.find(x=>x.id===tabId);
+  if(!confirm(`¿Borrar la pestaña "${t?t.name:''}" y su ranking? No se puede deshacer (los personajes que solo estuvieran colocados ahí volverán al catálogo general).`)) return;
+  const idx = S.workingTL.tabs.findIndex(x=>x.id===tabId);
+  if(idx<0) return;
+  const wasActive = S.workingTL.activeTabId===tabId;
+  S.workingTL.tabs.splice(idx,1);
+  if(wasActive){
+    const knownIds = new Set(S.workingTL.pool||[]);
+    (S.workingTL.tiers||[]).forEach(x=>(x.chars||[]).forEach(id=>knownIds.add(id)));
+    const nextTab = S.workingTL.tabs[0];
+    S.workingTL.activeTabId = nextTab.id;
+    S.workingTL.tiers = nextTab.tiers || (nextTab.tiers=[]);
+    recomputePoolFor(S.workingTL, knownIds);
+  }
+  markUnsaved();
+  render();
 }
 
 // FIX (Ronda 30 — pedido explícito: pasar solo al modo Visor si se pierde
@@ -114,6 +238,13 @@ async function saveEditorChanges(){
   const idx=p.tls.findIndex(t=>t.id===S.cid);
   if(idx<0)return;
 
+  // FIX (Ronda 41 \u2014 pesta\u00f1as): antes de guardar nada, volcamos el ranking
+  // que se ve ahora mismo (S.workingTL.tiers) dentro de su pesta\u00f1a, para
+  // que lo que se guarde en local/nube incluya tambi\u00e9n los cambios hechos
+  // en la pesta\u00f1a activa.
+  ensureTabsInit(S.workingTL);
+  commitActiveTab(S.workingTL);
+
   S.workingTL.updatedAt=Date.now();
   p.tls[idx]=JSON.parse(JSON.stringify(S.workingTL));
   saveProfiles(); // Cache local
@@ -129,6 +260,11 @@ async function saveEditorChanges(){
       }).eq('id', S.cid);
 
       const tiersData = S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color, chars: t.chars }));
+      // FIX (Ronda 41 \u2014 pesta\u00f1as, "esto aplica para las colaborativas... las
+      // colab lo comparten todo"): se sube tal cual la lista de pesta\u00f1as
+      // completa, para que cualquier colaborador que abra esta tierlist
+      // vea las mismas pesta\u00f1as (ver syncFromSupabase en save.js).
+      const tabsPayload = S.workingTL.tabs.map(t => ({ id: t.id, name: t.name, tiers: (t.tiers||[]).map(x => ({ id: x.id, label: x.label, color: x.color, chars: x.chars||[] })) }));
 
       if (S.workingIsForeignCollab && S.workingRankingId) {
         // 2a. Eres colaborador de la tierlist de un amigo: se actualiza SU
@@ -137,6 +273,8 @@ async function saveEditorChanges(){
         await sbClient.from('user_rankings').update({
           tiers_data: tiersData,
           pool_data: S.workingTL.pool,
+          tabs: tabsPayload,
+          active_tab_id: S.workingTL.activeTabId,
           updated_at: new Date()
         }).eq('id', S.workingRankingId);
       } else {
@@ -146,6 +284,8 @@ async function saveEditorChanges(){
           tierlist_id: S.cid,
           tiers_data: tiersData,
           pool_data: S.workingTL.pool,
+          tabs: tabsPayload,
+          active_tab_id: S.workingTL.activeTabId,
           updated_at: new Date()
         }, { onConflict: 'user_id, tierlist_id' }).select().maybeSingle();
         // Guardamos el id de la fila recién creada/actualizada: hace falta
@@ -186,6 +326,8 @@ async function saveEditorChangesCollab(friendIds){
   const p=activeProfile();if(!p)return;
   const idx=p.tls.findIndex(t=>t.id===S.cid);
   if(idx<0)return;
+  ensureTabsInit(S.workingTL);
+  commitActiveTab(S.workingTL);
   S.workingTL.updatedAt=Date.now();
   p.tls[idx]=JSON.parse(JSON.stringify(S.workingTL));
   saveProfiles();
@@ -199,6 +341,8 @@ async function saveEditorChangesCollab(friendIds){
     }).eq('id', S.cid);
 
     const tiersData = S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color, chars: t.chars }));
+    // FIX (Ronda 41 \u2014 pesta\u00f1as compartidas entre colaboradores):
+    const tabsPayload = S.workingTL.tabs.map(t => ({ id: t.id, name: t.name, tiers: (t.tiers||[]).map(x => ({ id: x.id, label: x.label, color: x.color, chars: x.chars||[] })) }));
 
     // Si ya eras colaborador ajeno de esta fila, no puedes "hacerla tuya" \u2014
     // solo el due\u00f1o original puede compartirla. En ese caso simplemente se
@@ -207,7 +351,7 @@ async function saveEditorChangesCollab(friendIds){
       const { data: existing } = await sbClient.from('user_rankings').select('collaborators').eq('id', S.workingRankingId).maybeSingle();
       const merged = Array.from(new Set([...(existing?.collaborators||[]), ...friendIds]));
       await sbClient.from('user_rankings').update({
-        tiers_data: tiersData, pool_data: S.workingTL.pool, updated_at: new Date(),
+        tiers_data: tiersData, pool_data: S.workingTL.pool, tabs: tabsPayload, active_tab_id: S.workingTL.activeTabId, updated_at: new Date(),
         is_collaborative: true, collaborators: merged
       }).eq('id', S.workingRankingId);
     } else {
@@ -216,6 +360,8 @@ async function saveEditorChangesCollab(friendIds){
         tierlist_id: S.cid,
         tiers_data: tiersData,
         pool_data: S.workingTL.pool,
+        tabs: tabsPayload,
+        active_tab_id: S.workingTL.activeTabId,
         updated_at: new Date(),
         is_collaborative: true,
         collaborators: friendIds
@@ -313,7 +459,21 @@ function handleCollabRealtimeUpdate(payload){
     toast('Un colaborador ha actualizado esta tierlist. Guarda o descarta tus cambios para ver los suyos.', 'info');
     return;
   }
-  if(row.tiers_data && row.tiers_data.length) S.workingTL.tiers = row.tiers_data;
+  // FIX (Ronda 41 \u2014 pesta\u00f1as): si el colaborador que guard\u00f3 tiene pesta\u00f1as,
+  // se cargan tal cual (misma lista para todos, "las colab lo comparten
+  // todo") y S.workingTL.tiers pasa a apuntar a la pesta\u00f1a que T\u00da tuvieras
+  // activa (si sigue existiendo) para no cambiarte de pesta\u00f1a sin avisar.
+  if(row.tabs && row.tabs.length){
+    const keepId = (S.workingTL.activeTabId && row.tabs.some(t=>t.id===S.workingTL.activeTabId)) ? S.workingTL.activeTabId : row.active_tab_id;
+    S.workingTL.tabs = row.tabs;
+    S.workingTL.activeTabId = (keepId && row.tabs.some(t=>t.id===keepId)) ? keepId : row.tabs[0].id;
+    const at = S.workingTL.tabs.find(t=>t.id===S.workingTL.activeTabId) || S.workingTL.tabs[0];
+    S.workingTL.tiers = at.tiers || (at.tiers=[]);
+  } else if(row.tiers_data && row.tiers_data.length){
+    S.workingTL.tiers = row.tiers_data;
+    ensureTabsInit(S.workingTL);
+    commitActiveTab(S.workingTL);
+  }
   if(row.pool_data) S.workingTL.pool = row.pool_data;
   toast('\u2713 Actualizado en tiempo real por un colaborador','ok');
   render();

@@ -354,7 +354,16 @@ async function viewUser(userId) {
 
 async function openViewer(rankData) {
   toast("Cargando modo observador...", "info");
-  S.viewingRank = rankData;
+  // FIX (Ronda 41 — pestañas: varios rankings dentro de la misma tierlist):
+  // rankData viene de un "select('*')" de user_rankings (ver viewUser más
+  // arriba), así que ya trae "tabs"/"active_tab_id" en crudo tal cual están
+  // en la base de datos si esta tierlist los usa. Se normaliza aquí a la
+  // forma que espera Viewer() (home.js): siempre al menos una pestaña.
+  const tabs = (rankData.tabs && rankData.tabs.length)
+    ? rankData.tabs
+    : [{ id:'default', name: (rankData.tierlists && rankData.tierlists.title) || 'Principal', tiers: rankData.tiers_data || [] }];
+  const activeTabId = (rankData.active_tab_id && tabs.some(t=>t.id===rankData.active_tab_id)) ? rankData.active_tab_id : tabs[0].id;
+  S.viewingRank = { ...rankData, tabs, activeTabId };
   S._viewerOwnTlId = null; // esto es el ranking de OTRA persona, no el tuyo
   // Cargamos los personajes necesarios para esa tierlist
   const { data: chars } = await sbClient.from('characters').select('*').eq('tierlist_id', rankData.tierlist_id);
@@ -376,13 +385,23 @@ async function openOwnViewer(tl){
   const uid = userSession.user.id;
   let tiersData = tl.tiers || [];
   let rankingId = tl._rankingId || null;
+  // FIX (Ronda 41 — pestañas): de entrada, lo que ya hubiera en la copia
+  // local (por si acaso la red tarda o falla); se sobreescribe abajo con lo
+  // de Supabase en cuanto responde, que es siempre lo más al día.
+  let tabs = (tl.tabs && tl.tabs.length) ? tl.tabs : null;
+  let activeTabId = tl.activeTabId || null;
   try{
     const { data } = await sbClient.from('user_rankings').select('*')
       .eq('tierlist_id', tl.id)
       .or(`user_id.eq.${uid},collaborators.cs.{${uid}}`)
       .limit(1).maybeSingle();
-    if(data){ tiersData = data.tiers_data || tiersData; rankingId = data.id; }
+    if(data){
+      tiersData = data.tiers_data || tiersData; rankingId = data.id;
+      if(data.tabs && data.tabs.length){ tabs = data.tabs; activeTabId = data.active_tab_id || data.tabs[0].id; }
+    }
   }catch(e){ console.error(e); }
+  if(!tabs || !tabs.length){ tabs = [{ id:'default', name: tl.title || 'Principal', tiers: tiersData }]; activeTabId = 'default'; }
+  if(!activeTabId || !tabs.some(t=>t.id===activeTabId)) activeTabId = tabs[0].id;
 
   const { data: chars } = await sbClient.from('characters').select('*').eq('tierlist_id', tl.id);
   // FIX (Ronda 35 — personajes que faltaban en el modo Visor sin conexión):
@@ -395,7 +414,9 @@ async function openOwnViewer(tl){
   // FIX (Ronda 33): se añade "customChars" aquí (antes faltaba) para que un
   // personaje añadido a mano (con su propia imagen) se encuentre igual que
   // ya hace el modo Visor sin conexión — ver Viewer()/getChar() en home.js.
-  S.viewingRank = { id: rankingId, user_id: uid, tiers_data: tiersData, tierlists: { title: tl.title, folder: tl.folder, cover_url: tl.cover_url, customChars: tl.customChars||[] } };
+  // FIX (Ronda 41): se añaden "tabs"/"activeTabId" para poder ver también
+  // las demás pestañas (rankings) de esta tierlist desde el modo Visor.
+  S.viewingRank = { id: rankingId, user_id: uid, tiers_data: tiersData, tabs, activeTabId, tierlists: { title: tl.title, folder: tl.folder, cover_url: tl.cover_url, customChars: tl.customChars||[] } };
   S._viewerOwnTlId = tl.id;
   S.page = 'viewer';
   setRoute && setRoute('viewer', tl.id);

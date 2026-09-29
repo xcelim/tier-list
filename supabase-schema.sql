@@ -380,3 +380,23 @@ do $$ begin
   alter publication supabase_realtime add table user_rankings;
 exception when duplicate_object then null;
 end $$;
+
+
+-- ============================================================================
+-- 7) PESTAÑAS DENTRO DE UNA MISMA TIERLIST (Ronda 41)
+-- ----------------------------------------------------------------------------
+-- Pedido explícito: poder tener varios rankings independientes dentro de la
+-- misma tierlist (mismo catálogo de personajes), por ejemplo "Animes de
+-- temporada" + sus OPs + sus EDs, cada uno en su propia "pestaña", con un
+-- botón "+" en el editor para crearlas y ponerles nombre.
+--
+-- "tabs" guarda la lista completa de pestañas ([{id,name,tiers:[...]}]) y
+-- "active_tab_id" cuál era la última seleccionada. "tiers_data"/"pool_data"
+-- SIGUEN representando solo la pestaña activa (se escriben igual que
+-- siempre en cada guardado) para que todo el código que ya existía antes de
+-- esta ronda (plantillas globales, logros, Visor/descarga sin conexión...)
+-- siga funcionando sin cambios aunque nunca llegue a enterarse de que existen
+-- las pestañas.
+-- ============================================================================
+alter table user_rankings add column if not exists tabs jsonb;
+alter table user_rankings add column if not exists active_tab_id text;

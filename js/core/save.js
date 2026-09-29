@@ -27,10 +27,19 @@ async function saveProfiles() {
 function collectTierImageUrls(tls){
   const urls = new Set();
   (tls||[]).forEach(tl=>{
-    (tl.tiers||[]).forEach(t=>{
-      (t.chars||[]).forEach(cid=>{
-        const url = charImg(cid, tl);
-        if(url && url.startsWith('http')) urls.add(url);
+    // FIX (Ronda 41 — pestañas): si esta tierlist tiene varias pestañas,
+    // cada una es un ranking independiente con sus propios personajes
+    // colocados -- hay que descargar las imágenes de TODAS, no solo la que
+    // esté activa ahora mismo, si no, cambiar de pestaña sin conexión
+    // mostraría huecos en las que no se estaban viendo cuando se pulsó
+    // "Descargar".
+    const tierGroups = (tl.tabs && tl.tabs.length) ? tl.tabs.map(t=>t.tiers||[]) : [tl.tiers||[]];
+    tierGroups.forEach(tiers=>{
+      (tiers||[]).forEach(t=>{
+        (t.chars||[]).forEach(cid=>{
+          const url = charImg(cid, tl);
+          if(url && url.startsWith('http')) urls.add(url);
+        });
       });
     });
   });
@@ -121,7 +130,10 @@ async function downloadTierlistForOffline(tlid){
   if(tiersSource === null){ toast('No se encontró esa tierlist', 'err'); return; }
   const folder = (shownIsThisTl && S.viewingRank.tierlists && S.viewingRank.tierlists.folder) || (localTl && localTl.folder);
   const customChars = (shownIsThisTl && S.viewingRank.tierlists && S.viewingRank.tierlists.customChars) || (localTl && localTl.customChars) || [];
-  const tlForUrls = { folder, customChars, tiers: tiersSource };
+  // FIX (Ronda 41 — pestañas): si hay varias, se incluyen todas para que
+  // collectTierImageUrls() descargue las imágenes de cada una.
+  const tabsSource = (shownIsThisTl && S.viewingRank.tabs) || (localTl && localTl.tabs) || null;
+  const tlForUrls = { folder, customChars, tiers: tiersSource, tabs: tabsSource };
   const urls = collectTierImageUrls([tlForUrls]);
   if(!urls.size){ toast('Esta tierlist todavía no tiene personajes colocados', 'info'); return; }
 
@@ -397,8 +409,29 @@ async function syncFromSupabase() {
           if (t) t.chars = rd.chars;
         });
       }
+
+      // FIX (Ronda 41 — pestañas): si este ranking ya tiene varias pestañas
+      // guardadas en la nube (propias o de un colaborador), se cargan aquí
+      // y S.workingTL.tiers pasa a ser el de la pestaña activa (no siempre
+      // la primera, si se había dejado otra seleccionada la última vez que
+      // se guardó).
+      if (myRank.tabs && myRank.tabs.length) {
+        S.workingTL.tabs = myRank.tabs;
+        S.workingTL.activeTabId = (myRank.active_tab_id && myRank.tabs.some(t => t.id === myRank.active_tab_id)) ? myRank.active_tab_id : myRank.tabs[0].id;
+        const at = S.workingTL.tabs.find(t => t.id === S.workingTL.activeTabId) || S.workingTL.tabs[0];
+        S.workingTL.tiers = at.tiers || (at.tiers = []);
+      }
+
       // Registrar qué personajes ya están ubicados
       S.workingTL.tiers.forEach(t => (t.chars || []).forEach(id => placedIds.add(id)));
+    }
+
+    // Nos aseguramos de que exista al menos la pestaña "Principal" (ranking
+    // nuevo, o todavía sin pestañas) y la dejamos al día con lo que se
+    // acaba de cargar arriba.
+    if (typeof ensureTabsInit === 'function') {
+      ensureTabsInit(S.workingTL);
+      if (typeof commitActiveTab === 'function') commitActiveTab(S.workingTL);
     }
 
     // 4. EL POOL COMPARTIDO DINÁMICO:
