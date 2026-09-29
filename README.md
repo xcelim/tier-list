@@ -1659,6 +1659,27 @@ verse solo en la pestaña, lo mismo con las reacciones".
   hacía, por error de una ronda muy anterior a esta) — se quedan tal cual,
   solo se les asigna `'default'` como pestaña.
 
+## 🆕 Ronda 41c — "Descargar" con pestañas volvía a bajar todo siempre, no solo los cambios
+
+Feedback explícito: "siempre descarga todo, esté en la pestaña que esté,
+descarga las 14 fotos que hay... y siempre descarga todo, no solo los
+cambios. Recuerda que debe descargar todas las pestañas, pero solo los
+cambios" (visto en una tierlist colaborativa).
+
+- **Causa**: al terminar de descargar, la app limpia del almacén cualquier
+  imagen que ya no haga falta (`gcCharImageCache`), mirando SOLO tu copia
+  local del dispositivo (la que se guarda al editar/guardar). Si tu copia
+  local todavía no conocía una pestaña —por ejemplo, la creó un
+  colaborador y tú solo la habías visto en modo Visor, sin volver a abrir
+  el editor en ESE dispositivo—, esa limpieza borraba sin querer las
+  imágenes que se ACABABAN de descargar para ella. Así, la siguiente vez
+  que pulsabas "Descargar", tocaba volver a bajarlas todas, una y otra vez.
+- **Arreglado**: antes de limpiar el almacén, se guarda en tu copia local
+  la versión de las pestañas que se está viendo en ese momento (la más
+  reciente), así la limpieza ya sabe que esas imágenes hacen falta y no las
+  borra. Comprobado que sigue funcionando igual que siempre en una tierlist
+  normal sin pestañas.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

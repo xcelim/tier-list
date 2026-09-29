@@ -137,6 +137,29 @@ async function downloadTierlistForOffline(tlid){
   const urls = collectTierImageUrls([tlForUrls]);
   if(!urls.size){ toast('Esta tierlist todavía no tiene personajes colocados', 'info'); return; }
 
+  // FIX (Ronda 41c — pedido explícito: "siempre descarga todo, no solo los
+  // cambios"): si lo que se está viendo (S.viewingRank) trae pestañas más
+  // frescas que tu copia local (localTl/p.tls) — por ejemplo, un
+  // colaborador añadió una pestaña nueva y tú todavía no habías vuelto a
+  // abrir el editor de esta tierlist en ESTE dispositivo — había que
+  // guardar esa foto fresca en tu copia local AQUÍ, antes de llamar a
+  // gcCharImageCache() unas líneas más abajo. Si no, gcCharImageCache()
+  // (que decide qué imágenes conservar mirando SOLO tu copia local, ver su
+  // propio comentario) no sabía nada de esa pestaña nueva y borraba sin
+  // querer las imágenes que se ACABABAN de descargar para ella — así que la
+  // siguiente vez que pulsabas "Descargar" había que volver a bajarlas
+  // todas, una y otra vez, en vez de solo los cambios de verdad.
+  if(shownIsThisTl && tabsSource){
+    const p = activeProfile();
+    const idx = p && p.tls.findIndex(t=>t.id===tlid);
+    if(p && idx>=0){
+      p.tls[idx].tabs = tabsSource;
+      if(S.viewingRank.activeTabId) p.tls[idx].activeTabId = S.viewingRank.activeTabId;
+      if(tiersSource) p.tls[idx].tiers = tiersSource;
+      saveProfiles();
+    }
+  }
+
   // Primero comprobamos cuáles YA están en caché, sin descargar nada — así
   // el contador de progreso solo cuenta las de verdad nuevas, no el total
   // de la tierlist entera.
