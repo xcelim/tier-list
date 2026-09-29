@@ -598,11 +598,17 @@ function Viewer() {
     w.appendChild(h('div', {class:'offline-banner'}, '📴 Reacciones y comentarios no disponibles sin conexión.'));
   } else {
     const ownerId = r.user_id || (S.viewingUser && S.viewingUser.id);
+    // FIX (Ronda 41 — pedido explícito: "el comentario si que debe verse
+    // solo en la pestaña, lo mismo con las reacciones"): se pasa también la
+    // pestaña que se está viendo ahora mismo (r.activeTabId), para que cada
+    // comentario/reacción quede atado a SU pestaña y no salga en las demás
+    // (ver tab_id en supabase-schema.sql y comments.js/reactions.js).
+    const activeTabId = r.activeTabId || 'default';
     if(typeof ReactionsBar==='function' && r.id){
-      w.appendChild(ReactionsBar(r.id, ownerId));
+      w.appendChild(ReactionsBar(r.id, activeTabId, ownerId));
     }
     if(typeof CommentsSection==='function' && r.id){
-      w.appendChild(CommentsSection(r.id, ownerId));
+      w.appendChild(CommentsSection(r.id, activeTabId, ownerId));
     }
   }
 

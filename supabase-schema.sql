@@ -243,57 +243,88 @@ create index if not exists idx_notifications_user on notifications(user_id, crea
 -- persona aunque compartan la misma plantilla.
 -- ============================================================================
 
-drop table if exists tierlist_comments cascade;
+-- FIX (Ronda 41 — pedido explícito: "el comentario si que debe verse solo
+-- en la pestaña, lo mismo con las reacciones"): con las pestañas, un mismo
+-- "ranking_id" (una sola fila de user_rankings) ahora puede contener VARIOS
+-- rankings (uno por pestaña) — comentarios/reacciones guardados solo por
+-- ranking_id salían en TODAS las pestañas de esa tierlist por igual, aunque
+-- el comentario fuera solo sobre una de ellas. Se añade "tab_id" para que
+-- cada comentario/reacción quede atado también a la pestaña concreta desde
+-- la que se escribió (las tierlists de antes de esta ronda, con una sola
+-- pestaña, usan 'default' y siguen funcionando igual que siempre).
+--
+-- OJO: aquí ya NO se hace "drop table" — antes se borraba y recreaba esta
+-- tabla entera cada vez que se re-ejecutaba este archivo (pensado para
+-- cuando la tabla se creó por primera vez), pero eso significa que
+-- volver a pegar este archivo en el SQL Editor de Supabase, como se pide
+-- en cada ronda que toca el esquema, BORRARÍA todos los comentarios/
+-- reacciones ya existentes. Se usa "create table if not exists" +
+-- "alter table add column if not exists" en su lugar, que no borra nada.
 
-create table tierlist_comments (
+create table if not exists tierlist_comments (
   id uuid primary key default gen_random_uuid(),
   ranking_id uuid references user_rankings(id) on delete cascade not null,
   user_id uuid references profiles(id) on delete cascade not null,
   content text not null check (char_length(content) <= 500),
   created_at timestamptz default now()
 );
+alter table tierlist_comments add column if not exists tab_id text not null default 'default';
 
 alter table tierlist_comments enable row level security;
 
+drop policy if exists "cualquiera logueado puede leer comentarios" on tierlist_comments;
 create policy "cualquiera logueado puede leer comentarios" on tierlist_comments for select
   using (true);
 
+drop policy if exists "cualquiera logueado puede comentar" on tierlist_comments;
 create policy "cualquiera logueado puede comentar" on tierlist_comments for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "solo borras tus propios comentarios" on tierlist_comments;
 create policy "solo borras tus propios comentarios" on tierlist_comments for delete
   using (auth.uid() = user_id);
 
-create index idx_comments_ranking on tierlist_comments(ranking_id, created_at);
+create index if not exists idx_comments_ranking_tab on tierlist_comments(ranking_id, tab_id, created_at);
 
 
 -- ============================================================================
 -- 4) REACCIONES con emoji en tierlists (modo Visor)
---    Mismo arreglo que los comentarios: por ranking_id, no por tierlist_id.
+--    Mismo arreglo que los comentarios: por ranking_id (+ tab_id desde la
+--    Ronda 41), no por tierlist_id.
 -- ============================================================================
 
-drop table if exists tierlist_reactions cascade;
-
-create table tierlist_reactions (
+create table if not exists tierlist_reactions (
   id uuid primary key default gen_random_uuid(),
   ranking_id uuid references user_rankings(id) on delete cascade not null,
   user_id uuid references profiles(id) on delete cascade not null,
   emoji text not null,
-  created_at timestamptz default now(),
-  unique(ranking_id, user_id) -- una reacción por usuario y ranking (se puede cambiar)
+  created_at timestamptz default now()
 );
+alter table tierlist_reactions add column if not exists tab_id text not null default 'default';
+
+-- FIX (Ronda 41): la restricción "una reacción por usuario y ranking" pasa
+-- a ser "una reacción por usuario, ranking Y pestaña" — si no, reaccionar
+-- en la pestaña "OPs" pisaría (por el "unique") la reacción que ya tuvieras
+-- puesta en "Principal".
+alter table tierlist_reactions drop constraint if exists tierlist_reactions_ranking_id_user_id_key;
+alter table tierlist_reactions drop constraint if exists tierlist_reactions_ranking_tab_user_key;
+alter table tierlist_reactions add constraint tierlist_reactions_ranking_tab_user_key unique(ranking_id, tab_id, user_id);
 
 alter table tierlist_reactions enable row level security;
 
+drop policy if exists "cualquiera logueado puede leer reacciones" on tierlist_reactions;
 create policy "cualquiera logueado puede leer reacciones" on tierlist_reactions for select
   using (true);
 
+drop policy if exists "cualquiera logueado puede reaccionar" on tierlist_reactions;
 create policy "cualquiera logueado puede reaccionar" on tierlist_reactions for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "actualizas tu propia reacción" on tierlist_reactions;
 create policy "actualizas tu propia reacción" on tierlist_reactions for update
   using (auth.uid() = user_id);
 
+drop policy if exists "borras tu propia reacción" on tierlist_reactions;
 create policy "borras tu propia reacción" on tierlist_reactions for delete
   using (auth.uid() = user_id);
 

@@ -8,37 +8,51 @@
 // ejemplo, la tierlist "Waifus" por defecto). Guardarlos por tierlist_id
 // hacía que un comentario en la tierlist de un amigo apareciera también en
 // la tuya, porque ambos comparten la misma plantilla — ese era el bug.
+//
+// FIX (Ronda 41 — pedido explícito: "el comentario si que debe verse solo
+// en la pestaña"): con las pestañas, una misma fila de user_rankings (un
+// solo ranking_id) puede llevar VARIOS rankings dentro — comentarios
+// guardados solo por ranking_id salían en TODAS las pestañas de esa
+// tierlist por igual. Ahora también se guardan por "tab_id" (la pestaña
+// concreta desde la que se escribió) y la caché en memoria (S.comments) se
+// indexa por "ranking_id:tab_id" en vez de solo "ranking_id", para que
+// cambiar de pestaña muestre sus propios comentarios y vuelva a pedir los
+// de la otra al volver a ella.
+function _commentsCacheKey(rankingId, tabId){ return rankingId + ':' + (tabId || 'default'); }
 
-async function fetchComments(rankingId) {
+async function fetchComments(rankingId, tabId) {
   if (!sbClient || !rankingId) return;
+  const key = _commentsCacheKey(rankingId, tabId);
   try {
     const { data, error } = await sbClient.from('tierlist_comments')
       .select('*, author:profiles!user_id(name, avatar_url, avatar_frame)')
       .eq('ranking_id', rankingId)
+      .eq('tab_id', tabId || 'default')
       .order('created_at', { ascending: true });
     if (error) throw error;
-    S.comments[rankingId] = data || [];
+    S.comments[key] = data || [];
   } catch (e) {
-    S.comments[rankingId] = null; // null = "no disponible" (distinto de [] = "sin comentarios todavía")
+    S.comments[key] = null; // null = "no disponible" (distinto de [] = "sin comentarios todavía")
     console.warn('[comments] no disponibles todavía:', e.message || e);
   }
   render();
 }
 
-async function postComment(rankingId, ownerUserId) {
+async function postComment(rankingId, tabId, ownerUserId) {
   const text = (S.commentDraft || '').trim();
   if (!text || !userSession || !sbClient) return;
   if (text.length > 500) { toast('Máximo 500 caracteres', 'err'); return; }
+  const key = _commentsCacheKey(rankingId, tabId);
 
   const { data, error } = await sbClient.from('tierlist_comments')
-    .insert({ ranking_id: rankingId, user_id: userSession.user.id, content: text })
+    .insert({ ranking_id: rankingId, tab_id: tabId || 'default', user_id: userSession.user.id, content: text })
     .select('*, author:profiles!user_id(name, avatar_url, avatar_frame)')
     .single();
 
   if (error) { toast('No se pudo publicar el comentario: ' + error.message, 'err'); return; }
 
-  if (!Array.isArray(S.comments[rankingId])) S.comments[rankingId] = [];
-  S.comments[rankingId].push(data);
+  if (!Array.isArray(S.comments[key])) S.comments[key] = [];
+  S.comments[key].push(data);
   S.commentDraft = '';
   render();
 
@@ -47,10 +61,11 @@ async function postComment(rankingId, ownerUserId) {
   }
 }
 
-async function deleteComment(commentId, rankingId) {
+async function deleteComment(commentId, rankingId, tabId) {
   if (!sbClient) return;
-  if (Array.isArray(S.comments[rankingId])) {
-    S.comments[rankingId] = S.comments[rankingId].filter(c => c.id !== commentId);
+  const key = _commentsCacheKey(rankingId, tabId);
+  if (Array.isArray(S.comments[key])) {
+    S.comments[key] = S.comments[key].filter(c => c.id !== commentId);
     render();
   }
   await sbClient.from('tierlist_comments').delete().eq('id', commentId);
@@ -58,15 +73,16 @@ async function deleteComment(commentId, rankingId) {
 
 // Construye el bloque de comentarios (lista + caja de texto) para pegar al
 // final de Viewer(). No se usa en ningún otro sitio de la app.
-function CommentsSection(rankingId, ownerUserId) {
+function CommentsSection(rankingId, tabId, ownerUserId) {
+  const key = _commentsCacheKey(rankingId, tabId);
   const box = h('div', { class: 'comments-box' });
   box.appendChild(h('div', { class: 'comments-title' }, '💬 Comentarios'));
 
-  const list = S.comments[rankingId];
+  const list = S.comments[key];
 
   if (list === undefined) {
     // Todavía no se ha pedido — la disparamos una vez y mostramos "cargando"
-    fetchComments(rankingId);
+    fetchComments(rankingId, tabId);
     box.appendChild(h('div', { class: 'comments-empty' }, 'Cargando comentarios...'));
   } else if (list === null) {
     box.appendChild(h('div', { class: 'comments-empty' }, 'Los comentarios no están disponibles todavía en este proyecto.'));
@@ -104,7 +120,7 @@ function CommentsSection(rankingId, ownerUserId) {
       if (mine) {
         item.appendChild(h('button', {
           class: 'comment-del', title: 'Eliminar',
-          onclick: () => deleteComment(c.id, rankingId)
+          onclick: () => deleteComment(c.id, rankingId, tabId)
         }, '✕'));
       }
       listEl.appendChild(item);
@@ -120,7 +136,7 @@ function CommentsSection(rankingId, ownerUserId) {
       oninput: (e) => { S.commentDraft = e.target.value; }
     }));
     composer.appendChild(h('button', {
-      class: 'btn bp bsm', onclick: () => postComment(rankingId, ownerUserId)
+      class: 'btn bp bsm', onclick: () => postComment(rankingId, tabId, ownerUserId)
     }, 'Comentar'));
     box.appendChild(composer);
   } else {

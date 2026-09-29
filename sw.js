@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v43'; // v43: pestañas dentro de una misma tierlist -- ahora se pueden tener varios rankings independientes (p.ej. "Animes de temporada" + sus OPs + sus EDs) dentro de la misma tierlist, todos compartiendo el mismo catálogo de personajes, con un botón "+" en el editor para crear cada pestaña y ponerle nombre; se comparten entre colaboradores igual que el resto de la tierlist
+const CACHE_NAME = 'at-v44'; // v44: los comentarios y reacciones de una tierlist con pestañas (Ronda 41) salían igual en todas sus pestañas -- ahora quedan atados a la pestaña concreta desde la que se escriben (tab_id en tierlist_comments/tierlist_reactions)
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión

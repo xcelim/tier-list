@@ -6,51 +6,62 @@
 // ranking personal de cada usuario), no por "tierlist_id" (la plantilla
 // compartida). Guardarlas por tierlist_id hacía que una reacción en la
 // tierlist de un amigo apareciera también en la tuya.
+//
+// FIX (Ronda 41 — pedido explícito: "lo mismo con las reacciones" [que
+// deben verse solo en su pestaña]): igual que en comments.js, se añade
+// "tab_id" (la pestaña concreta) y la caché en memoria (S.reactions) pasa a
+// indexarse por "ranking_id:tab_id" en vez de solo "ranking_id".
 
 const REACTION_EMOJIS = ['🔥', '😍', '💀', '😂', '👑', '😭'];
 
-async function fetchReactions(rankingId) {
+function _reactionsCacheKey(rankingId, tabId){ return rankingId + ':' + (tabId || 'default'); }
+
+async function fetchReactions(rankingId, tabId) {
   if (!sbClient || !rankingId) return;
+  const key = _reactionsCacheKey(rankingId, tabId);
   try {
     const { data, error } = await sbClient.from('tierlist_reactions')
       .select('emoji, user_id')
-      .eq('ranking_id', rankingId);
+      .eq('ranking_id', rankingId)
+      .eq('tab_id', tabId || 'default');
     if (error) throw error;
-    S.reactions[rankingId] = data || [];
+    S.reactions[key] = data || [];
   } catch (e) {
-    S.reactions[rankingId] = null;
+    S.reactions[key] = null;
   }
   render();
 }
 
-async function toggleReaction(rankingId, emoji, ownerUserId) {
+async function toggleReaction(rankingId, tabId, emoji, ownerUserId) {
   if (!userSession || !sbClient) return;
-  const list = S.reactions[rankingId] || [];
+  const key = _reactionsCacheKey(rankingId, tabId);
+  const list = S.reactions[key] || [];
   const mine = list.find(r => r.user_id === userSession.user.id);
 
   if (mine && mine.emoji === emoji) {
     // Ya tenías esta misma reacción puesta → quitarla
-    S.reactions[rankingId] = list.filter(r => r.user_id !== userSession.user.id);
+    S.reactions[key] = list.filter(r => r.user_id !== userSession.user.id);
     render();
-    await sbClient.from('tierlist_reactions').delete().eq('ranking_id', rankingId).eq('user_id', userSession.user.id);
+    await sbClient.from('tierlist_reactions').delete().eq('ranking_id', rankingId).eq('tab_id', tabId || 'default').eq('user_id', userSession.user.id);
     return;
   }
 
   // Nueva reacción o cambiar de emoji
-  S.reactions[rankingId] = [...list.filter(r => r.user_id !== userSession.user.id), { emoji, user_id: userSession.user.id }];
+  S.reactions[key] = [...list.filter(r => r.user_id !== userSession.user.id), { emoji, user_id: userSession.user.id }];
   render();
 
   const { error } = await sbClient.from('tierlist_reactions')
-    .upsert({ ranking_id: rankingId, user_id: userSession.user.id, emoji }, { onConflict: 'ranking_id,user_id' });
+    .upsert({ ranking_id: rankingId, tab_id: tabId || 'default', user_id: userSession.user.id, emoji }, { onConflict: 'ranking_id,tab_id,user_id' });
 
   if (!error && !mine && ownerUserId) {
     createNotification(ownerUserId, 'reaction', { message: `ha reaccionado con ${emoji} a tu tierlist.` });
   }
 }
 
-function ReactionsBar(rankingId, ownerUserId) {
-  const list = S.reactions[rankingId];
-  if (list === undefined) { fetchReactions(rankingId); }
+function ReactionsBar(rankingId, tabId, ownerUserId) {
+  const key = _reactionsCacheKey(rankingId, tabId);
+  const list = S.reactions[key];
+  if (list === undefined) { fetchReactions(rankingId, tabId); }
 
   const bar = h('div', { class: 'reactions-bar' });
   const counts = {};
@@ -62,7 +73,7 @@ function ReactionsBar(rankingId, ownerUserId) {
     const active = mine && mine.emoji === emoji;
     const props = {
       class: 'reaction-pill' + (active ? ' reaction-active' : ''),
-      onclick: () => toggleReaction(rankingId, emoji, ownerUserId)
+      onclick: () => toggleReaction(rankingId, tabId, emoji, ownerUserId)
     };
     // OJO: el helper h() hace setAttribute('disabled', false) tal cual, y
     // en HTML "disabled" es un atributo booleano — su sola presencia (aunque

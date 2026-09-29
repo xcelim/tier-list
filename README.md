@@ -1639,6 +1639,26 @@ crea para el otro, las colab lo comparten todo".
   esto, las pestañas seguirán funcionando en tu propio dispositivo pero no
   se guardarán en la nube ni se compartirán con tus colaboradores.
 
+## 🆕 Ronda 41b — los comentarios y reacciones salían iguales en todas las pestañas
+
+Feedback explícito nada más probar las pestañas: "el comentario si que debe
+verse solo en la pestaña, lo mismo con las reacciones".
+
+- **Causa**: los comentarios y reacciones se guardaban solo por
+  `ranking_id` (la fila de `user_rankings`), y ahora esa misma fila puede
+  contener varias pestañas — así que un comentario escrito en "OPs" salía
+  también al ver "Principal", y viceversa.
+- **Arreglado**: se añade una columna `tab_id` a `tierlist_comments` y
+  `tierlist_reactions` — cada comentario/reacción queda atado también a la
+  pestaña concreta desde la que se escribió. Las tierlists de antes de esta
+  ronda (con una sola pestaña) usan `'default'` y siguen funcionando igual
+  que siempre.
+- ⚠️ **Vuelve a ejecutar `supabase-schema.sql` otra vez** (el mismo paso de
+  la Ronda 41, ahora con esta columna añadida). Esta vez el archivo ya NO
+  borra tus comentarios/reacciones existentes al re-ejecutarlo (antes sí lo
+  hacía, por error de una ronda muy anterior a esta) — se quedan tal cual,
+  solo se les asigna `'default'` como pestaña.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,
