@@ -11,14 +11,17 @@ function openEditor(tlid){
   S.workingTL=JSON.parse(JSON.stringify(tl)); // deep copy
   // FIX (Ronda 41 — pedido explícito: pestañas para varios rankings dentro
   // de la misma tierlist, ej. "Animes de temporada" + sus OPs + sus EDs):
-  // nos aseguramos de que exista al menos la pestaña "Principal" y dejamos
-  // S.workingTL.tiers apuntando al ranking de la pestaña que estuviera
-  // activa la última vez (no siempre la primera).
+  // nos aseguramos de que exista al menos la pestaña "Principal".
+  // FIX (Ronda 41e — pedido explícito: "siempre que salimos y entramos no
+  // debemos aparecer en otra que esa [la de la izquierda del todo]... si
+  // entro a esa tierlist, siempre se debe entrar en la primera pestaña"):
+  // se entra SIEMPRE por la primera pestaña (la más a la izquierda), nunca
+  // por la que se hubiera dejado activa la última vez — eso solo importa
+  // mientras sigues DENTRO del editor/visor (cambiar de pestaña sin volver
+  // a entrar), no al reabrir la tierlist desde cero.
   ensureTabsInit(S.workingTL);
-  {
-    const _at = S.workingTL.tabs.find(t=>t.id===S.workingTL.activeTabId) || S.workingTL.tabs[0];
-    S.workingTL.tiers = _at.tiers || (_at.tiers=[]);
-  }
+  S.workingTL.activeTabId = S.workingTL.tabs[0].id;
+  S.workingTL.tiers = S.workingTL.tabs[0].tiers || (S.workingTL.tabs[0].tiers=[]);
   S.hasUnsaved=false;
   // FIX (parpadeo del botón de guardar): en vez de arrancar siempre en null/false
   // y esperar a que syncFromSupabase() responda (lo que hacía que el botón
@@ -56,7 +59,10 @@ function openOfflineViewer(tlid){
   const tabs = (tl.tabs && tl.tabs.length)
     ? tl.tabs.map(t=>({ id:t.id, name:t.name, tiers:(t.tiers||[]).map(x=>({ label:x.label, color:x.color, chars:x.chars||[] })) }))
     : [{ id:'default', name: tl.title || 'Principal', tiers:(tl.tiers||[]).map(t=>({ label:t.label, color:t.color, chars:t.chars||[] })) }];
-  const activeTabId = (tl.activeTabId && tabs.some(t=>t.id===tl.activeTabId)) ? tl.activeTabId : tabs[0].id;
+  // FIX (Ronda 41e — pedido explícito: entrar siempre por la primera
+  // pestaña, la de más a la izquierda, nunca por la que se hubiera dejado
+  // activa la última vez):
+  const activeTabId = tabs[0].id;
   S.viewingRank={
     id:tl.id,
     user_id:p?p.id:null,
@@ -136,6 +142,26 @@ function switchTab(tabId){
   S.workingTL.activeTabId = tabId;
   S.workingTL.tiers = target.tiers || (target.tiers=[]);
   recomputePoolFor(S.workingTL, knownIds);
+  render();
+}
+
+// FIX (Ronda 41e — pedido explícito: "poder elegir el orden de las
+// pestañas: en plan mover de izq a der y vice versa"): solo reordena el
+// array S.workingTL.tabs (dir=-1 mover a la izquierda, dir=+1 a la
+// derecha) — no toca activeTabId ni tiers/pool de ninguna pestaña, así que
+// no hace falta recalcular nada más. Como al entrar de nuevo a la tierlist
+// siempre se abre la PRIMERA pestaña (ver openEditor/openOwnViewer/
+// openViewer/openOfflineViewer/syncFromSupabase), mover una pestaña al
+// principio es lo que la convierte en la "Principal" a partir de ahora.
+function moveTab(tabId, dir){
+  if(!S.workingTL || !S.workingTL.tabs) return;
+  const tabs = S.workingTL.tabs;
+  const idx = tabs.findIndex(t=>t.id===tabId);
+  if(idx<0) return;
+  const newIdx = idx + dir;
+  if(newIdx<0 || newIdx>=tabs.length) return;
+  [tabs[idx], tabs[newIdx]] = [tabs[newIdx], tabs[idx]];
+  markUnsaved();
   render();
 }
 

@@ -1618,3 +1618,17 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
   transition:.15s;
 }
 .tab-pill-close:hover{opacity:1;background:var(--red,#e5484d);color:#fff}
+
+/* FIX (Ronda 41e — pedido explícito: "poder elegir el orden de las
+   pestañas: en plan mover de izq a der y vice versa"): flechitas de
+   reordenar, solo en el editor (en el Visor las pestañas son de solo
+   lectura, no llevan estos botones). */
+.tab-pill-label{padding:0 1px}
+.tab-pill-move{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:16px;height:16px;border-radius:50%;
+  font-size:13px;line-height:1;color:inherit;opacity:.6;
+  transition:.15s;
+}
+.tab-pill-move:hover{opacity:1;background:var(--accent2);color:#fff}
+.tab-pill-move.disabled{opacity:.15;cursor:default;pointer-events:none}

@@ -362,7 +362,10 @@ async function openViewer(rankData) {
   const tabs = (rankData.tabs && rankData.tabs.length)
     ? rankData.tabs
     : [{ id:'default', name: (rankData.tierlists && rankData.tierlists.title) || 'Principal', tiers: rankData.tiers_data || [] }];
-  const activeTabId = (rankData.active_tab_id && tabs.some(t=>t.id===rankData.active_tab_id)) ? rankData.active_tab_id : tabs[0].id;
+  // FIX (Ronda 41e — pedido explícito: "siempre se debe entrar en la
+  // primera pestaña, la principal, la de la izquierda del todo"): se entra
+  // SIEMPRE por la primera de la lista, se ignora "active_tab_id" para esto.
+  const activeTabId = tabs[0].id;
   S.viewingRank = { ...rankData, tabs, activeTabId };
   S._viewerOwnTlId = null; // esto es el ranking de OTRA persona, no el tuyo
   // Cargamos los personajes necesarios para esa tierlist
@@ -397,11 +400,14 @@ async function openOwnViewer(tl){
       .limit(1).maybeSingle();
     if(data){
       tiersData = data.tiers_data || tiersData; rankingId = data.id;
-      if(data.tabs && data.tabs.length){ tabs = data.tabs; activeTabId = data.active_tab_id || data.tabs[0].id; }
+      if(data.tabs && data.tabs.length){ tabs = data.tabs; }
     }
   }catch(e){ console.error(e); }
-  if(!tabs || !tabs.length){ tabs = [{ id:'default', name: tl.title || 'Principal', tiers: tiersData }]; activeTabId = 'default'; }
-  if(!activeTabId || !tabs.some(t=>t.id===activeTabId)) activeTabId = tabs[0].id;
+  if(!tabs || !tabs.length){ tabs = [{ id:'default', name: tl.title || 'Principal', tiers: tiersData }]; }
+  // FIX (Ronda 41e — pedido explícito: entrar siempre por la primera
+  // pestaña, la de más a la izquierda, nunca por la que se hubiera dejado
+  // activa la última vez):
+  activeTabId = tabs[0].id;
 
   const { data: chars } = await sbClient.from('characters').select('*').eq('tierlist_id', tl.id);
   // FIX (Ronda 35 — personajes que faltaban en el modo Visor sin conexión):

@@ -1695,6 +1695,23 @@ relation "idx_reactions_ranking" already exists`.
 - **Arreglado**: el índice ahora lleva `if not exists`, como el resto.
   Puedes volver a pegar `supabase-schema.sql` entero sin miedo.
 
+## 🆕 Ronda 41e — reordenar pestañas, y siempre entrar por la primera
+
+Pedido explícito: "poder elegir el orden de las pestañas: en plan mover de
+izq a der y vice versa" y "si entro a esa tierlist, siempre se debe entrar
+en la primera pestaña, la principal que es la de la izq del todo".
+
+- En el editor, cada pestaña lleva ahora dos flechitas (‹ ›) para moverla
+  una posición a la izquierda o a la derecha — se desactivan solas en los
+  extremos (la primera no puede ir más a la izquierda, la última no más a
+  la derecha).
+- La pestaña que quede más a la izquierda es, a todos los efectos, la
+  "Principal": cada vez que entras a esa tierlist (desde el editor o desde
+  el modo Visor, tuyo o de un amigo, con conexión o sin ella), se abre
+  siempre esa primera pestaña — nunca la que hubieras dejado activa la
+  última vez. Cambiar de pestaña sigue funcionando igual mientras te quedas
+  dentro; lo único que cambia es el punto de partida cada vez que entras.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

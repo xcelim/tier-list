@@ -434,15 +434,17 @@ async function syncFromSupabase() {
       }
 
       // FIX (Ronda 41 — pestañas): si este ranking ya tiene varias pestañas
-      // guardadas en la nube (propias o de un colaborador), se cargan aquí
-      // y S.workingTL.tiers pasa a ser el de la pestaña activa (no siempre
-      // la primera, si se había dejado otra seleccionada la última vez que
-      // se guardó).
+      // guardadas en la nube (propias o de un colaborador), se cargan aquí.
+      // FIX (Ronda 41e — pedido explícito: "siempre se debe entrar en la
+      // primera pestaña, la principal, la de la izquierda del todo"): se
+      // entra SIEMPRE por la primera de la lista (tabs[0]), se ignora
+      // "active_tab_id" para esto — ese campo solo sirve ya para que un
+      // colaborador conectado en tiempo real no salte de pestaña sin querer
+      // si la suya desaparece (ver handleCollabRealtimeUpdate).
       if (myRank.tabs && myRank.tabs.length) {
         S.workingTL.tabs = myRank.tabs;
-        S.workingTL.activeTabId = (myRank.active_tab_id && myRank.tabs.some(t => t.id === myRank.active_tab_id)) ? myRank.active_tab_id : myRank.tabs[0].id;
-        const at = S.workingTL.tabs.find(t => t.id === S.workingTL.activeTabId) || S.workingTL.tabs[0];
-        S.workingTL.tiers = at.tiers || (at.tiers = []);
+        S.workingTL.activeTabId = myRank.tabs[0].id;
+        S.workingTL.tiers = myRank.tabs[0].tiers || (myRank.tabs[0].tiers = []);
       }
 
       // Registrar qué personajes ya están ubicados

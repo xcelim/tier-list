@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v45'; // v45: "Descargar" en una tierlist con pestañas (Ronda 41) siempre volvía a bajar TODAS las imágenes en vez de solo los cambios -- gcCharImageCache() borraba las recién descargadas de una pestaña que tu copia local todavía no conocía; ahora se guarda esa pestaña fresca en tu copia local antes de limpiar la caché
+const CACHE_NAME = 'at-v46'; // v46: se puede reordenar las pestañas (flechitas ‹ › en cada una, en el editor) y al volver a entrar a una tierlist siempre se abre la primera pestaña (la de más a la izquierda), nunca la que se hubiera dejado activa la última vez
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión

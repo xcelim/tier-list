@@ -70,12 +70,30 @@ function Editor(){
   // (si solo existe "Principal" no hace falta ocupar sitio en pantalla).
   if(tl.tabs && tl.tabs.length>1){
     const tabBar=h('div',{class:'tab-bar',style:{margin:'0 0 14px'}});
-    tl.tabs.forEach(t=>{
+    tl.tabs.forEach((t,ti)=>{
       const pill=h('div',{
         class:'tab-pill'+(t.id===tl.activeTabId?' active':''),
         title:t.name,
         onclick:()=>{ if(t.id!==tl.activeTabId) switchTab(t.id); }
-      }, t.name);
+      });
+      // FIX (Ronda 41e \u2014 pedido expl\u00edcito: "poder elegir el orden de las
+      // pesta\u00f1as: en plan mover de izq a der y vice versa"): flechitas para
+      // reordenar, deshabilitadas en los extremos (la primera no puede ir
+      // m\u00e1s a la izquierda, la \u00faltima no puede ir m\u00e1s a la derecha). Al
+      // entrar de nuevo a la tierlist siempre se abre la PRIMERA pesta\u00f1a
+      // (ver openEditor y compa\u00f1\u00eda), as\u00ed que mover una pesta\u00f1a al principio
+      // es lo que la convierte en la "Principal" a partir de ahora.
+      pill.appendChild(h('span',{
+        class:'tab-pill-move'+(ti===0?' disabled':''),
+        title:'Mover a la izquierda',
+        onclick:(e)=>{ e.stopPropagation(); if(ti>0) moveTab(t.id,-1); }
+      },'\u2039'));
+      pill.appendChild(h('span',{class:'tab-pill-label'}, t.name));
+      pill.appendChild(h('span',{
+        class:'tab-pill-move'+(ti===tl.tabs.length-1?' disabled':''),
+        title:'Mover a la derecha',
+        onclick:(e)=>{ e.stopPropagation(); if(ti<tl.tabs.length-1) moveTab(t.id,1); }
+      },'\u203a'));
       pill.appendChild(h('span',{
         class:'tab-pill-close',
         title:'Borrar esta pesta\xf1a',
