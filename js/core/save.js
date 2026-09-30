@@ -349,11 +349,27 @@ async function syncFromSupabase() {
   
   // 0. Sincronización Universal de Estructura: Refrescar niveles, nombres y colores desde la nube
   const { data: tlMeta } = await sbClient.from('tierlists').select('title, folder, tiers_config').eq('id', S.cid).maybeSingle();
-  if (tlMeta) {
+  // FIX (Ronda 43 — pedido explícito: "mi compañero de cooperativa ha
+  // guardado una pestaña... no se han guardado ni los tier creados, ni los
+  // nombres de los tier ni las posiciones, tampoco los nombres que
+  // cambiamos a las pestañas y a la tierlist"): esta función se lanza en
+  // segundo plano nada más abrir el editor (openEditor NO la espera) y
+  // tarda varias idas y vueltas a la red (esta consulta + el catálogo de
+  // personajes paginado + el ranking). Si mientras tanto la persona ya
+  // había empezado a editar (crear/renombrar tiers, mover personajes,
+  // renombrar la pestaña o la tierlist...), esto pisaba TODO lo que
+  // llevaba hecho con la foto vieja de la nube en cuanto la respuesta
+  // llegaba — y si justo entonces le daba a "Guardar", lo que se subía era
+  // esa foto vieja, borrando de un plumazo lo que acababa de hacer. Ahora,
+  // si ya hay cambios sin guardar (S.hasUnsaved), no tocamos ni el título
+  // ni los tiers: se respeta lo que la persona tiene en pantalla.
+  if (tlMeta && !S.hasUnsaved) {
     S.workingTL.title = tlMeta.title;
     S.workingTL.folder = tlMeta.folder;
     // Reconstruimos la lista de niveles para que coincida con la nube, inicializando chars vacíos
     S.workingTL.tiers = tlMeta.tiers_config.map(tc => ({ ...tc, chars: [] }));
+  } else if (tlMeta) {
+    S.workingTL.folder = tlMeta.folder;
   }
 
   // Catálogo dinámico para esta tierlist.
@@ -433,7 +449,9 @@ async function syncFromSupabase() {
     const _p = activeProfile();
     const _tl = _p && _p.tls.find(t => t.id === S.cid);
     if (_tl) { _tl._rankingId = S.workingRankingId; _tl._isCollaborative = S.workingIsCollaborative; }
-    if (myRank && myRank.custom_title) {
+    // FIX (Ronda 43): igual que arriba, si ya hay cambios sin guardar no
+    // pisamos el título que se esté viendo/editando ahora mismo.
+    if (myRank && myRank.custom_title && !S.hasUnsaved) {
       S.workingTL.title = myRank.custom_title;
       if (_tl) _tl.title = myRank.custom_title;
     }
@@ -441,7 +459,14 @@ async function syncFromSupabase() {
 
   if (S.workingTL) {
     const placedIds = new Set();
-    if (myRank) {
+    // FIX (Ronda 43 — ver arriba): si la persona ya tiene cambios sin
+    // guardar cuando esta sincronización inicial termina de llegar, NO
+    // pisamos tiers/pestañas con la foto de la nube (que es de ANTES de
+    // que empezara a editar) — se respeta lo que tiene en pantalla, y el
+    // recuento de "placedIds" de más abajo (para calcular el pool) se hace
+    // igualmente sobre S.workingTL.tiers, que en ese caso sigue siendo la
+    // versión con SUS cambios, no la vieja.
+    if (myRank && !S.hasUnsaved) {
       // Sincronización Universal: Si el ranking tiene estructura propia (niveles añadidos/renombrados), la usamos
       if (myRank.tiers_data && myRank.tiers_data.length > 0 && myRank.tiers_data[0].label) {
         S.workingTL.tiers = myRank.tiers_data;
@@ -466,8 +491,12 @@ async function syncFromSupabase() {
         S.workingTL.activeTabId = myRank.tabs[0].id;
         S.workingTL.tiers = myRank.tabs[0].tiers || (myRank.tabs[0].tiers = []);
       }
-
-      // Registrar qué personajes ya están ubicados
+    }
+    if (myRank) {
+      // Registrar qué personajes ya están ubicados (sobre S.workingTL.tiers
+      // actual: la de la nube si se acaba de aplicar arriba, o la que la
+      // persona ya tuviera editada si se ha respetado por tener cambios
+      // sin guardar).
       S.workingTL.tiers.forEach(t => (t.chars || []).forEach(id => placedIds.add(id)));
     }
 

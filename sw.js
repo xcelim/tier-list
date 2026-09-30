@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v47'; // v47: se puede renombrar el título de una tierlist (personal, o compartido si es colaborativa) y renombrar cada pestaña con el botón ✏
+const CACHE_NAME = 'at-v48'; // v48: arreglada una carrera de datos -- si empezabas a editar (crear tiers, renombrar pestañas/tierlist, mover personajes) justo al entrar, antes de que la sincronización inicial en segundo plano terminara, esa sincronización podía pisar tus cambios justo antes de guardarlos
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión

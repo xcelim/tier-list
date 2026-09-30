@@ -1740,6 +1740,37 @@ dos. lo mismo para las pestañas, que se pueda cambiar".
   el `supabase-schema.sql` en tu proyecto de Supabase (es seguro volver a
   pegarlo entero, no borra nada existente).
 
+## 🆕 Ronda 43 — se perdían los cambios si editabas justo al entrar (carrera de datos)
+
+Pedido explícito: "mi compañero de cooperativa ha guardado una pestaña de
+tierlist y no se ha guardado bien, ha recargado y no se había guardado. no
+se han guardado ni los tier creados, ni los nombres de los tier ni las
+posiciones. tampoco se guardan los nombres que cambiamos a las pestañas y
+a la tierlist en sí".
+
+- **La causa:** al abrir el editor de una tierlist, se lanza en segundo
+  plano una sincronización con la nube (trae el catálogo de personajes, tu
+  ranking, etc.) que tarda un par de segundos en responder — mientras
+  tanto ya puedes usar el editor con normalidad. El problema es que, hasta
+  ahora, en cuanto esa sincronización terminaba de responder, pisaba TODO
+  lo que hubiera en pantalla (tiers, personajes colocados, nombres de
+  pestañas, título de la tierlist) con la foto de la nube de ANTES de
+  abrir el editor — sin comprobar si mientras tanto ya habías hecho
+  cambios. Si alguien se ponía a crear tiers, mover personajes o renombrar
+  algo justo al entrar (algo muy normal trabajando en equipo, cada uno
+  metiendo prisa), esos cambios desaparecían de la pantalla en cuanto la
+  sincronización respondía — y si justo entonces le dabas a "Guardar", lo
+  que se subía a la nube era la foto vieja, borrando de un plumazo lo que
+  acababas de hacer, aunque le hubieras dado a guardar.
+- **El arreglo:** esa sincronización ya no pisa nada si detecta que ya hay
+  cambios sin guardar en pantalla — en ese caso respeta lo que tengas
+  hecho (tiers, personajes, nombres de pestañas y de la tierlist) y solo
+  actualiza por detrás los datos internos que hacen falta para que
+  "Guardar" siga funcionando correctamente (por ejemplo, saber si la
+  tierlist es colaborativa). Es el mismo criterio que ya se usaba para no
+  pisar tus cambios cuando un colaborador guardaba en tiempo real (Ronda
+  40), ahora aplicado también a esta sincronización inicial.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,
