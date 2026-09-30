@@ -1800,6 +1800,36 @@ tanto en tierlists normales como colaborativas.
   arreglo, si sigue faltando esa columna (o cualquier otra cosa), ahora al
   menos saldrá un aviso de error claro en vez de un falso "Guardado".
 
+## 🆕 Ronda 45 — el error de verdad: a "tierlists" le faltaba "updated_at"
+
+Pedido explícito (tras aplicar la Ronda 44, que hizo visibles los errores
+reales por primera vez): "Error al guardar en la nube: Could not find the
+'updated_at' column of 'tierlists' in the schema cache".
+
+- **La causa exacta, ya sin adivinar:** al guardar, la app actualiza dos
+  sitios en la nube — la plantilla compartida de tiers (tabla
+  `tierlists`) y tu ranking personal (tabla `user_rankings`). El primero
+  intenta poner también `updated_at` a la fecha actual, pero esa columna
+  nunca había existido en `tierlists` (solo en `user_rankings`) — así que
+  esa parte llevaba fallando quién sabe desde cuándo. Antes (antes de la
+  Ronda 44) ese fallo se tragaba en silencio y no importaba tanto porque
+  el resto seguía su curso; en cuanto la Ronda 44 empezó a comprobar los
+  errores de verdad, este fallo — que llevaba ahí escondido mucho tiempo —
+  salió a la luz y, tal como estaba entonces, bloqueaba TODO el guardado
+  (incluido tu ranking, lo importante de verdad).
+- **El arreglo tiene dos partes:**
+  1. **Base de datos:** se añade la columna que faltaba
+     (`tierlists.updated_at`) — **hay que volver a ejecutar el
+     `supabase-schema.sql`** una vez más para que se cree.
+  2. **Código:** de todas formas, actualizar esa plantilla compartida es
+     secundario (solo afecta a cómo ve la tierlist alguien que la abre por
+     primera vez) comparado con guardar TU ranking de verdad — así que
+     ahora, si esa parte concreta falla por lo que sea, solo se avisa por
+     la consola del navegador (para quien quiera mirarlo) pero YA NO
+     bloquea el guardado de tu ranking. Solo un fallo guardando tu propio
+     ranking (o el de la tierlist colaborativa) se sigue tratando como el
+     error serio que impide guardar de verdad.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

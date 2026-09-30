@@ -24,6 +24,15 @@ alter table profiles add column if not exists avatar_frame text default 'none';
 -- tarjetas horizontales — el creador puede subir una foto de portada).
 alter table tierlists add column if not exists cover_url text;
 
+-- FIX (Ronda 44 — pedido explícito: "Error al guardar en la nube: Could
+-- not find the 'updated_at' column of 'tierlists' in the schema cache"):
+-- guardar una tierlist actualiza tiers_config en esta tabla y de paso pone
+-- "updated_at" a la fecha actual — pero esa columna nunca había existido
+-- en "tierlists" (a diferencia de "user_rankings", que sí la tiene). Antes
+-- esto fallaba en silencio (ver Ronda 44 en el propio código, que ahora sí
+-- comprueba los errores de Supabase), así que nunca se había notado.
+alter table tierlists add column if not exists updated_at timestamptz default now();
+
 
 -- ============================================================================
 -- 1) CHAT — chats / chat_members / messages
@@ -459,3 +468,13 @@ alter table user_rankings add column if not exists active_tab_id text;
 -- siempre.
 -- ============================================================================
 alter table user_rankings add column if not exists custom_title text;
+
+-- ============================================================================
+-- 9) Refrescar la caché de esquema de PostgREST (Ronda 44)
+-- ----------------------------------------------------------------------------
+-- Después de un "alter table" por SQL Editor, Supabase normalmente refresca
+-- esto solo, pero a veces tarda o se queda con la versión vieja en caché —
+-- justo el error visto: "Could not find the 'x' column ... in the schema
+-- cache". Este aviso lo fuerza a refrescarse ya mismo, sin esperar.
+-- ============================================================================
+notify pgrst, 'reload schema';

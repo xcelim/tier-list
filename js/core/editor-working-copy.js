@@ -301,19 +301,26 @@ async function saveEditorChanges(){
       // normales como colaborativas): supabase-js NO lanza una excepción
       // cuando una consulta falla (columna que no existe, RLS que la
       // deniega, etc.) — devuelve { data: null, error: {...} } sin más. Como
-      // aquí no se miraba nunca ese "error", un fallo real (por ejemplo, la
-      // columna "custom_title" de la Ronda 42 si aún no se había ejecutado
-      // el supabase-schema.sql nuevo) se colaba en silencio: no se guardaba
-      // NADA, pero como no se lanzaba ninguna excepción, el código seguía
-      // hasta el toast de éxito de más abajo como si no hubiera pasado
-      // nada. Ahora se comprueba "error" tras cada llamada y, si lo hay, se
-      // lanza de verdad — así el catch de aquí abajo se entera, avisa con
-      // el motivo real (no un "Guardado" falso) y NO marca hasUnsaved=false.
+      // aquí no se miraba nunca ese "error", un fallo real se colaba en
+      // silencio: no se guardaba NADA, pero como no se lanzaba ninguna
+      // excepción, el código seguía hasta el toast de éxito de más abajo
+      // como si no hubiera pasado nada.
+      //
+      // Este primer "update" solo escribe la ESTRUCTURA COMPARTIDA de tiers
+      // en la plantilla global (para que otros que abran esta tierlist por
+      // primera vez vean los mismos tiers) — es secundario comparado con TU
+      // ranking de verdad, que se guarda justo debajo en "user_rankings". Si
+      // este falla (por ejemplo, por una columna que le falte a la tabla
+      // "tierlists" en tu proyecto de Supabase, como pasó con "updated_at"),
+      // NO debe impedir que se guarde lo importante: se avisa flojito por
+      // consola y se sigue adelante. El "if (errX) throw errX" SÍ se usa más
+      // abajo, en el guardado de "user_rankings", que es el que de verdad
+      // importa que no falle en silencio.
       const { error: errTierlists } = await sbClient.from('tierlists').update({
         tiers_config: S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color })),
         updated_at: new Date()
       }).eq('id', S.cid);
-      if (errTierlists) throw errTierlists;
+      if (errTierlists) console.warn('No se pudo actualizar la plantilla compartida de tiers (no crítico):', errTierlists);
 
       const tiersData = S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color, chars: t.chars }));
       // FIX (Ronda 41 \u2014 pesta\u00f1as, "esto aplica para las colaborativas... las
@@ -417,12 +424,16 @@ async function saveEditorChangesCollab(friendIds){
     // completa): aquí tampoco se comprobaba nunca el "error" de cada
     // llamada a Supabase, así que un fallo real (columna que falta,
     // permisos...) se colaba en silencio y acababa mostrando igualmente el
-    // toast de éxito de más abajo sin haber guardado nada de verdad.
+    // toast de éxito de más abajo sin haber guardado nada de verdad. Este
+    // "update" concreto es la plantilla compartida (secundario, ver la nota
+    // larga en saveEditorChanges), así que si falla no bloquea el resto:
+    // solo se avisa por consola. Los que sí importan (user_rankings, más
+    // abajo) si lanzan de verdad.
     const { error: errTierlists } = await sbClient.from('tierlists').update({
       tiers_config: S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color })),
       updated_at: new Date()
     }).eq('id', S.cid);
-    if (errTierlists) throw errTierlists;
+    if (errTierlists) console.warn('No se pudo actualizar la plantilla compartida de tiers (no crítico):', errTierlists);
 
     const tiersData = S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color, chars: t.chars }));
     // FIX (Ronda 41 \u2014 pesta\u00f1as compartidas entre colaboradores):
