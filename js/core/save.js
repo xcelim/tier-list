@@ -244,7 +244,7 @@ async function fetchGlobalTemplates() {
     const uid = userSession.user.id;
     try {
       const { data: myRankRows } = await sbClient.from('user_rankings')
-        .select('id, tierlist_id, tiers_data, pool_data, is_collaborative, collaborators, user_id')
+        .select('id, tierlist_id, tiers_data, pool_data, is_collaborative, collaborators, user_id, custom_title')
         .or(`user_id.eq.${uid},collaborators.cs.{${uid}}`);
       (myRankRows || []).forEach(r => {
         // Si hay dos filas para la misma tierlist (no debería pasar), nos
@@ -290,8 +290,17 @@ async function fetchGlobalTemplates() {
     const localIdx = p.tls.findIndex(local => local.id === t.id);
     const myRank = myRankByTlId.get(t.id);
     const mergedTiers = tiersWithChars(t, myRank, localIdx !== -1 ? p.tls[localIdx].tiers : null);
+    // FIX (Ronda 42 — pedido explícito: "no se puede cambiar el nombre de
+    // una tierlist, debería poderse, solo para ti"): antes, esto siempre
+    // pisaba el título con el de la plantilla COMPARTIDA (t.title) en cada
+    // login, deshaciendo cualquier renombrado personal. Ahora se prefiere
+    // "custom_title" (tu fila de user_rankings, o la compartida si es
+    // colaborativa) cuando existe, y solo se cae al de la plantilla si
+    // nunca se ha puesto uno.
+    const resolvedTitle = (myRank && myRank.custom_title) || t.title;
     const tlData = {
       ...t,
+      title: resolvedTitle,
       tiers: mergedTiers,
       isRemoteTemplate: true,
       updatedAt: new Date(t.updated_at || t.created_at).getTime()
@@ -306,7 +315,7 @@ async function fetchGlobalTemplates() {
       p.tls.push(tlData);
     } else {
       // Sincronizar metadatos desde la nube (no sobreescribir pool/customChars locales)
-      p.tls[localIdx].title     = t.title;
+      p.tls[localIdx].title     = resolvedTitle;
       p.tls[localIdx].tiers     = mergedTiers;
       p.tls[localIdx].folder    = t.folder;
       p.tls[localIdx].cover_url = t.cover_url;
@@ -413,10 +422,21 @@ async function syncFromSupabase() {
   // colaborativa antes incluso de que responda Supabase — así el botón de
   // guardado correcto sale desde el primer render y no "parpadea" el botón
   // equivocado mientras se espera la respuesta de la red (ver openEditor).
+  // FIX (Ronda 42 — nombre personal de la tierlist): de paso, si ya hay un
+  // "custom_title" guardado (tuyo, o de la fila compartida si es
+  // colaborativa) que sea más reciente que lo que se estaba mostrando
+  // (p.ej. otro dispositivo tuyo, o un colaborador, la renombró), se
+  // actualiza aquí S.workingTL.title, que es lo que de verdad se ve en el
+  // editor -- sin esto, el editor seguiría mostrando el título viejo hasta
+  // el próximo fetchGlobalTemplates() (login).
   {
     const _p = activeProfile();
     const _tl = _p && _p.tls.find(t => t.id === S.cid);
     if (_tl) { _tl._rankingId = S.workingRankingId; _tl._isCollaborative = S.workingIsCollaborative; }
+    if (myRank && myRank.custom_title) {
+      S.workingTL.title = myRank.custom_title;
+      if (_tl) _tl.title = myRank.custom_title;
+    }
   }
 
   if (S.workingTL) {

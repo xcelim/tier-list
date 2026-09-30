@@ -438,3 +438,24 @@ end $$;
 -- ============================================================================
 alter table user_rankings add column if not exists tabs jsonb;
 alter table user_rankings add column if not exists active_tab_id text;
+
+
+-- ============================================================================
+-- 8) NOMBRE PERSONAL DE LA TIERLIST (Ronda 42)
+-- ----------------------------------------------------------------------------
+-- Pedido explícito: "no se puede cambiar el nombre de una tierlist, debería
+-- poderse, solo para ti, y luego si es colab obviamente se guarda para los
+-- dos". Hasta ahora, renombrar una tierlist actualizaba "tierlists.title" —
+-- la plantilla COMPARTIDA que usa todo el mundo que tenga esa misma
+-- tierlist (por eso "no se podía": lo más probable es que tu usuario no
+-- tuviera permiso para tocar esa tabla compartida, y aunque lo tuviera,
+-- habría cambiado el nombre para TODO EL MUNDO, no solo para ti).
+--
+-- "custom_title" vive en TU fila de user_rankings (o en la fila COMPARTIDA
+-- si la tierlist es colaborativa, igual que tiers_data/tabs) — así que
+-- renombrar ahora es personal por defecto, y automáticamente conjunto en
+-- una colaborativa, sin tocar nunca la plantilla compartida. Si no se ha
+-- puesto nunca (NULL), se sigue usando el nombre de la plantilla de
+-- siempre.
+-- ============================================================================
+alter table user_rankings add column if not exists custom_title text;

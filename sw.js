@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v46'; // v46: se puede reordenar las pestañas (flechitas ‹ › en cada una, en el editor) y al volver a entrar a una tierlist siempre se abre la primera pestaña (la de más a la izquierda), nunca la que se hubiera dejado activa la última vez
+const CACHE_NAME = 'at-v47'; // v47: se puede renombrar el título de una tierlist (personal, o compartido si es colaborativa) y renombrar cada pestaña con el botón ✏
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión

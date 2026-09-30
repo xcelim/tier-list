@@ -454,9 +454,13 @@ function UserViewPage() {
     const start = S._uvPage * TL_PAGE_SIZE;
     u.rankings.slice(start, start + TL_PAGE_SIZE).forEach(r => {
       const tlMeta = r.tierlists || { title: 'Tierlist desconocida' };
+      // FIX (Ronda 42 — nombre personal de la tierlist): "custom_title" (si
+      // esta persona, o su colaborador, la renombró) manda sobre el título
+      // de la plantilla compartida.
+      const displayTitle = r.custom_title || tlMeta.title;
       // Mismo objeto "tl-like" que usan las tarjetas de "Mis Tierlists",
       // para que salgan exactamente iguales (misma portada, mismo tamaño).
-      const tlLike = { title: tlMeta.title, cover_url: tlMeta.cover_url, tiers: r.tiers_data || [], pool: [], updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : null, folder: tlMeta.folder, _isCollaborative: !!r.is_collaborative };
+      const tlLike = { title: displayTitle, cover_url: tlMeta.cover_url, tiers: r.tiers_data || [], pool: [], updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : null, folder: tlMeta.folder, _isCollaborative: !!r.is_collaborative };
       grid.appendChild(buildTlWideCard(tlLike, { editable:false, onclick:()=>openViewer(r) }));
     });
     w.appendChild(grid);

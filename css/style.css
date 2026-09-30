@@ -1632,3 +1632,13 @@ nav::after{background:linear-gradient(90deg,transparent,var(--neon-cyan) 25%,var
 }
 .tab-pill-move:hover{opacity:1;background:var(--accent2);color:#fff}
 .tab-pill-move.disabled{opacity:.15;cursor:default;pointer-events:none}
+
+/* FIX (Ronda 42 — pedido explícito: "lo mismo para las pestañas, que se
+   pueda cambiar [el nombre] porfa"): botón de renombrar pestaña. */
+.tab-pill-rename{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:16px;height:16px;border-radius:50%;
+  font-size:10px;line-height:1;color:inherit;opacity:.55;
+  transition:.15s;
+}
+.tab-pill-rename:hover{opacity:1;background:var(--accent2);color:#fff}

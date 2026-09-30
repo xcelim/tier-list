@@ -1712,6 +1712,34 @@ en la primera pestaña, la principal que es la de la izq del todo".
   última vez. Cambiar de pestaña sigue funcionando igual mientras te quedas
   dentro; lo único que cambia es el punto de partida cada vez que entras.
 
+## 🆕 Ronda 42 — renombrar la tierlist (personal) y renombrar pestañas
+
+Pedido explícito: "no se puede cambiar el nombre de una tierlist, debería
+poderse, solo para ti, y luego si es colab obviamente se guarda para los
+dos. lo mismo para las pestañas, que se pueda cambiar".
+
+- **Renombrar el título de la tierlist ahora funciona de verdad.** Antes,
+  al guardar, el título se intentaba escribir en la tabla `tierlists`, que
+  es la plantilla COMPARTIDA que usa todo el mundo que tiene esa misma
+  tierlist (por ejemplo la "Waifus" por defecto) — así que el cambio o
+  fallaba en silencio, o (peor) le cambiaba el nombre a la tierlist de
+  cualquier otra persona que la usara. Además, cada vez que volvías a
+  entrar, se sobrescribía otra vez con el nombre de la plantilla. Ahora el
+  nombre se guarda en una columna nueva y personal, `custom_title`, en tu
+  propia fila (o en la fila compartida si es colaborativa — así, tal como
+  se pidió, el nombre nuevo lo veis los dos), y se usa siempre con
+  preferencia sobre el nombre de la plantilla en cualquier sitio donde se
+  muestre el título (editor, listado de tierlists, perfil de un amigo,
+  etc.). La plantilla compartida no se toca para nada.
+- **Ahora también se pueden renombrar las pestañas.** Cada pestaña del
+  editor tiene un botón nuevo (✏) al lado de las flechitas de mover y la
+  ✕ de cerrar — al pulsarlo pide el nuevo nombre (máx. 25 caracteres), igual
+  que al crear una pestaña nueva.
+- **Importante:** esta ronda añade una columna nueva a la base de datos
+  (`custom_title` en `user_rankings`), así que hay que volver a ejecutar
+  el `supabase-schema.sql` en tu proyecto de Supabase (es seguro volver a
+  pegarlo entero, no borra nada existente).
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,

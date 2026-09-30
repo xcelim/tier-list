@@ -94,6 +94,13 @@ function Editor(){
         title:'Mover a la derecha',
         onclick:(e)=>{ e.stopPropagation(); if(ti<tl.tabs.length-1) moveTab(t.id,1); }
       },'\u203a'));
+      // FIX (Ronda 42 \u2014 pedido expl\u00edcito: "lo mismo para las pesta\u00f1as, que
+      // se pueda cambiar [el nombre] porfa"):
+      pill.appendChild(h('span',{
+        class:'tab-pill-rename',
+        title:'Renombrar esta pesta\xf1a',
+        onclick:(e)=>{ e.stopPropagation(); renameTab(t.id); }
+      },'\u270f'));
       pill.appendChild(h('span',{
         class:'tab-pill-close',
         title:'Borrar esta pesta\xf1a',

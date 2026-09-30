@@ -359,14 +359,18 @@ async function openViewer(rankData) {
   // arriba), así que ya trae "tabs"/"active_tab_id" en crudo tal cual están
   // en la base de datos si esta tierlist los usa. Se normaliza aquí a la
   // forma que espera Viewer() (home.js): siempre al menos una pestaña.
+  // FIX (Ronda 42 — nombre personal de la tierlist): "custom_title" (si
+  // esta persona, o su colaborador, la renombró) manda sobre el título de
+  // la plantilla compartida (rankData.tierlists.title).
+  const resolvedTitle = rankData.custom_title || (rankData.tierlists && rankData.tierlists.title);
   const tabs = (rankData.tabs && rankData.tabs.length)
     ? rankData.tabs
-    : [{ id:'default', name: (rankData.tierlists && rankData.tierlists.title) || 'Principal', tiers: rankData.tiers_data || [] }];
+    : [{ id:'default', name: resolvedTitle || 'Principal', tiers: rankData.tiers_data || [] }];
   // FIX (Ronda 41e — pedido explícito: "siempre se debe entrar en la
   // primera pestaña, la principal, la de la izquierda del todo"): se entra
   // SIEMPRE por la primera de la lista, se ignora "active_tab_id" para esto.
   const activeTabId = tabs[0].id;
-  S.viewingRank = { ...rankData, tabs, activeTabId };
+  S.viewingRank = { ...rankData, tabs, activeTabId, tierlists: { ...(rankData.tierlists||{}), title: resolvedTitle } };
   S._viewerOwnTlId = null; // esto es el ranking de OTRA persona, no el tuyo
   // Cargamos los personajes necesarios para esa tierlist
   const { data: chars } = await sbClient.from('characters').select('*').eq('tierlist_id', rankData.tierlist_id);
@@ -393,6 +397,10 @@ async function openOwnViewer(tl){
   // de Supabase en cuanto responde, que es siempre lo más al día.
   let tabs = (tl.tabs && tl.tabs.length) ? tl.tabs : null;
   let activeTabId = tl.activeTabId || null;
+  // FIX (Ronda 42 — nombre personal de la tierlist): de entrada, el que ya
+  // hubiera en la copia local; se sobreescribe abajo con "custom_title" de
+  // Supabase en cuanto responde, que es siempre lo más al día.
+  let title = tl.title;
   try{
     const { data } = await sbClient.from('user_rankings').select('*')
       .eq('tierlist_id', tl.id)
@@ -401,9 +409,10 @@ async function openOwnViewer(tl){
     if(data){
       tiersData = data.tiers_data || tiersData; rankingId = data.id;
       if(data.tabs && data.tabs.length){ tabs = data.tabs; }
+      if(data.custom_title) title = data.custom_title;
     }
   }catch(e){ console.error(e); }
-  if(!tabs || !tabs.length){ tabs = [{ id:'default', name: tl.title || 'Principal', tiers: tiersData }]; }
+  if(!tabs || !tabs.length){ tabs = [{ id:'default', name: title || 'Principal', tiers: tiersData }]; }
   // FIX (Ronda 41e — pedido explícito: entrar siempre por la primera
   // pestaña, la de más a la izquierda, nunca por la que se hubiera dejado
   // activa la última vez):
@@ -422,7 +431,7 @@ async function openOwnViewer(tl){
   // ya hace el modo Visor sin conexión — ver Viewer()/getChar() en home.js.
   // FIX (Ronda 41): se añaden "tabs"/"activeTabId" para poder ver también
   // las demás pestañas (rankings) de esta tierlist desde el modo Visor.
-  S.viewingRank = { id: rankingId, user_id: uid, tiers_data: tiersData, tabs, activeTabId, tierlists: { title: tl.title, folder: tl.folder, cover_url: tl.cover_url, customChars: tl.customChars||[] } };
+  S.viewingRank = { id: rankingId, user_id: uid, tiers_data: tiersData, tabs, activeTabId, tierlists: { title, folder: tl.folder, cover_url: tl.cover_url, customChars: tl.customChars||[] } };
   S._viewerOwnTlId = tl.id;
   S.page = 'viewer';
   setRoute && setRoute('viewer', tl.id);

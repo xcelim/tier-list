@@ -165,6 +165,17 @@ function moveTab(tabId, dir){
   render();
 }
 
+// FIX (Ronda 42 — pedido explícito: "lo mismo para las pestañas, que se
+// pueda cambiar [el nombre] porfa"): mismo patrón que renombrar un tier
+// (prompt con el nombre actual ya puesto).
+function renameTab(tabId){
+  if(!S.workingTL || !S.workingTL.tabs) return;
+  const t = S.workingTL.tabs.find(x=>x.id===tabId);
+  if(!t) return;
+  const n = prompt('Nuevo nombre de la pestaña (máx 25 caracteres):', t.name);
+  if(n!==null && n.trim()){ t.name = n.trim().slice(0,25); markUnsaved(); render(); }
+}
+
 // El "+" del header del editor: pide un nombre (aceptar/cancelar, igual que
 // al renombrar un tier) y crea una pestaña nueva con el mismo esquema de
 // tiers (mismas filas S/A/B/... con sus colores) pero sin ningún personaje
@@ -278,9 +289,12 @@ async function saveEditorChanges(){
   if (userSession && sbClient) {
     toast('Sincronizando con la nube...', 'info');
     try {
-      // 1. Actualizamos la plantilla comunitaria (ahora permitido para todos los logueados via RLS)
+      // 1. Actualizamos la ESTRUCTURA comunitaria de tiers (id/nombre/color
+      // de cada fila S/A/B/..., que s\u00ed es compartida a prop\u00f3sito) -- OJO,
+      // el T\u00cdTULO de la tierlist YA NO se toca aqu\u00ed (ver FIX Ronda 42 justo
+      // abajo, en el payload de user_rankings: "custom_title" es donde vive
+      // ahora, y es personal/de tus colaboradores, no de todo el mundo).
       await sbClient.from('tierlists').update({
-        title: S.workingTL.title,
         tiers_config: S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color })),
         updated_at: new Date()
       }).eq('id', S.cid);
@@ -301,6 +315,12 @@ async function saveEditorChanges(){
           pool_data: S.workingTL.pool,
           tabs: tabsPayload,
           active_tab_id: S.workingTL.activeTabId,
+          // FIX (Ronda 42 \u2014 pedido expl\u00edcito: "poder cambiar el nombre... si
+          // es colab obviamente se guarda para los dos"): al ser colaborador,
+          // esto cae en la MISMA fila compartida que tu amigo, as\u00ed que
+          // renombrar aqu\u00ed lo renombra para los dos, sin tocar la plantilla
+          // global que usa cualquier otra persona ajena a esta tierlist.
+          custom_title: S.workingTL.title,
           updated_at: new Date()
         }).eq('id', S.workingRankingId);
       } else {
@@ -312,6 +332,11 @@ async function saveEditorChanges(){
           pool_data: S.workingTL.pool,
           tabs: tabsPayload,
           active_tab_id: S.workingTL.activeTabId,
+          // FIX (Ronda 42 \u2014 pedido expl\u00edcito: "no se puede cambiar el nombre
+          // de una tierlist, deber\u00eda poderse, solo para ti"): tu propio
+          // nombre, en TU fila -- nunca toca la plantilla compartida
+          // "tierlists.title" que usa todo el mundo.
+          custom_title: S.workingTL.title,
           updated_at: new Date()
         }, { onConflict: 'user_id, tierlist_id' }).select().maybeSingle();
         // Guardamos el id de la fila recién creada/actualizada: hace falta
@@ -360,8 +385,9 @@ async function saveEditorChangesCollab(friendIds){
 
   toast('Compartiendo tierlist colaborativa...', 'info');
   try{
+    // FIX (Ronda 42): el t\u00edtulo ya no se sube aqu\u00ed -- ver "custom_title" en
+    // los payloads de user_rankings, unas l\u00edneas m\u00e1s abajo.
     await sbClient.from('tierlists').update({
-      title: S.workingTL.title,
       tiers_config: S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color })),
       updated_at: new Date()
     }).eq('id', S.cid);
@@ -377,7 +403,8 @@ async function saveEditorChangesCollab(friendIds){
       const { data: existing } = await sbClient.from('user_rankings').select('collaborators').eq('id', S.workingRankingId).maybeSingle();
       const merged = Array.from(new Set([...(existing?.collaborators||[]), ...friendIds]));
       await sbClient.from('user_rankings').update({
-        tiers_data: tiersData, pool_data: S.workingTL.pool, tabs: tabsPayload, active_tab_id: S.workingTL.activeTabId, updated_at: new Date(),
+        tiers_data: tiersData, pool_data: S.workingTL.pool, tabs: tabsPayload, active_tab_id: S.workingTL.activeTabId,
+        custom_title: S.workingTL.title, updated_at: new Date(),
         is_collaborative: true, collaborators: merged
       }).eq('id', S.workingRankingId);
     } else {
@@ -388,6 +415,7 @@ async function saveEditorChangesCollab(friendIds){
         pool_data: S.workingTL.pool,
         tabs: tabsPayload,
         active_tab_id: S.workingTL.activeTabId,
+        custom_title: S.workingTL.title,
         updated_at: new Date(),
         is_collaborative: true,
         collaborators: friendIds
@@ -501,6 +529,9 @@ function handleCollabRealtimeUpdate(payload){
     commitActiveTab(S.workingTL);
   }
   if(row.pool_data) S.workingTL.pool = row.pool_data;
+  // FIX (Ronda 42 \u2014 nombre personal, compartido en las colaborativas): si
+  // el colaborador que guard\u00f3 tambi\u00e9n la renombr\u00f3, se refleja al instante.
+  if(row.custom_title) S.workingTL.title = row.custom_title;
   toast('\u2713 Actualizado en tiempo real por un colaborador','ok');
   render();
 }
