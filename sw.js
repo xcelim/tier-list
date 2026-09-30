@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v48'; // v48: arreglada una carrera de datos -- si empezabas a editar (crear tiers, renombrar pestañas/tierlist, mover personajes) justo al entrar, antes de que la sincronización inicial en segundo plano terminara, esa sincronización podía pisar tus cambios justo antes de guardarlos
+const CACHE_NAME = 'at-v49'; // v49: si guardar en la nube fallaba de verdad (por ejemplo, faltaba ejecutar el último supabase-schema.sql), antes se decía igualmente "Guardado" sin haber guardado nada -- ahora se detecta el error y se avisa con el motivo real
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión

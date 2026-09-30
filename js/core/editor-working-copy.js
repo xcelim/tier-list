@@ -294,10 +294,26 @@ async function saveEditorChanges(){
       // el T\u00cdTULO de la tierlist YA NO se toca aqu\u00ed (ver FIX Ronda 42 justo
       // abajo, en el payload de user_rankings: "custom_title" es donde vive
       // ahora, y es personal/de tus colaboradores, no de todo el mundo).
-      await sbClient.from('tierlists').update({
+      // FIX (Ronda 44 — pedido explícito: "sigue sin guardar bien... no se
+      // guarda nada, ni un tier creado, ni un personaje movido, ni añadido,
+      // ni quitado, ni el nombre del tier, ni el nombre de pestaña ni el
+      // nombre de tierlist. nada de nada" — y pasaba TANTO en tierlists
+      // normales como colaborativas): supabase-js NO lanza una excepción
+      // cuando una consulta falla (columna que no existe, RLS que la
+      // deniega, etc.) — devuelve { data: null, error: {...} } sin más. Como
+      // aquí no se miraba nunca ese "error", un fallo real (por ejemplo, la
+      // columna "custom_title" de la Ronda 42 si aún no se había ejecutado
+      // el supabase-schema.sql nuevo) se colaba en silencio: no se guardaba
+      // NADA, pero como no se lanzaba ninguna excepción, el código seguía
+      // hasta el toast de éxito de más abajo como si no hubiera pasado
+      // nada. Ahora se comprueba "error" tras cada llamada y, si lo hay, se
+      // lanza de verdad — así el catch de aquí abajo se entera, avisa con
+      // el motivo real (no un "Guardado" falso) y NO marca hasUnsaved=false.
+      const { error: errTierlists } = await sbClient.from('tierlists').update({
         tiers_config: S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color })),
         updated_at: new Date()
       }).eq('id', S.cid);
+      if (errTierlists) throw errTierlists;
 
       const tiersData = S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color, chars: t.chars }));
       // FIX (Ronda 41 \u2014 pesta\u00f1as, "esto aplica para las colaborativas... las
@@ -310,7 +326,7 @@ async function saveEditorChanges(){
         // 2a. Eres colaborador de la tierlist de un amigo: se actualiza SU
         // fila por id (no se toca is_collaborative/collaborators, que son
         // de tu amigo, ya que aqu\u00ed no se env\u00edan esos campos).
-        await sbClient.from('user_rankings').update({
+        const { error: errUR } = await sbClient.from('user_rankings').update({
           tiers_data: tiersData,
           pool_data: S.workingTL.pool,
           tabs: tabsPayload,
@@ -323,9 +339,10 @@ async function saveEditorChanges(){
           custom_title: S.workingTL.title,
           updated_at: new Date()
         }).eq('id', S.workingRankingId);
+        if (errUR) throw errUR;
       } else {
         // 2b. Guardamos TU ranking personal con TU estructura (esto lo hace universal en tus dispositivos)
-        const { data: savedRow } = await sbClient.from('user_rankings').upsert({
+        const { data: savedRow, error: errUpsert } = await sbClient.from('user_rankings').upsert({
           user_id: userSession.user.id,
           tierlist_id: S.cid,
           tiers_data: tiersData,
@@ -339,6 +356,7 @@ async function saveEditorChanges(){
           custom_title: S.workingTL.title,
           updated_at: new Date()
         }, { onConflict: 'user_id, tierlist_id' }).select().maybeSingle();
+        if (errUpsert) throw errUpsert;
         // Guardamos el id de la fila recién creada/actualizada: hace falta
         // para que, nada más guardar por primera vez (sin necesidad de
         // salir y volver a entrar al editor), el botón de guardado se
@@ -350,7 +368,15 @@ async function saveEditorChanges(){
       toast(S.workingIsCollaborative ? '\u2713 Guardado y compartido con tus colaboradores' : '\u2713 Sincronizado en todos tus dispositivos','ok');
     } catch(e) {
       console.error(e);
-      toast('Error de red, se guard\xf3 solo en este navegador','err');
+      // FIX (Ronda 44): antes esto dec\u00eda siempre "Error de red, se guard\u00f3
+      // solo en este navegador" \u2014 enga\u00f1oso cuando el fallo NO es de red
+      // sino, por ejemplo, de la base de datos (columna que falta, permisos
+      // de la fila...), y adem\u00e1s no dec\u00eda nada del motivo real. Ahora se
+      // muestra el error tal cual lo da Supabase, para poder diagnosticarlo
+      // a la primera (p. ej. "column custom_title does not exist" avisa
+      // directamente de que falta ejecutar el supabase-schema.sql nuevo).
+      const msg = (e && (e.message || e.details || e.hint)) || 'error desconocido';
+      toast('Error al guardar en la nube: ' + msg, 'err');
     }
   } else {
     S.hasUnsaved=false;
@@ -387,10 +413,16 @@ async function saveEditorChangesCollab(friendIds){
   try{
     // FIX (Ronda 42): el t\u00edtulo ya no se sube aqu\u00ed -- ver "custom_title" en
     // los payloads de user_rankings, unas l\u00edneas m\u00e1s abajo.
-    await sbClient.from('tierlists').update({
+    // FIX (Ronda 44 — ver saveEditorChanges más arriba para la explicación
+    // completa): aquí tampoco se comprobaba nunca el "error" de cada
+    // llamada a Supabase, así que un fallo real (columna que falta,
+    // permisos...) se colaba en silencio y acababa mostrando igualmente el
+    // toast de éxito de más abajo sin haber guardado nada de verdad.
+    const { error: errTierlists } = await sbClient.from('tierlists').update({
       tiers_config: S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color })),
       updated_at: new Date()
     }).eq('id', S.cid);
+    if (errTierlists) throw errTierlists;
 
     const tiersData = S.workingTL.tiers.map(t => ({ id: t.id, label: t.label, color: t.color, chars: t.chars }));
     // FIX (Ronda 41 \u2014 pesta\u00f1as compartidas entre colaboradores):
@@ -400,15 +432,17 @@ async function saveEditorChangesCollab(friendIds){
     // solo el due\u00f1o original puede compartirla. En ese caso simplemente se
     // a\u00f1aden m\u00e1s colaboradores a la fila existente.
     if(S.workingIsForeignCollab && S.workingRankingId){
-      const { data: existing } = await sbClient.from('user_rankings').select('collaborators').eq('id', S.workingRankingId).maybeSingle();
+      const { data: existing, error: errSel } = await sbClient.from('user_rankings').select('collaborators').eq('id', S.workingRankingId).maybeSingle();
+      if (errSel) throw errSel;
       const merged = Array.from(new Set([...(existing?.collaborators||[]), ...friendIds]));
-      await sbClient.from('user_rankings').update({
+      const { error: errUR } = await sbClient.from('user_rankings').update({
         tiers_data: tiersData, pool_data: S.workingTL.pool, tabs: tabsPayload, active_tab_id: S.workingTL.activeTabId,
         custom_title: S.workingTL.title, updated_at: new Date(),
         is_collaborative: true, collaborators: merged
       }).eq('id', S.workingRankingId);
+      if (errUR) throw errUR;
     } else {
-      const { data: row } = await sbClient.from('user_rankings').upsert({
+      const { data: row, error: errUpsert } = await sbClient.from('user_rankings').upsert({
         user_id: userSession.user.id,
         tierlist_id: S.cid,
         tiers_data: tiersData,
@@ -420,6 +454,7 @@ async function saveEditorChangesCollab(friendIds){
         is_collaborative: true,
         collaborators: friendIds
       }, { onConflict: 'user_id, tierlist_id' }).select().maybeSingle();
+      if (errUpsert) throw errUpsert;
       if(row){ S.workingRankingId = row.id; }
     }
     S.workingIsCollaborative = true;

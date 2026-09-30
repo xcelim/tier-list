@@ -1771,6 +1771,35 @@ a la tierlist en sí".
   pisar tus cambios cuando un colaborador guardaba en tiempo real (Ronda
   40), ahora aplicado también a esta sincronización inicial.
 
+## 🆕 Ronda 44 — "Guardado" decía que sí, pero no se guardaba NADA
+
+Pedido explícito: "sigue sin guardar bien... no se guarda nada, ni un tier
+creado, ni un personaje movido, ni añadido, ni quitado, ni el nombre del
+tier, ni el nombre de pestaña ni el nombre de tierlist. nada de nada" —
+tanto en tierlists normales como colaborativas.
+
+- **La causa de verdad (no la de la Ronda 43):** cuando Supabase no puede
+  guardar algo (por ejemplo, si a una tierlist le faltaba la columna
+  `custom_title` que se añadió en la Ronda 42 porque aún no se había vuelto
+  a ejecutar el `supabase-schema.sql` en el proyecto de Supabase, o
+  cualquier otro fallo real de la base de datos), NO lanza un error como
+  cabría esperar — simplemente devuelve "no se pudo, aquí tienes el
+  motivo" sin más. El código de guardar nunca miraba ese "aquí tienes el
+  motivo", así que seguía adelante como si nada, y acababa mostrando
+  igualmente el mensaje de "✓ Guardado" en verde — mintiendo, sin haberse
+  guardado NADA de verdad. Por eso el toast decía éxito pero al recargar
+  no había nada.
+- **El arreglo:** ahora se comprueba el resultado de cada guardado en la
+  nube; si algo falla de verdad, se avisa con un error real (con el motivo
+  tal cual lo da la base de datos, para poder saber exactamente qué pasó)
+  en vez de un "Guardado" falso, y no se pierde de vista que sigue
+  habiendo cambios sin guardar.
+- **Si seguía sin guardarse por lo del `custom_title` de la Ronda 42:**
+  asegúrate de haber ejecutado el `supabase-schema.sql` más reciente en tu
+  proyecto de Supabase — es seguro volver a pegarlo entero. Con este
+  arreglo, si sigue faltando esa columna (o cualquier otra cosa), ahora al
+  menos saldrá un aviso de error claro en vez de un falso "Guardado".
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,
