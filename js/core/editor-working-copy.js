@@ -550,36 +550,74 @@ function subscribeCollabIfNeeded(){
     })
     .subscribe();
 }
+// FIX (Ronda 46 \u2014 pedido expl\u00edcito: "igual que se actualiza solo cuando
+// est\u00e1s editando y guarda el compa\u00f1ero de la colab, si est\u00e1s en modo
+// visor igual porfa, que se actualice solo cuando guarda el compa\u00f1ero"):
+// mismo mecanismo que subscribeCollabIfNeeded (de hecho comparten canal,
+// "_collabChannel" \u2014 solo una de las dos vistas puede estar abierta a la
+// vez), pero para el modo Visor (S.viewingRank), que hasta ahora se
+// quedaba con la foto de cuando se entr\u00f3 hasta que se recargaba a mano.
+function subscribeViewerCollabIfNeeded(){
+  unsubscribeCollab();
+  const r = S.viewingRank;
+  if(!r || !r.id || !r.is_collaborative || !sbClient) return;
+  _collabChannel = sbClient.channel('collab-ranking-'+r.id)
+    .on('postgres_changes', { event:'UPDATE', schema:'public', table:'user_rankings', filter:'id=eq.'+r.id }, (payload) => {
+      handleCollabRealtimeUpdate(payload);
+    })
+    .subscribe();
+}
 function handleCollabRealtimeUpdate(payload){
-  if(!S.workingTL || S.page!=='editor' || !payload?.new) return;
+  if(!payload?.new) return;
   const row = payload.new;
-  if(row.id !== S.workingRankingId) return;
-  if(S.hasUnsaved){
-    // No pisamos tus cambios sin guardar: solo avisamos.
-    toast('Un colaborador ha actualizado esta tierlist. Guarda o descarta tus cambios para ver los suyos.', 'info');
-    return;
+  if(S.page==='editor'){
+    if(!S.workingTL || row.id !== S.workingRankingId) return;
+    if(S.hasUnsaved){
+      // No pisamos tus cambios sin guardar: solo avisamos.
+      toast('Un colaborador ha actualizado esta tierlist. Guarda o descarta tus cambios para ver los suyos.', 'info');
+      return;
+    }
+    // FIX (Ronda 41 \u2014 pesta\u00f1as): si el colaborador que guard\u00f3 tiene
+    // pesta\u00f1as, se cargan tal cual (misma lista para todos, "las colab lo
+    // comparten todo") y S.workingTL.tiers pasa a apuntar a la pesta\u00f1a que
+    // T\u00da tuvieras activa (si sigue existiendo) para no cambiarte de
+    // pesta\u00f1a sin avisar.
+    if(row.tabs && row.tabs.length){
+      const keepId = (S.workingTL.activeTabId && row.tabs.some(t=>t.id===S.workingTL.activeTabId)) ? S.workingTL.activeTabId : row.active_tab_id;
+      S.workingTL.tabs = row.tabs;
+      S.workingTL.activeTabId = (keepId && row.tabs.some(t=>t.id===keepId)) ? keepId : row.tabs[0].id;
+      const at = S.workingTL.tabs.find(t=>t.id===S.workingTL.activeTabId) || S.workingTL.tabs[0];
+      S.workingTL.tiers = at.tiers || (at.tiers=[]);
+    } else if(row.tiers_data && row.tiers_data.length){
+      S.workingTL.tiers = row.tiers_data;
+      ensureTabsInit(S.workingTL);
+      commitActiveTab(S.workingTL);
+    }
+    if(row.pool_data) S.workingTL.pool = row.pool_data;
+    // FIX (Ronda 42 \u2014 nombre personal, compartido en las colaborativas): si
+    // el colaborador que guard\u00f3 tambi\u00e9n la renombr\u00f3, se refleja al instante.
+    if(row.custom_title) S.workingTL.title = row.custom_title;
+    toast('\u2713 Actualizado en tiempo real por un colaborador','ok');
+    render();
+  } else if(S.page==='viewer'){
+    // FIX (Ronda 46): mismo refresco de arriba pero sobre S.viewingRank, que
+    // es lo que lee Viewer() (home.js) \u2014 aqu\u00ed no hay "cambios sin guardar"
+    // que proteger (el modo Visor es de solo lectura), as\u00ed que se aplica
+    // siempre que llegue una actualizaci\u00f3n.
+    const r = S.viewingRank;
+    if(!r || row.id !== r.id) return;
+    if(row.tabs && row.tabs.length){
+      const keepId = (r.activeTabId && row.tabs.some(t=>t.id===r.activeTabId)) ? r.activeTabId : row.active_tab_id;
+      r.tabs = row.tabs;
+      r.activeTabId = (keepId && row.tabs.some(t=>t.id===keepId)) ? keepId : row.tabs[0].id;
+    } else if(row.tiers_data && row.tiers_data.length){
+      r.tiers_data = row.tiers_data;
+    }
+    if(row.pool_data) r.pool_data = row.pool_data;
+    if(row.custom_title) r.tierlists = { ...(r.tierlists||{}), title: row.custom_title };
+    toast('\u2713 Actualizado en tiempo real por un colaborador','ok');
+    render();
   }
-  // FIX (Ronda 41 \u2014 pesta\u00f1as): si el colaborador que guard\u00f3 tiene pesta\u00f1as,
-  // se cargan tal cual (misma lista para todos, "las colab lo comparten
-  // todo") y S.workingTL.tiers pasa a apuntar a la pesta\u00f1a que T\u00da tuvieras
-  // activa (si sigue existiendo) para no cambiarte de pesta\u00f1a sin avisar.
-  if(row.tabs && row.tabs.length){
-    const keepId = (S.workingTL.activeTabId && row.tabs.some(t=>t.id===S.workingTL.activeTabId)) ? S.workingTL.activeTabId : row.active_tab_id;
-    S.workingTL.tabs = row.tabs;
-    S.workingTL.activeTabId = (keepId && row.tabs.some(t=>t.id===keepId)) ? keepId : row.tabs[0].id;
-    const at = S.workingTL.tabs.find(t=>t.id===S.workingTL.activeTabId) || S.workingTL.tabs[0];
-    S.workingTL.tiers = at.tiers || (at.tiers=[]);
-  } else if(row.tiers_data && row.tiers_data.length){
-    S.workingTL.tiers = row.tiers_data;
-    ensureTabsInit(S.workingTL);
-    commitActiveTab(S.workingTL);
-  }
-  if(row.pool_data) S.workingTL.pool = row.pool_data;
-  // FIX (Ronda 42 \u2014 nombre personal, compartido en las colaborativas): si
-  // el colaborador que guard\u00f3 tambi\u00e9n la renombr\u00f3, se refleja al instante.
-  if(row.custom_title) S.workingTL.title = row.custom_title;
-  toast('\u2713 Actualizado en tiempo real por un colaborador','ok');
-  render();
 }
 
 function discardChanges(){

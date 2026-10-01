@@ -113,6 +113,11 @@ function syncRouteWithState(){
 // Aplica lo que diga la URL actual sobre el estado (usado al pulsar
 // atrás/adelante, y reutilizado también en la carga inicial de la página).
 function applyRouteFromLocation(){
+  // FIX (Ronda 46): navegar con atrás/adelante del navegador puede sacarte
+  // del editor o del modo Visor sin pasar por ningún botón de la app (que
+  // es donde normalmente se corta la suscripción en tiempo real) -- se
+  // corta aquí también, de forma general, por si acaso.
+  if(typeof unsubscribeCollab==='function') unsubscribeCollab();
   const {page,id} = getRouteFromPath();
 
   if(page==='editor' && id){

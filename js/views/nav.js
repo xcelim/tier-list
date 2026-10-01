@@ -20,16 +20,25 @@ function Nav(){
   const n=h('nav',{});
   n.appendChild(h('span',{class:'logo',onclick:()=>{
     if(S.page === 'viewer' || S.page === 'user-view') {
-       S.page = S.prevPage || 'users'; 
-       render(); 
+       // FIX (Ronda 46 — pedido explícito: "igual que se actualiza solo...
+       // si estás en modo visor igual porfa"): al salir del modo Visor hay
+       // que cortar la suscripción en tiempo real que se haya abierto para
+       // él (ver subscribeViewerCollabIfNeeded en editor-working-copy.js),
+       // si no se quedaría escuchando cambios de una tierlist que ya no se
+       // está viendo.
+       if(typeof unsubscribeCollab==='function') unsubscribeCollab();
+       S.page = S.prevPage || 'users';
+       render();
        return;
     }
     if(S.hasUnsaved && !confirm('¿Salir sin guardar cambios?'))return;
+    if(typeof unsubscribeCollab==='function') unsubscribeCollab();
     S.workingTL=null;S.hasUnsaved=false;S.page='home';setRoute('home');render();
   }},'AnimeTier'));
   if(userSession){
     n.appendChild(h('button',{class:'ntab'+(S.page==='home'?' on':''),onclick:()=>{
       if(S.hasUnsaved&&!confirm('¿Descartar cambios?'))return;
+      if(typeof unsubscribeCollab==='function') unsubscribeCollab();
       S.workingTL=null;S.hasUnsaved=false;S.page='home';setRoute('home');render();
     }},'Mis Tierlists'));
   }
@@ -379,6 +388,11 @@ async function openViewer(rankData) {
   // no solo en memoria, para que sobreviva a cerrar la app.
   if (chars) rememberChars(chars);
   S.page = 'viewer';
+  // FIX (Ronda 46 — pedido explícito: "si estás en modo visor igual porfa,
+  // que se actualice solo cuando guarda el compañero"): si esta tierlist es
+  // colaborativa, nos suscribimos a sus cambios en tiempo real (rankData ya
+  // trae "is_collaborative" e "id", al venir de un select('*') completo).
+  if(typeof subscribeViewerCollabIfNeeded==='function') subscribeViewerCollabIfNeeded();
   render();
 }
 
@@ -401,6 +415,10 @@ async function openOwnViewer(tl){
   // hubiera en la copia local; se sobreescribe abajo con "custom_title" de
   // Supabase en cuanto responde, que es siempre lo más al día.
   let title = tl.title;
+  // FIX (Ronda 46 — pedido explícito: ver subscribeViewerCollabIfNeeded):
+  // hace falta saber si es colaborativa para decidir si hay que suscribirse
+  // a actualizaciones en tiempo real mientras se está en modo Visor.
+  let isCollaborative = !!tl._isCollaborative;
   try{
     const { data } = await sbClient.from('user_rankings').select('*')
       .eq('tierlist_id', tl.id)
@@ -410,6 +428,7 @@ async function openOwnViewer(tl){
       tiersData = data.tiers_data || tiersData; rankingId = data.id;
       if(data.tabs && data.tabs.length){ tabs = data.tabs; }
       if(data.custom_title) title = data.custom_title;
+      isCollaborative = !!data.is_collaborative;
     }
   }catch(e){ console.error(e); }
   if(!tabs || !tabs.length){ tabs = [{ id:'default', name: title || 'Principal', tiers: tiersData }]; }
@@ -431,10 +450,14 @@ async function openOwnViewer(tl){
   // ya hace el modo Visor sin conexión — ver Viewer()/getChar() en home.js.
   // FIX (Ronda 41): se añaden "tabs"/"activeTabId" para poder ver también
   // las demás pestañas (rankings) de esta tierlist desde el modo Visor.
-  S.viewingRank = { id: rankingId, user_id: uid, tiers_data: tiersData, tabs, activeTabId, tierlists: { title, folder: tl.folder, cover_url: tl.cover_url, customChars: tl.customChars||[] } };
+  S.viewingRank = { id: rankingId, user_id: uid, is_collaborative: isCollaborative, tiers_data: tiersData, tabs, activeTabId, tierlists: { title, folder: tl.folder, cover_url: tl.cover_url, customChars: tl.customChars||[] } };
   S._viewerOwnTlId = tl.id;
   S.page = 'viewer';
   setRoute && setRoute('viewer', tl.id);
+  // FIX (Ronda 46 — ver subscribeViewerCollabIfNeeded): si tu propia
+  // tierlist es colaborativa, te suscribes a lo que guarden tus
+  // colaboradores mientras estés viéndola en modo Visor.
+  if(typeof subscribeViewerCollabIfNeeded==='function') subscribeViewerCollabIfNeeded();
   render();
 }
 

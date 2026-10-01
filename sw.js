@@ -6,7 +6,7 @@
 // de tenerlo todo inline dentro de index.html.
 // ============================================================================
 
-const CACHE_NAME = 'at-v50'; // v50: arreglado un error real de guardado -- a la tabla 'tierlists' le faltaba la columna 'updated_at', y ahora que los fallos ya no se esconden eso bloqueaba TODO el guardado; se arregla en la base de datos (hay que re-ejecutar el supabase-schema.sql) y además ese fallo concreto ya no bloquea lo importante (tu ranking)
+const CACHE_NAME = 'at-v51'; // v51: el modo Visor de una tierlist colaborativa ahora se actualiza solo en tiempo real cuando un colaborador guarda, igual que ya pasaba dentro del editor
 // FIX (Ronda 25 — modo sin conexión): caché aparte para las imágenes de
 // personajes (ver el "fetch" más abajo). Deliberadamente NO lleva el mismo
 // número de versión que CACHE_NAME -- si lo llevara, subir una versión

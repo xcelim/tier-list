@@ -1830,6 +1830,27 @@ reales por primera vez): "Error al guardar en la nube: Could not find the
      ranking (o el de la tierlist colaborativa) se sigue tratando como el
      error serio que impide guardar de verdad.
 
+## 🆕 Ronda 46 — el modo Visor también se actualiza solo en tiempo real
+
+Pedido explícito: "igual que se actualiza solo cuando estás editando y
+guarda el compañero de la colab, si estás en modo visor igual porfa, que
+se actualice solo cuando guarda el compañero".
+
+- Dentro del editor, si un colaborador guardaba mientras tú tenías la
+  tierlist abierta, ya se veía reflejado al instante (sin recargar) — eso
+  ya funcionaba desde hace unas rondas. Pero el modo Visor (el de "solo
+  lectura", con el ojito) se quedaba con la foto de cuando se entró hasta
+  que se volvía a abrir a mano.
+- Ahora, si la tierlist que estás viendo en modo Visor es colaborativa, te
+  suscribes igual que en el editor: en cuanto un colaborador guarda, se ve
+  al momento (tiers, personajes, pestañas y el nombre de la tierlist),
+  sin tener que salir y volver a entrar. Como el modo Visor es de solo
+  lectura, aquí no hace falta proteger "cambios sin guardar" como sí pasa
+  en el editor — se actualiza siempre que llega algo nuevo.
+- La suscripción se corta automáticamente al salir del modo Visor (volver
+  atrás, ir a "Mis Tierlists", entrar al editor...), igual que ya se hacía
+  al salir del editor.
+
 ## Producción
 
 - Todo funciona con hosting 100% estático (GitHub Pages, Netlify, Vercel,
